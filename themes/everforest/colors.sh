@@ -1,0 +1,7 @@
+# Everforest (dark, medium) — soft green
+NAME="Everforest"; MODE="dark"
+GROUND=232a2e; BASE=2b3339; SURFACE=374247; SURFACE2=4a555b
+TEXT=d3c6aa; SUBTEXT=859289; ACCENT=a7c080; ACCENT_INK=e6efdc
+BORDER="rgba(255,255,255,0.08)"; CURSOR=a7c080
+T0=414b50;  T1=e67e80; T2=a7c080; T3=dbbc7f; T4=7fbbb3; T5=d699b6; T6=83c092; T7=d3c6aa
+T8=475258;  T9=e67e80; T10=a7c080; T11=dbbc7f; T12=7fbbb3; T13=d699b6; T14=83c092; T15=d3c6aa

@@ -1,0 +1,7 @@
+# Kanagawa (Wave) — ink-dark, crystal-blue accent
+NAME="Kanagawa"; MODE="dark"
+GROUND=16161d; BASE=1f1f28; SURFACE=2a2a37; SURFACE2=363646
+TEXT=dcd7ba; SUBTEXT=8a8980; ACCENT=7e9cd8; ACCENT_INK=dbe3f7
+BORDER="rgba(255,255,255,0.08)"; CURSOR=7e9cd8
+T0=090618;  T1=c34043; T2=76946a; T3=c0a36e; T4=7e9cd8; T5=957fb8; T6=6a9589; T7=c8c093
+T8=727169;  T9=e82424; T10=98bb6c; T11=e6c384; T12=7fb4ca; T13=938aa9; T14=7aa89f; T15=dcd7ba
