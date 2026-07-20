@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════
+#  atlas-theme — unified theme switcher (omarchy-style, glass idiom)
+#  Renders one palette (themes/<name>/colors.sh) into every app's
+#  theme file, then reloads each app live.
+#
+#    atlas-theme set <name>   apply a theme
+#    atlas-theme list         list available themes
+#    atlas-theme get          print the current theme
+#    atlas-theme toggle       swap cobalt <-> cobalt-light (dark/light)
+#    atlas-theme              rofi picker
+# ═══════════════════════════════════════════════════════════════
+set -uo pipefail
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+REPO="$(dirname "$(dirname "$SELF")")"
+THEMES_DIR="$REPO/themes"
+STATE="$HOME/.local/state/atlas"; mkdir -p "$STATE"
+CUR_FILE="$STATE/current-theme"
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/atlas-theme.lock"
+C="$HOME/.config"
+
+list()  { find "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort; }
+get()   { [ -f "$CUR_FILE" ] && cat "$CUR_FILE" || echo "cobalt"; }
+die()   { echo "atlas-theme: $*" >&2; exit 1; }
+
+render() {
+  local name="$1" dir="$THEMES_DIR/$1"
+  [ -f "$dir/colors.sh" ] || die "no such theme: $name"
+  # shellcheck disable=SC1090
+  source "$dir/colors.sh"
+
+  # ── waybar (GTK CSS named colors) ──
+  mkdir -p "$C/waybar"
+  cat > "$C/waybar/theme.css" <<EOF
+@define-color base #$BASE;
+@define-color surface #$SURFACE;
+@define-color surface2 #$SURFACE2;
+@define-color text #$TEXT;
+@define-color subtext #$SUBTEXT;
+@define-color accent #$ACCENT;
+@define-color good #$T2;
+@define-color warn #$T3;
+@define-color crit #$T1;
+@define-color border $BORDER;
+EOF
+
+  # ── foot ──
+  mkdir -p "$C/foot"
+  cat > "$C/foot/theme.ini" <<EOF
+[colors]
+alpha=0.95
+background=$BASE
+foreground=$TEXT
+regular0=$T0
+regular1=$T1
+regular2=$T2
+regular3=$T3
+regular4=$T4
+regular5=$T5
+regular6=$T6
+regular7=$T7
+bright0=$T8
+bright1=$T9
+bright2=$T10
+bright3=$T11
+bright4=$T12
+bright5=$T13
+bright6=$T14
+bright7=$T15
+EOF
+
+  # ── alacritty ──
+  mkdir -p "$C/alacritty"
+  cat > "$C/alacritty/theme.toml" <<EOF
+[colors.primary]
+background = "#$BASE"
+foreground = "#$TEXT"
+[colors.cursor]
+cursor = "#$CURSOR"
+text = "#$BASE"
+[colors.normal]
+black = "#$T0"
+red = "#$T1"
+green = "#$T2"
+yellow = "#$T3"
+blue = "#$T4"
+magenta = "#$T5"
+cyan = "#$T6"
+white = "#$T7"
+[colors.bright]
+black = "#$T8"
+red = "#$T9"
+green = "#$T10"
+yellow = "#$T11"
+blue = "#$T12"
+magenta = "#$T13"
+cyan = "#$T14"
+white = "#$T15"
+EOF
+
+  # ── ghostty ──
+  mkdir -p "$C/ghostty"
+  {
+    echo "background = #$BASE"
+    echo "foreground = #$TEXT"
+    echo "cursor-color = #$CURSOR"
+    echo "selection-background = #$SURFACE2"
+    echo "selection-foreground = #$TEXT"
+    local i vars=(T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 T15)
+    for i in "${!vars[@]}"; do echo "palette = $i=#${!vars[$i]}"; done
+  } > "$C/ghostty/theme.conf"
+
+  # ── rofi ──
+  mkdir -p "$C/rofi"
+  cat > "$C/rofi/theme.rasi" <<EOF
+* {
+    bg:     #$BASE;
+    bg-alt: #$SURFACE;
+    fg:     #$TEXT;
+    fg-alt: #$SUBTEXT;
+    accent: #$ACCENT;
+    urgent: #$T1;
+}
+EOF
+
+  # ── mako (full regen, no include support) ──
+  mkdir -p "$C/mako"
+  cat > "$C/mako/config" <<EOF
+font=JetBrainsMono Nerd Font 10
+background-color=#$BASE
+text-color=#$TEXT
+border-color=#$ACCENT
+progress-color=over #$SURFACE
+border-size=2
+border-radius=12
+padding=12
+margin=12
+default-timeout=6000
+max-visible=5
+anchor=top-right
+layer=overlay
+
+[urgency=high]
+border-color=#$T1
+default-timeout=0
+EOF
+
+  # ── mango (window borders, sourced by config.conf) ──
+  mkdir -p "$C/mango"
+  cat > "$C/mango/theme.conf" <<EOF
+rootcolor=0x${GROUND}ff
+bordercolor=0x${SURFACE2}ff
+focuscolor=0x${ACCENT}ff
+urgentcolor=0x${T1}ff
+dropcolor=0x${T2}55
+splitcolor=0x${T1}ff
+maximizescreencolor=0x${T3}ff
+scratchpadcolor=0x${T5}ff
+globalcolor=0x${T6}ff
+overlaycolor=0x${T2}ff
+EOF
+
+  # export for the wallpaper step
+  APPLIED_GROUND="$GROUND"
+}
+
+reload() {
+  # bar / notifications / terminals — best-effort, never fail the switch
+  pkill -SIGUSR2 waybar   2>/dev/null || true
+  makoctl reload          2>/dev/null || true
+  pkill -USR1 foot        2>/dev/null || true
+  pkill -USR2 ghostty     2>/dev/null || true   # ghostty reloads config on SIGUSR2
+  # solid-colour wallpaper = the flat glass ground
+  if command -v swaybg >/dev/null 2>&1; then
+    pkill -x swaybg 2>/dev/null || true
+    swaybg -c "#$APPLIED_GROUND" >/dev/null 2>&1 &
+  fi
+  # mango reads window-border colours from theme.conf on config reload;
+  # trigger it if mango exposes an IPC, else it applies on Super+Shift+R.
+  command -v mangomsg >/dev/null 2>&1 && mangomsg reload 2>/dev/null || true
+}
+
+set_theme() {
+  local name="$1"
+  [ -d "$THEMES_DIR/$name" ] || die "unknown theme '$name' (try: atlas-theme list)"
+  exec 9>"$LOCK"; flock 9
+  render "$name"
+  echo "$name" > "$CUR_FILE"
+  reload
+  command -v notify-send >/dev/null 2>&1 && notify-send "Theme" "$name" -t 1500
+  echo "→ $name"
+}
+
+pick() {
+  command -v rofi >/dev/null 2>&1 || die "rofi not installed"
+  local choice
+  choice="$(list | rofi -dmenu -i -p "theme" -theme-str '* { width: 360px; }')" || exit 0
+  [ -n "$choice" ] && set_theme "$choice"
+}
+
+case "${1:-pick}" in
+  set)    shift; [ $# -ge 1 ] || die "usage: atlas-theme set <name>"; set_theme "$1" ;;
+  list)   list ;;
+  get|current) get ;;
+  toggle) [ "$(get)" = "cobalt-light" ] && set_theme cobalt || set_theme cobalt-light ;;
+  pick)   pick ;;
+  -h|--help) sed -n '2,14p' "$SELF" | sed 's/^# \{0,1\}//' ;;
+  *)      die "unknown command '$1' (set|list|get|toggle|pick)" ;;
+esac

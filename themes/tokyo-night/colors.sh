@@ -1,0 +1,7 @@
+# Tokyo Night
+NAME="Tokyo Night"; MODE="dark"
+GROUND=13131a; BASE=1a1b26; SURFACE=1e1f2b; SURFACE2=2a2d3f
+TEXT=c0caf5; SUBTEXT=8089ad; ACCENT=7aa2f7; ACCENT_INK=dbe4ff
+BORDER="rgba(255,255,255,0.08)"; CURSOR=7aa2f7
+T0=15161e;  T1=f7768e; T2=9ece6a; T3=e0af68; T4=7aa2f7; T5=bb9af7; T6=7dcfff; T7=a9b1d6
+T8=414868;  T9=f7768e; T10=9ece6a; T11=e0af68; T12=7aa2f7; T13=bb9af7; T14=7dcfff; T15=c0caf5

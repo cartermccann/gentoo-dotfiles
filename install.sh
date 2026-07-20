@@ -18,8 +18,9 @@ declare -A PHASE_FILES=(
     [flatpaks]="20-flatpaks.sh"
     [ai]="30-ai-tools.sh"
     [dotfiles]="40-dotfiles.sh"
+    [theme]="50-theme.sh"
 )
-ORDER=(packages flatpaks ai dotfiles)
+ORDER=(packages flatpaks ai dotfiles theme)
 
 usage() {
     cat <<EOF
@@ -32,6 +33,7 @@ Phases (run in this order if none given):
   flatpaks   Zen, Spotify, Beeper, Blanket, (Helium) via Flatpak
   ai         claude-code, codex, opencode, herdr + bun/deno/uv runtimes
   dotfiles   symlink configs into ~/.config, clone nvim, deploy shell config
+  theme      install the atlas-theme switcher and apply the default (cobalt)
 
 Options:
   --dry-run   print what would happen, change nothing
@@ -51,7 +53,7 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;
-        packages|flatpaks|ai|dotfiles) SELECTED+=("$arg") ;;
+        packages|flatpaks|ai|dotfiles|theme) SELECTED+=("$arg") ;;
         *) err "unknown argument: $arg"; usage; exit 1 ;;
     esac
 done

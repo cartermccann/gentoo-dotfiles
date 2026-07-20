@@ -1,5 +1,5 @@
-# Ghostty — default terminal. Catppuccin Mocha (built-in theme).
-theme = catppuccin-mocha
+# Ghostty — default terminal. Colors come from the active theme (atlas-theme).
+config-file = theme.conf
 font-family = JetBrainsMono Nerd Font
 font-size = 11
 window-padding-x = 8

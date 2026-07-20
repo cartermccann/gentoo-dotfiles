@@ -2,6 +2,16 @@
 *.bak
 *.bak.*
 
+# theme files generated into the config dirs by `atlas-theme`
+# (source of truth is themes/*/colors.sh + the atlas-theme renderer)
+config/waybar/theme.css
+config/foot/theme.ini
+config/alacritty/theme.toml
+config/ghostty/theme.conf
+config/rofi/theme.rasi
+config/mango/theme.conf
+config/mako/config
+
 # local wallpaper binaries (drop your own in config/mango/wallpaper/)
 config/mango/wallpaper/*
 !config/mango/wallpaper/.gitkeep
