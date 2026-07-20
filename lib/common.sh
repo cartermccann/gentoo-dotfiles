@@ -60,3 +60,15 @@ backup_and_link() {
     run ln -sfn "$src" "$dst"
     ok "linked: ${dst/#$HOME/\~}"
 }
+
+# ── Keep doas/sudo warm: prompt once, refresh in the background ─
+KEEPALIVE_PID=""
+keep_auth_warm() {
+    [ -n "$SUDO" ] || return 0
+    [ "$(id -u)" -eq 0 ] && return 0
+    [ "${DRY_RUN:-0}" = "1" ] && return 0
+    as_root true || return 1
+    ( while true; do sleep 50; $SUDO -n true 2>/dev/null || break; done ) &
+    KEEPALIVE_PID=$!
+}
+stop_auth_warm() { [ -n "$KEEPALIVE_PID" ] && kill "$KEEPALIVE_PID" 2>/dev/null || true; }

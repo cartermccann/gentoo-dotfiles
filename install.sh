@@ -70,6 +70,9 @@ printf '%s╚══════════════════════�
 [ "$DRY_RUN" = "1" ] && warn "DRY RUN — nothing will be changed"
 info "phases: ${SELECTED[*]}"
 
+keep_auth_warm            # prompt for doas once, then refresh in the background
+trap stop_auth_warm EXIT
+
 for name in "${SELECTED[@]}"; do
     file="$REPO_DIR/phases/${PHASE_FILES[$name]}"
     if [ ! -f "$file" ]; then err "missing phase file: $file"; continue; fi
