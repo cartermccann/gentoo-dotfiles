@@ -1,0 +1,12 @@
+# backups the installer makes
+*.bak
+*.bak.*
+
+# local wallpaper binaries (drop your own in config/mango/wallpaper/)
+config/mango/wallpaper/*
+!config/mango/wallpaper/.gitkeep
+
+# editor / os cruft
+.DS_Store
+*.swp
+result

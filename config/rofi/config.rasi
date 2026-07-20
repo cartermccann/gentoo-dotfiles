@@ -1,0 +1,66 @@
+/* rofi — launcher. Catppuccin Mocha. */
+configuration {
+    modi: "drun,run,window";
+    show-icons: true;
+    icon-theme: "Papirus";
+    font: "JetBrainsMono Nerd Font 12";
+    drun-display-format: "{name}";
+    display-drun: "  Apps";
+    display-run: "  Run";
+    display-window: "  Windows";
+}
+
+* {
+    bg:       #1e1e2e;
+    bg-alt:   #313244;
+    fg:       #cdd6f4;
+    fg-alt:   #a6adc8;
+    accent:   #89b4fa;
+    urgent:   #f38ba8;
+
+    background-color: transparent;
+    text-color: @fg;
+}
+
+window {
+    transparency: "real";
+    background-color: @bg;
+    border: 2px;
+    border-color: @accent;
+    border-radius: 12px;
+    width: 640px;
+    padding: 0;
+}
+
+mainbox { padding: 12px; }
+
+inputbar {
+    background-color: @bg-alt;
+    border-radius: 10px;
+    padding: 10px 14px;
+    spacing: 10px;
+    children: [ prompt, entry ];
+}
+
+prompt { text-color: @accent; }
+entry  { placeholder: "Search…"; placeholder-color: @fg-alt; }
+
+listview {
+    lines: 8;
+    columns: 1;
+    scrollbar: false;
+    padding: 12px 0 0 0;
+    spacing: 4px;
+}
+
+element {
+    padding: 8px 12px;
+    border-radius: 8px;
+    spacing: 10px;
+}
+element selected {
+    background-color: @accent;
+    text-color: @bg;
+}
+element-icon { size: 1.2em; vertical-align: 0.5; }
+element-text { vertical-align: 0.5; }
