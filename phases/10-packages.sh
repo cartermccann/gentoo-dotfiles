@@ -18,6 +18,7 @@ gui-wm/mangowm ~amd64
 gui-libs/scenefx ~amd64
 x11-misc/ly ~amd64
 gui-apps/ghostty ~amd64
+gui-apps/swaync ~amd64
 EOF
     as_root tee "$use" >/dev/null <<'EOF'
 x11-misc/rofi wayland
@@ -44,9 +45,10 @@ CORE=(
     # compositor + session
     gui-wm/mangowm gui-libs/scenefx x11-misc/ly
     # wayland desktop tools
-    gui-apps/waybar gui-apps/mako gui-apps/swaybg x11-misc/rofi
+    gui-apps/waybar gui-apps/swaync gui-apps/swaybg x11-misc/rofi
     gui-apps/wl-clipboard gui-apps/grim gui-apps/slurp gui-apps/swaylock
-    gui-apps/wlsunset gui-apps/swayidle x11-libs/libnotify media-sound/playerctl
+    gui-apps/wlsunset gui-apps/swayidle gui-apps/wtype
+    x11-libs/libnotify media-sound/playerctl
     app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
     # terminals + file manager
     gui-apps/ghostty x11-terms/alacritty gui-apps/foot xfce-base/thunar

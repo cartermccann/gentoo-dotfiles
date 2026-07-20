@@ -1,0 +1,49 @@
+/* swaync — glass notification center. Colors from active theme (atlas-theme). */
+@import "theme.css";
+
+* {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 13px;
+}
+
+/* ── Popup toasts ── */
+.notification {
+    margin: 8px;
+    border-radius: 14px;
+    background: alpha(@base, 0.9);
+    border: 1px solid @border;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+.notification-content { padding: 12px; border-radius: 14px; }
+.notification.critical { border-color: @crit; }
+.summary { color: @text; font-weight: 600; }
+.body { color: @subtext; }
+.notification-default-action:hover { background: alpha(@surface, 0.9); }
+.close-button {
+    background: transparent; color: @subtext; border-radius: 8px;
+    margin: 6px; padding: 2px 8px;
+}
+.close-button:hover { background: @crit; color: @base; }
+
+/* ── Control center panel ── */
+.control-center {
+    background: alpha(@base, 0.86);
+    border: 1px solid @border;
+    border-radius: 18px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    margin: 0;
+    padding: 14px;
+}
+.control-center .notification { background: alpha(@surface, 0.7); }
+
+.widget-title { color: @text; font-size: 15px; font-weight: 600; padding: 6px 4px 12px; }
+.widget-title > button {
+    color: @base; background: @accent; border-radius: 9px; padding: 4px 12px;
+}
+.widget-title > button:hover { background: @text; }
+
+.widget-dnd { color: @text; padding: 6px 4px 12px; }
+.widget-dnd > switch { background: @surface2; border-radius: 12px; }
+.widget-dnd > switch:checked { background: @accent; }
+
+.notification-group-header { color: @subtext; }

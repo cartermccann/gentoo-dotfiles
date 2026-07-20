@@ -16,6 +16,14 @@ step "executable bits"
 run chmod +x "$REPO_DIR"/config/mango/autostart.sh "$REPO_DIR"/config/mango/scripts/*.sh 2>/dev/null
 ok "mango scripts executable"
 
+# ── Dictation (Parakeet) scripts → ~/.local/bin ────────────────
+step "dictation (Parakeet) scripts"
+run mkdir -p "$HOME/.local/bin"
+run chmod +x "$REPO_DIR"/dictation/*.sh
+backup_and_link "$REPO_DIR/dictation/toggle-dictation.sh" "$HOME/.local/bin/toggle-dictation.sh"
+backup_and_link "$REPO_DIR/dictation/setup-dictation.sh" "$HOME/.local/bin/setup-dictation.sh"
+info "first Super+Ctrl+D downloads the Parakeet model (~480 MB) into a uv venv"
+
 # ── Neovim (portable LazyVim config from your dotfiles repo) ───
 step "neovim config"
 nvim_cache="$HOME/.cache/atlas/dotfiles-src"

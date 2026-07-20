@@ -11,6 +11,7 @@ config/ghostty/theme.conf
 config/rofi/theme.rasi
 config/mango/theme.conf
 config/mako/config
+config/swaync/theme.css
 
 # local wallpaper binaries (drop your own in config/mango/wallpaper/)
 config/mango/wallpaper/*

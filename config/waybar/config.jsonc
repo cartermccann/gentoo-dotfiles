@@ -9,7 +9,7 @@
 
     "modules-left": ["clock", "cpu", "memory"],
     "modules-center": ["wlr/taskbar"],
-    "modules-right": ["tray", "pulseaudio", "network", "backlight", "battery"],
+    "modules-right": ["tray", "custom/swaync", "pulseaudio", "network", "backlight", "battery"],
 
     "clock": {
         "format": "  {:%a %d %b  %H:%M}",
@@ -36,6 +36,20 @@
     "tray": {
         "icon-size": 16,
         "spacing": 8
+    },
+
+    "custom/swaync": {
+        "tooltip": true,
+        "format": "{icon}",
+        "format-icons": {
+            "notification": "󰂚", "none": "󰂜",
+            "dnd-notification": "󰂛", "dnd-none": "󰪑"
+        },
+        "return-type": "json",
+        "exec": "swaync-client -swb",
+        "on-click": "swaync-client -t -sw",
+        "on-click-right": "swaync-client -d -sw",
+        "escape": true
     },
 
     "pulseaudio": {

@@ -18,9 +18,9 @@ run pipewire
 run wireplumber
 run pipewire-pulse
 
-# ── Bar + notifications ────────────────────────────────────────
+# ── Bar + notification center ──────────────────────────────────
 run waybar
-run mako
+run swaync
 
 # ── Night light ────────────────────────────────────────────────
 run wlsunset -l 34.05 -L -118.24

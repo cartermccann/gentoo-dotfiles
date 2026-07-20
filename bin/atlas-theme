@@ -44,6 +44,8 @@ render() {
 @define-color crit #$T1;
 @define-color border $BORDER;
 EOF
+  # swaync reuses the waybar palette
+  mkdir -p "$C/swaync"; cp "$C/waybar/theme.css" "$C/swaync/theme.css" 2>/dev/null || true
 
   # ── foot ──
   mkdir -p "$C/foot"
