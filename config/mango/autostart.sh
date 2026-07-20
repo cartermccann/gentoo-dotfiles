@@ -25,6 +25,9 @@ run mako
 # ── Night light ────────────────────────────────────────────────
 run wlsunset -l 34.05 -L -118.24
 
+# ── Idle: lock after 5 min, and lock before sleep ──────────────
+run swayidle -w timeout 300 "swaylock -f" before-sleep "swaylock -f"
+
 # ── Clipboard history (needs cliphist + wl-clipboard) ──────────
 run wl-paste --watch cliphist store
 

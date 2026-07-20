@@ -161,6 +161,29 @@ globalcolor=0x${T6}ff
 overlaycolor=0x${T2}ff
 EOF
 
+  # ── swaylock (themed lock screen) ──
+  mkdir -p "$C/swaylock"
+  cat > "$C/swaylock/config" <<EOF
+color=$BASE
+inside-color=$SURFACE
+inside-ver-color=$ACCENT
+inside-wrong-color=$T1
+ring-color=$SURFACE2
+ring-ver-color=$ACCENT
+ring-wrong-color=$T1
+key-hl-color=$ACCENT
+bs-hl-color=$T1
+line-color=$BASE
+separator-color=$BASE
+text-color=$TEXT
+text-ver-color=$TEXT
+text-wrong-color=$TEXT
+indicator-radius=90
+indicator-thickness=8
+font=JetBrainsMono Nerd Font
+show-failed-attempts
+EOF
+
   # export for the wallpaper step
   APPLIED_GROUND="$GROUND"
 }

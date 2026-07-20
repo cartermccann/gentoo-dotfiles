@@ -46,7 +46,7 @@ CORE=(
     # wayland desktop tools
     gui-apps/waybar gui-apps/mako gui-apps/swaybg x11-misc/rofi
     gui-apps/wl-clipboard gui-apps/grim gui-apps/slurp gui-apps/swaylock
-    gui-apps/wlsunset x11-libs/libnotify media-sound/playerctl
+    gui-apps/wlsunset gui-apps/swayidle x11-libs/libnotify media-sound/playerctl
     app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
     # terminals + file manager
     gui-apps/ghostty x11-terms/alacritty gui-apps/foot xfce-base/thunar
