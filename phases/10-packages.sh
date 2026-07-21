@@ -81,7 +81,7 @@ emerge_pkg() {
 # atom can't block the rest of the desktop.
 if [ "$DRY_RUN" = "1" ]; then
     info "[dry-run] emerge ${#CORE[@]} core packages"
-elif ! as_root emerge --verbose --autounmask --autounmask-write --autounmask-continue "${CORE[@]}"; then
+elif ! as_root emerge --verbose --noreplace --autounmask --autounmask-write --autounmask-continue "${CORE[@]}"; then
     warn "core batch had issues — installing core packages individually"
     core_missed=()
     for pkg in "${CORE[@]}"; do
