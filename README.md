@@ -21,7 +21,7 @@ Authored to be cloned onto a freshly-installed Gentoo base and run with one scri
 | **AI CLIs** | claude-code · codex · opencode · herdr |
 | **Flatpak apps** | Zen · Spotify · Blanket  (Beeper + Helium: AppImage only) |
 | **Shell** | fish + starship (themed cobalt prompt) + atuin + zoxide |
-| **Editor** | neovim + your LazyVim config, pulled from `cartermccann/dotfiles` |
+| **Editor** | neovim + LazyVim (`config/nvim`) with the theme-aware `atlas` colourscheme |
 | **Dictation** | Parakeet TDT 0.6B via sherpa-onnx -> wtype  (`Super+Alt+L`) |
 
 ---
@@ -49,7 +49,7 @@ Phases (`./install.sh --list`):
 1. **packages** – emerge the desktop stack, CLI tools, langs, audio, bluetooth; enable GURU; write keyword/USE overrides; enable services (needs `doas`)
 2. **flatpaks** – Zen, Spotify, Blanket (`--user` scope)
 3. **ai** – claude-code, codex, opencode, herdr + bun/deno/uv
-4. **dotfiles** – symlink `config/*` into `~/.config`, clone nvim, set fish as shell
+4. **dotfiles** – symlink `config/*` into `~/.config` (nvim included), set fish as shell
 5. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
 
 Then install the login manager (a separate, deliberate step — see below):
@@ -165,7 +165,15 @@ atlas-theme list       # cobalt · cobalt-light · tokyo-night · nord · gruvbo
 
 Design idiom: cobalt accent on near-black glass, with a ChatGPT-clean light mode as
 the counterweight (see `design/shell-mockup.html`). Switching retints waybar,
-ghostty, alacritty, foot, rofi, mako and the Mango window borders together.
+ghostty, alacritty, rofi, swaync, swaylock, starship, **neovim** and the Mango
+window borders together.
+
+Neovim is themed the same way starship is: a tracked colourscheme
+(`config/nvim/colors/atlas.lua`) plus a generated palette. Every syntax role is
+derived from the theme's own 16 colours using VS Code Dark+ semantics, so a new
+theme needs no editor work at all -- see `design/nvim-mockup.html` for the mapping
+rendered across all seven. A running nvim watches the generated palette and
+re-sources itself, so it recolours mid-session like the bar does.
 
 **Add a theme** — drop a `themes/<name>/colors.sh` defining the palette
 (`GROUND/BASE/SURFACE/TEXT/ACCENT` + the 16 terminal colors `T0..T15`); it appears
@@ -192,8 +200,11 @@ gentoo-dotfiles/
 ├── bin/setup-ly          # installs ly (GURU Manifest workaround, documented)
 ├── themes/<name>/colors.sh
 ├── bin/atlas-theme
+├── config/nvim/          # LazyVim + the theme-aware `atlas` colourscheme
+│   ├── colors/atlas.lua  #   tracked: roles -> ~300 highlight groups
+│   └── lua/atlas/        #   roles.lua (derivation) · fallback.lua · lualine.lua
 ├── dictation/            # Parakeet setup + transcribe + toggle
-└── design/               # shell mockup (design contract)
+└── design/               # shell + nvim mockups (design contracts)
 ```
 
 ### Why `system/` is copied and `config/` is symlinked
