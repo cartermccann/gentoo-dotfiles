@@ -22,6 +22,7 @@ gui-apps/swaync ~amd64
 EOF
     as_root tee "$use" >/dev/null <<'EOF'
 x11-misc/rofi wayland
+x11-terms/ghostty wayland
 media-video/pipewire sound-server pipewire-alsa
 dev-lang/rust-bin clippy rustfmt rust-analyzer rust-src
 net-libs/nodejs npm
