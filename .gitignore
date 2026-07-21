@@ -17,6 +17,12 @@ config/swaync/theme.css
 config/mango/wallpaper/*
 !config/mango/wallpaper/.gitkeep
 
+# fish runtime state — written by fish itself and by tool `init` snippets
+# (atuin/opencode drop files here). ~/.config/fish symlinks INTO this repo,
+# so without these every checkout goes dirty on first shell start.
+config/fish/fish_variables
+config/fish/conf.d/
+
 # editor / os cruft
 .DS_Store
 *.swp
