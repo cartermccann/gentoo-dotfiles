@@ -19,16 +19,9 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
 fi
 
 # ── Wallpaper (image if present, else solid Catppuccin base) ───
-# First image found in the wallpaper dir wins; falls back to the current
-# theme's GROUND colour rather than a hardcoded Catppuccin base.
-_wp=$(find "$HOME/.config/mango/wallpaper" -maxdepth 1 -type f \
-        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null | sort | head -1)
-if [ -n "$_wp" ]; then
-    run swaybg -i "$_wp" -m fill
-else
-    _ground=$(sed -n 's/^GROUND=//p' \
-        "$HOME/gentoo-dotfiles/themes/$(cat "$HOME/.local/state/atlas/current-theme" 2>/dev/null || echo cobalt)/colors.sh" 2>/dev/null)
-    run swaybg -c "${_ground:-0a0c11}"
+# Wallpaper — see bin/atlas-wallpaper (shared with atlas-theme).
+if [ -x "$HOME/gentoo-dotfiles/bin/atlas-wallpaper" ]; then
+    "$HOME/gentoo-dotfiles/bin/atlas-wallpaper"
 fi
 
 # ── Audio (PipeWire — started from the session on OpenRC) ───────

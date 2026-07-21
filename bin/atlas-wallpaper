@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Single source of truth for the wallpaper.
+#
+# Both mango's autostart and atlas-theme's reload need to (re)start swaybg, and
+# when they disagreed the theme switcher won: it killed swaybg and restarted it
+# with a flat colour, silently discarding the image. This script is the only
+# place that decides what the background is.
+#
+# Order: first image in the wallpaper dir, else the active theme's GROUND colour.
+set -uo pipefail
+
+REPO="${REPO:-$HOME/gentoo-dotfiles}"
+WALLDIR="$HOME/.config/mango/wallpaper"
+STATE="$HOME/.local/state/atlas"
+
+img=$(find "$WALLDIR" -maxdepth 1 -type f \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) \
+        2>/dev/null | sort | head -1)
+
+theme=$(cat "$STATE/current-theme" 2>/dev/null || echo cobalt)
+ground=$(sed -n 's/^GROUND=//p' "$REPO/themes/$theme/colors.sh" 2>/dev/null | tr -d '"')
+: "${ground:=0a0c11}"
+
+command -v swaybg >/dev/null 2>&1 || { echo "swaybg not installed" >&2; exit 1; }
+pkill -x swaybg 2>/dev/null || true
+sleep 0.2   # let it release the layer surface before the replacement claims it
+
+# setsid + nohup: without these swaybg dies with the shell that ran the theme
+# switch, which is exactly how the wallpaper kept disappearing.
+if [ -n "$img" ]; then
+    setsid nohup swaybg -i "$img" -m fill >/dev/null 2>&1 &
+else
+    setsid nohup swaybg -c "#$ground" >/dev/null 2>&1 &
+fi

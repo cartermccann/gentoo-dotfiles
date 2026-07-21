@@ -177,14 +177,11 @@ EOF
 reload() {
   # bar / notifications / terminals — best-effort, never fail the switch
   pkill -SIGUSR2 waybar   2>/dev/null || true
-  makoctl reload          2>/dev/null || true
-  pkill -USR1 foot        2>/dev/null || true
   pkill -USR2 ghostty     2>/dev/null || true   # ghostty reloads config on SIGUSR2
-  # solid-colour wallpaper = the flat glass ground
-  if command -v swaybg >/dev/null 2>&1; then
-    pkill -x swaybg 2>/dev/null || true
-    swaybg -c "#$APPLIED_GROUND" >/dev/null 2>&1 &
-  fi
+  swaync-client -rs       2>/dev/null || true   # reload swaync css
+  # Wallpaper: delegate. This used to kill swaybg and restart it with a flat
+  # colour, throwing the image away on every theme switch.
+  REPO="$REPO" "$REPO/bin/atlas-wallpaper" 2>/dev/null || true
   # mango reads window-border colours from theme.conf on config reload;
   # trigger it if mango exposes an IPC, else it applies on Super+Shift+R.
   command -v mangomsg >/dev/null 2>&1 && mangomsg reload 2>/dev/null || true
