@@ -28,7 +28,7 @@ window#waybar {
 }
 
 /* Every chip shares one shape. */
-#clock, #custom-tags, #mpris, #idle_inhibitor, #privacy,
+#clock, #mpris, #idle_inhibitor, #privacy,
 #cpu, #memory, #temperature, #disk,
 #bluetooth, #network, #pulseaudio, #backlight, #battery,
 #custom-swaync, #tray {
@@ -84,9 +84,6 @@ window#waybar {
 #custom-swaync.dnd-notification { color: @subtext; opacity: 0.6; }
 
 #tray menu { background: @base; border: 1px solid @border; border-radius: 8px; }
-
-#custom-tags { padding: 2px 12px; margin: 4px 2px; border-radius: 8px;
-               background: alpha(@surface, 0.7); }
 
 #taskbar button {
     padding: 2px 6px;

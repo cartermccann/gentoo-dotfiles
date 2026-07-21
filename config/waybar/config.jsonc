@@ -10,7 +10,7 @@
     // Left  : clock, then what's playing.
     // Centre: open windows.
     // Right : status, heaviest-to-lightest toward the corner.
-    "modules-left": ["clock", "custom/tags", "mpris", "idle_inhibitor"],
+    "modules-left": ["clock", "mpris", "idle_inhibitor"],
     "modules-center": ["wlr/taskbar"],
     "modules-right": [
         "privacy",
@@ -101,7 +101,8 @@
     },
 
     // Real app icons, from the GTK icon theme. Cannot be ordered by workspace
-    // (wlr-foreign-toplevel has no tags), which is what custom/tags is for.
+    // (wlr-foreign-toplevel has no concept of tags) — order is compositor
+    // announce order, i.e. roughly when each window was opened.
     "wlr/taskbar": {
         "format": "{icon}",
         "icon-size": 16,
@@ -111,13 +112,6 @@
         "ignore-list": ["rofi"]
     },
 
-    // Workspace strip: which tags hold windows, and which is active.
-    "custom/tags": {
-        "return-type": "json",
-        "exec": "~/.config/mango/scripts/tags.sh",
-        "interval": 1,
-        "escape": false
-    },
 
     "tray": { "icon-size": 16, "spacing": 8 },
 
