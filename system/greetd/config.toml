@@ -1,0 +1,14 @@
+# greetd + tuigreet. Installed to /etc/greetd/config.toml.
+#
+# vt 7 on purpose: agetty owns tty1-6 via /etc/inittab, so putting the greeter
+# on 7 avoids fighting it AND leaves six working consoles if the greeter ever
+# fails to start. Ctrl+Alt+F7 reaches the login screen, Ctrl+Alt+F1 a shell.
+[terminal]
+vt = 7
+
+[default_session]
+# tuigreet reads /usr/share/wayland-sessions, so Mango appears in the picker.
+# Theme colours track the cobalt accent — tuigreet only accepts ANSI names,
+# so "blue" is as close to #3b6bff as this layer gets.
+command = "tuigreet --time --remember --remember-user-session --greeting 'atlas' --sessions /usr/share/wayland-sessions --theme 'border=blue;text=white;prompt=blue;time=darkgray;action=blue;button=blue;container=black;input=white'"
+user = "greetd"

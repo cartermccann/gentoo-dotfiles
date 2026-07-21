@@ -16,7 +16,6 @@ else
     as_root tee "$kw" >/dev/null <<'EOF'
 gui-wm/mangowm ~amd64
 gui-libs/scenefx ~amd64
-x11-misc/ly ~amd64
 x11-terms/ghostty ~amd64
 gui-apps/swaync ~amd64
 media-fonts/nerdfonts ~amd64
@@ -74,7 +73,9 @@ run_root emerge --sync guru
 step "core packages (desktop stack, audio, bluetooth, langs)"
 CORE=(
     # compositor + session
-    gui-wm/mangowm gui-libs/scenefx x11-misc/ly
+    gui-wm/mangowm gui-libs/scenefx
+    # login: greetd + tuigreet (x11-misc/ly's only ebuild 404s upstream)
+    gui-libs/greetd gui-apps/tuigreet
     # wayland desktop tools
     gui-apps/waybar gui-apps/swaync gui-apps/swaybg x11-misc/rofi
     gui-apps/wl-clipboard gui-apps/grim gui-apps/slurp gui-apps/swaylock
@@ -166,8 +167,8 @@ else
     warn "go not available — skipping gum"
 fi
 
-# ── Wayland session entry for ly ───────────────────────────────
-step "mango wayland session (for ly)"
+# ── Wayland session entry (tuigreet reads this dir) ────────────
+step "mango wayland session"
 sess=/usr/share/wayland-sessions/mango.desktop
 if [ -f "$sess" ]; then
     ok "session file present"
@@ -182,6 +183,20 @@ Exec=mango
 Type=Application
 EOF
     ok "created $sess"
+fi
+
+# ── greetd: config + OpenRC init script ────────────────────────
+# The Gentoo package ships only a systemd unit, so OpenRC needs ours.
+step "greetd (login manager)"
+if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] would install /etc/greetd/config.toml and /etc/init.d/greetd"
+elif have greetd; then
+    run_root mkdir -p /etc/greetd
+    as_root install -m 0644 "$REPO_DIR/system/greetd/config.toml" /etc/greetd/config.toml
+    as_root install -m 0755 "$REPO_DIR/system/init.d/greetd"      /etc/init.d/greetd
+    ok "greetd config + OpenRC init script installed (greeter on vt7)"
+else
+    warn "greetd not installed — skipping its config"
 fi
 
 # ── Services ───────────────────────────────────────────────────
@@ -202,11 +217,11 @@ add_svc dbus default
 add_svc elogind boot
 add_svc NetworkManager default
 add_svc bluetooth default
-add_svc ly default
+add_svc greetd default
 if [ ${#svc_missing[@]} -gt 0 ]; then
     warn "services NOT enabled (missing packages): ${svc_missing[*]}"
     warn "  install them, then re-run: ./install.sh packages"
 fi
-warn "ly takes over a tty at boot — if you hit a getty conflict, see README."
+warn "greetd owns vt1 at boot — if you hit an agetty conflict, see README."
 
 ok "packages phase complete"

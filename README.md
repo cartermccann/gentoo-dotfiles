@@ -86,12 +86,19 @@ tested on atlas until you run it:
   absent, build from source with zig (already installed): the Ghostty docs cover it.
 - **herdr** — installed via `cargo install --git … --tag v0.7.1`. If that fails,
   drop a release binary into `~/.local/bin`.
-- **Helium browser** — not on Flathub yet; grab the AppImage from
-  `github.com/imputnet/helium-chromium/releases`.
+- **Helium browser** — not on Flathub (verified: `flatpak search helium` returns only a
+  GTK theme). Grab the AppImage from `github.com/imputnet/helium-chromium/releases`.
+- **Beeper** — no Flathub app-id exists at all. Download the Linux AppImage from
+  `beeper.com/download`.
 - **Monitor refresh** — `config/mango/monitor.conf` starts eDP-1 at **60 Hz + scale 1.5**
   for a safe first boot. Run `wlr-randr` and bump to 120 Hz once you confirm it's stable.
-- **ly vs getty** — `ly` takes a tty at boot. If you get a conflict, set ly's tty in
-  `/etc/ly/config.ini` or disable the competing `agetty` for that tty.
+- **Login manager is greetd + tuigreet, not ly.** `x11-misc/ly`'s only ebuild (1.4.1)
+  404s on its upstream tarball, so it cannot be installed. greetd is configured on
+  **vt7** — `agetty` keeps tty1–6, so a broken greeter never locks you out
+  (Ctrl+Alt+F7 = login screen, Ctrl+Alt+F1 = plain console).
+  Gentoo's greetd ships *only* a systemd unit, so this repo provides the OpenRC
+  init script at `system/init.d/greetd`; without it `rc-update add greetd` silently
+  does nothing.
 - **fish** — a starter `config.fish` is included (starship/zoxide/atuin + aliases).
   Port the rest of your kronos fish functions when you want them.
 
