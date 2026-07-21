@@ -24,6 +24,7 @@ EOF
 x11-misc/rofi wayland
 media-video/pipewire sound-server pipewire-alsa
 dev-lang/rust-bin clippy rustfmt rust-analyzer rust-src
+net-libs/nodejs npm
 EOF
     ok "wrote keyword + USE overrides"
 fi
