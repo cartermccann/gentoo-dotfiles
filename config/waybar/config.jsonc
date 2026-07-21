@@ -25,8 +25,8 @@
     ],
 
     "clock": {
-        "format": "  {:%a %d %b  %H:%M}",
-        "format-alt": "  {:%H:%M:%S}",
+        "format": "󰥔  {:%a %d %b  %H:%M}",
+        "format-alt": "󰥔  {:%H:%M:%S}",
         "tooltip-format": "<tt><small>{calendar}</small></tt>",
         "calendar": {
             "mode": "month",
@@ -45,7 +45,7 @@
     "mpris": {
         "format": "{status_icon}  {dynamic}",
         "format-paused": "{status_icon}  <i>{dynamic}</i>",
-        "status-icons": { "playing": "", "paused": "", "stopped": "" },
+        "status-icons": { "playing": "󰐊", "paused": "󰏤", "stopped": "󰓛" },
         "dynamic-order": ["title", "artist"],
         "dynamic-len": 38,
         "title-len": 30,
@@ -85,17 +85,17 @@
         "modules": ["cpu", "memory", "temperature", "disk"]
     },
 
-    "cpu":    { "format": "  {usage}%", "interval": 3, "on-click": "ghostty -e btop" },
-    "memory": { "format": "  {percentage}%", "interval": 5, "tooltip-format": "{used:0.1f}G / {total:0.1f}G" },
+    "cpu":    { "format": "󰘚  <small>CPU</small> {usage}%", "interval": 3, "on-click": "ghostty -e btop" },
+    "memory": { "format": "󰍛  <small>RAM</small> {percentage}%", "interval": 5, "tooltip-format": "{used:0.1f}G / {total:0.1f}G" },
     "temperature": {
         "interval": 5,
         "critical-threshold": 82,
-        "format": "  {temperatureC}°",
-        "format-critical": "  {temperatureC}°"
+        "format": "󰔏  <small>TEMP</small> {temperatureC}°",
+        "format-critical": "󰔏  <small>TEMP</small> {temperatureC}°"
     },
     "disk": {
         "interval": 60,
-        "format": "󰋊  {percentage_used}%",
+        "format": "󰋊  <small>DISK</small> {percentage_used}%",
         "path": "/",
         "tooltip-format": "{used} / {total} on {path}"
     },
@@ -126,27 +126,27 @@
     },
 
     "bluetooth": {
-        "format": "",
+        "format": "󰂯",
         "format-disabled": "󰂲",
-        "format-connected": "  {num_connections}",
+        "format-connected": "󰂯  <small>BT</small> {num_connections}",
         "tooltip-format-connected": "{device_enumerate}",
         "on-click": "blueman-manager"
     },
 
     "pulseaudio": {
-        "format": "{icon} {volume}%",
-        "format-muted": "  muted",
-        "format-bluetooth": "{icon}  {volume}%",
-        "format-icons": { "headphone": "", "headset": "", "default": ["", "", ""] },
+        "format": "{icon}  <small>VOL</small> {volume}%",
+        "format-muted": "󰖁  <small>VOL</small> muted",
+        "format-bluetooth": "{icon}  <small>VOL</small> {volume}%",
+        "format-icons": { "headphone": "󰋋", "headset": "󰋎", "default": ["󰕿", "󰖀", "󰕾"] },
         "scroll-step": 5,
         "on-click": "pavucontrol",
         "on-click-right": "~/.config/mango/scripts/volume.sh mute"
     },
 
     "network": {
-        "format-wifi": "  {signalStrength}%",
-        "format-ethernet": "  wired",
-        "format-disconnected": "  off",
+        "format-wifi": "󰤨  <small>WIFI</small> {signalStrength}%",
+        "format-ethernet": "󰌢  <small>LAN</small>",
+        "format-disconnected": "󰤯  <small>NET</small> off",
         "tooltip-format-wifi": "{essid} ({signalStrength}%)\n{ipaddr}",
         "tooltip-format-ethernet": "{ifname}\n{ipaddr}",
         "interval": 5,
@@ -154,17 +154,17 @@
     },
 
     "backlight": {
-        "format": "{icon} {percent}%",
-        "format-icons": ["", "", "", "", "", "", "", "", ""],
+        "format": "{icon}  <small>BRI</small> {percent}%",
+        "format-icons": ["󰃚", "󰃛", "󰃜", "󰃝", "󰃞", "󰃟", "󰃠", "󰃡", "󰃢"],
         "scroll-step": 5
     },
 
     "battery": {
         "states": { "warning": 30, "critical": 15 },
-        "format": "{icon} {capacity}%",
-        "format-charging": "  {capacity}%",
-        "format-plugged": "  {capacity}%",
+        "format": "{icon}  <small>BAT</small> {capacity}%",
+        "format-charging": "󰂄  <small>BAT</small> {capacity}%",
+        "format-plugged": "󰂀  <small>BAT</small> {capacity}%",
         "tooltip-format": "{timeTo}  ({power:0.1f} W)",
-        "format-icons": ["", "", "", "", ""]
+        "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁹"]
     }
 }
