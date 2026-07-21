@@ -11,7 +11,7 @@
     // Centre: open windows.
     // Right : status, heaviest-to-lightest toward the corner.
     "modules-left": ["clock", "mpris", "idle_inhibitor"],
-    "modules-center": ["wlr/taskbar"],
+    "modules-center": ["custom/taskbar"],
     "modules-right": [
         "privacy",
         "group/system",
@@ -100,13 +100,15 @@
         "tooltip-format": "{used} / {total} on {path}"
     },
 
-    "wlr/taskbar": {
-        "format": "{icon}",
-        "icon-size": 16,
-        "tooltip-format": "{title}",
-        "on-click": "activate",
-        "on-click-middle": "close",
-        "ignore-list": ["rofi"]
+    // Windows grouped by tag, in tag order. waybar's own wlr/taskbar cannot do
+    // this: wlr-foreign-toplevel has no concept of tags, and dwl/tags is both
+    // uncompiled here and unusable anyway (mango does not speak the dwl IPC).
+    // The script reads mango's native IPC instead.
+    "custom/taskbar": {
+        "return-type": "json",
+        "exec": "~/.config/mango/scripts/taskbar.sh",
+        "interval": 1,
+        "escape": false
     },
 
     "tray": { "icon-size": 16, "spacing": 8 },

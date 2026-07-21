@@ -85,6 +85,9 @@ window#waybar {
 
 #tray menu { background: @base; border: 1px solid @border; border-radius: 8px; }
 
+#custom-taskbar { padding: 2px 12px; margin: 4px 2px; border-radius: 8px;
+                   background: alpha(@surface, 0.7); color: @subtext; }
+
 #taskbar button {
     padding: 2px 6px;
     margin: 4px 2px;
