@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Session wrapper for mango, launched by ly via mango.desktop.
+#
+# Why this exists rather than just Exec=mango:
+#
+#  1. D-Bus. ly execs the session with no session bus, so anything using one
+#     (waybar, swaync, nm-applet, blueman-applet) dies with
+#     "Cannot autolaunch D-Bus without X11 $DISPLAY".
+#
+#  2. Cursor. mango DRAWS the cursor, so it reads XCURSOR_THEME/XCURSOR_SIZE
+#     from its OWN environment at startup. `env=` lines in mango's config only
+#     export to child processes, which is why waybar and ghostty picked the
+#     theme up while the pointer itself stayed the tiny default. mango has no
+#     cursor_theme option at all, so setting it here is the only way.
+export XCURSOR_THEME=Bibata-Modern-Ice
+export XCURSOR_SIZE=32
+export XDG_CURRENT_DESKTOP=mango
+export XDG_SESSION_TYPE=wayland
+export XDG_SESSION_DESKTOP=mango
+
+exec dbus-run-session -- mango "$@"

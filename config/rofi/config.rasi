@@ -39,6 +39,32 @@ entry  { placeholder: "Search…"; placeholder-color: @fg-alt; }
 listview { lines: 8; columns: 1; scrollbar: false; padding: 12px 0 0 0; spacing: 4px; }
 
 element { padding: 9px 12px; border-radius: 9px; spacing: 11px; }
-element selected { background-color: @accent; text-color: @bg; }
-element-icon { size: 1.2em; vertical-align: 0.5; }
-element-text { vertical-align: 0.5; }
+/* Every state needs an explicit background. Anything left unstyled falls back
+   to rofi's built-in theme, which is light -- that is what made the entries
+   and the mode tabs render white on the dark window. */
+element normal.normal   { background-color: transparent; text-color: @fg;     }
+element alternate.normal{ background-color: transparent; text-color: @fg;     }
+element normal.urgent   { background-color: transparent; text-color: @urgent; }
+element normal.active   { background-color: transparent; text-color: @accent; }
+element selected.normal { background-color: @accent;     text-color: @bg;     }
+element selected.urgent { background-color: @urgent;     text-color: @bg;     }
+element selected.active { background-color: @accent;     text-color: @bg;     }
+element-icon { size: 1.2em; vertical-align: 0.5; background-color: transparent; }
+element-text { vertical-align: 0.5; background-color: transparent; text-color: inherit; }
+
+/* Mode switcher = the "Apps / Run / Windows" tabs. Unstyled `button` is where
+   the white came from. */
+mode-switcher { spacing: 6px; padding: 10px 0 0 0; }
+button {
+    background-color: @bg-alt;
+    text-color: @fg-alt;
+    border-radius: 9px;
+    padding: 7px 12px;
+}
+button selected { background-color: @accent; text-color: @bg; }
+
+/* Misc surfaces that also default to light if left alone. */
+message  { background-color: @bg-alt; border-radius: 9px; padding: 8px 12px; }
+textbox  { background-color: transparent; text-color: @fg; }
+scrollbar{ background-color: @bg-alt; handle-color: @accent; }
+error-message { background-color: @bg; text-color: @urgent; }

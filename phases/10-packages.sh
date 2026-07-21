@@ -53,7 +53,7 @@ CORE=(
     x11-libs/libnotify media-sound/playerctl
     app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
     # terminals + file manager + editor
-    x11-terms/ghostty x11-terms/alacritty gui-apps/foot xfce-base/thunar
+    x11-terms/ghostty x11-terms/alacritty xfce-base/thunar
     app-editors/neovim
     # audio
     media-video/pipewire media-video/wireplumber media-sound/pavucontrol
@@ -141,10 +141,14 @@ fi
 
 # ── Wayland session entry (tuigreet reads this dir) ────────────
 step "mango wayland session"
+if [ "$DRY_RUN" != "1" ]; then
+    as_root install -D -m 0755 "$REPO_DIR/system/bin/mango-session" /usr/local/bin/mango-session
+    ok "/usr/local/bin/mango-session"
+fi
 sess=/usr/share/wayland-sessions/mango.desktop
-if [ -f "$sess" ]; then
-    ok "session file present"
-elif [ "$DRY_RUN" = "1" ]; then
+# Always rewrite: the Exec line changed once already (mango -> mango-session)
+# and a stale "session file present" check would have silently kept the old one.
+if [ "$DRY_RUN" = "1" ]; then
     info "[dry-run] would create $sess"
 else
     as_root tee "$sess" >/dev/null <<'EOF'
@@ -153,10 +157,9 @@ Encoding=UTF-8
 Name=Mango
 Comment=dwl-based Wayland compositor
 DesktopNames=mango;wlroots
-# dbus-run-session is required: ly/greetd start the session with no session
-# bus, and everything that touches D-Bus (waybar, swaync, nm-applet,
-# blueman-applet) then dies with "Cannot autolaunch D-Bus without X11 $DISPLAY".
-Exec=dbus-run-session -- mango
+# See system/bin/mango-session — it supplies both the D-Bus session bus and
+# XCURSOR_THEME/SIZE, neither of which mango can set for itself.
+Exec=/usr/local/bin/mango-session
 Type=Application
 EOF
     ok "created $sess"
