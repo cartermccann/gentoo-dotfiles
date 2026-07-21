@@ -27,6 +27,11 @@ xfce-base/exo wayland
 # right one here — no seatd daemon needed.
 sys-auth/seatd elogind
 
+# ── wallpaper ──────────────────────────────────────────────────
+# Without gdk-pixbuf, swaybg is PNG-only: it starts, fails to decode any
+# jpg, and leaves a blank screen with the error only in its own stderr.
+gui-apps/swaybg gdk-pixbuf
+
 # ── waybar modules ─────────────────────────────────────────────
 # The base profile builds waybar with nearly every backend off, which makes
 # most of the bar's config silently dead: no tray, no pulseaudio, no network,
