@@ -30,8 +30,10 @@ EBUILD=/var/db/repos/guru/x11-misc/ly/ly-1.4.1.ebuild
 [ -f "$EBUILD" ] || { echo "no ly ebuild at $EBUILD — is GURU synced?"; exit 1; }
 
 echo "==> keywording ly"
-grep -q '^x11-misc/ly ' /etc/portage/package.accept_keywords/atlas 2>/dev/null \
-  || echo 'x11-misc/ly ~amd64' >> /etc/portage/package.accept_keywords/atlas
+# The keyword lives in the tracked system/portage file, so appending here would
+# make /etc permanently disagree with the repo. Deploy the tracked copy instead.
+install -D -m 0644 "$REPO_DIR/system/portage/package.accept_keywords/atlas" \
+                   /etc/portage/package.accept_keywords/atlas
 
 echo "==> clearing the failed download"
 # A previous attempt leaves the rejected tarball as

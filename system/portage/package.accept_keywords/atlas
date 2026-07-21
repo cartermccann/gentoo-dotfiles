@@ -2,6 +2,7 @@ gui-wm/mangowm ~amd64
 gui-libs/scenefx ~amd64
 x11-terms/ghostty ~amd64
 gui-apps/swaync ~amd64
+x11-misc/ly ~amd64
 media-fonts/nerdfonts ~amd64
 # pre-seeded so autounmask doesn't have to write them mid-run (which leaves
 # ._cfg files behind and stalls the batch)
