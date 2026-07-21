@@ -1,0 +1,83 @@
+# ── atlas starship prompt: body ────────────────────────────────
+# The [palettes.atlas] table is APPENDED to this file by `atlas-theme`, which
+# generates it from themes/<name>/colors.sh. Do not put literal colours here —
+# use role names (accent, ink, surface, surface2, text, subtext, err) so the
+# prompt retints with every theme.
+#
+# Rounded caps are Nerd Font powerline glyphs U+E0B6 / U+E0B4. They require
+# media-fonts/nerdfonts[jetbrainsmono] (installed by the packages phase); in a
+# font without them you get tofu boxes, not a crash.
+#
+# NOTE: the segment transitions use explicit colours, not `prev_bg` — starship
+# has no such variable, and referencing it silently yields no glyph at all.
+
+format = """\
+[](fg:accent)\
+$directory\
+$git_branch$git_status\
+$nodejs$rust$golang$python\
+$character"""
+
+add_newline = true
+command_timeout = 800
+
+[directory]
+style = "bg:accent fg:ink bold"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncate_to_repo = true
+truncation_symbol = "…/"
+read_only = " "
+home_symbol = "~"
+
+# Transition INTO the git segment: right-facing cap coloured accent-on-surface2.
+[git_branch]
+symbol = " "
+style = "bg:surface2 fg:text"
+format = "[](fg:accent)[](fg:surface2)[ $symbol$branch ]($style)"
+
+[git_status]
+style = "bg:surface2 fg:accent_ink"
+format = "[$all_status$ahead_behind]($style)[](fg:surface2)"
+conflicted = "= "
+ahead = "⇡${count} "
+behind = "⇣${count} "
+diverged = "⇕ "
+untracked = "? "
+stashed = " "
+modified = "✚ "
+staged = "● "
+renamed = "» "
+deleted = "✘ "
+
+# Language versions: each is its own rounded pill on the surface colour.
+[nodejs]
+symbol = " "
+style = "bg:surface fg:subtext"
+format = "[](fg:surface)[ $symbol$version ]($style)[](fg:surface)"
+
+[rust]
+symbol = " "
+style = "bg:surface fg:subtext"
+format = "[](fg:surface)[ $symbol$version ]($style)[](fg:surface)"
+
+[golang]
+symbol = " "
+style = "bg:surface fg:subtext"
+format = "[](fg:surface)[ $symbol$version ]($style)[](fg:surface)"
+
+[python]
+symbol = " "
+style = "bg:surface fg:subtext"
+format = "[](fg:surface)[ $symbol$version ]($style)[](fg:surface)"
+
+# Prompt char on the SAME line as the segments — no $line_break anywhere.
+[character]
+success_symbol = "[ ❯](bold fg:accent)"
+error_symbol = "[ ❯](bold fg:err)"
+vimcmd_symbol = "[ ❮](bold fg:accent)"
+
+[cmd_duration]
+min_time = 2000
+style = "fg:subtext"
+format = "[ $duration]($style)"
