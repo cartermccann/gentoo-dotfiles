@@ -75,7 +75,11 @@ window#waybar {
 #battery.warning  { color: @warn; }
 #battery.critical { color: @crit; background: alpha(@crit, 0.16); }
 
+/* The glyph never changes, so state rides on weight instead: connected takes
+   the accent, off recedes. Same idiom as #pulseaudio.muted below. */
 #bluetooth.connected { color: @accent; }
+#bluetooth.off,
+#bluetooth.disabled { opacity: 0.55; }
 #network.disconnected { color: @crit; }
 #pulseaudio.muted     { color: @subtext; opacity: 0.6; }
 

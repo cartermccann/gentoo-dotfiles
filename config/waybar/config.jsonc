@@ -143,13 +143,19 @@
     // `format-on` undefined was the bug: with the controller powered but
     // nothing paired, waybar fell through to the bare `format` glyph and this
     // was the one unlabelled chip in the bar.
+    // One glyph in every state, with the label carrying on/off/count -- the
+    // same way #pulseaudio.muted dims rather than swapping its icon. This is
+    // nf-fa-bluetooth, not the Material Design one: MDI only draws bluetooth as
+    // a thin stroke rune, which read a full weight lighter than the solid
+    // wifi/vol/bri/bat silhouettes either side of it. Rendered side by side to
+    // pick it.
     "bluetooth": {
-        "format": "󰂯  <small>BT</small> {status}",
-        "format-on": "󰂯  <small>BT</small> on",
-        "format-off": "󰂲  <small>BT</small> off",
-        "format-disabled": "󰂲  <small>BT</small> off",
-        "format-no-controller": "󰂲  <small>BT</small> n/a",
-        "format-connected": "󰂱  <small>BT</small> {num_connections}",
+        "format": "  <small>BT</small> {status}",
+        "format-on": "  <small>BT</small> on",
+        "format-off": "  <small>BT</small> off",
+        "format-disabled": "  <small>BT</small> off",
+        "format-no-controller": "  <small>BT</small> n/a",
+        "format-connected": "  <small>BT</small> {num_connections}",
         "tooltip-format": "{controller_alias}\n{status}",
         "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
         "on-click": "blueman-manager"
