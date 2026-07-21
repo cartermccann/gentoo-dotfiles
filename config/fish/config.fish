@@ -6,6 +6,8 @@ fish_add_path -g ~/.local/bin
 fish_add_path -g ~/.cargo/bin
 fish_add_path -g ~/.bun/bin
 fish_add_path -g ~/.deno/bin
+fish_add_path -g ~/go/bin        # `go install` target (gum lives here)
+fish_add_path -g ~/.opencode/bin
 
 set -gx EDITOR nvim
 set -gx VISUAL nvim

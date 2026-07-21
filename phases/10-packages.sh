@@ -54,6 +54,12 @@ media-libs/mesa wayland
 
 # ── dist-kernel ────────────────────────────────────────────────
 sys-kernel/installkernel dracut
+
+# ── fonts ──────────────────────────────────────────────────────
+# nerdfonts defaults to symbols-only. Every config in this repo asks for
+# "JetBrainsMono Nerd Font" by name, so it has to be enabled explicitly or
+# waybar/ghostty/foot/rofi all silently fall back to a default face.
+media-fonts/nerdfonts jetbrainsmono
 EOF
     ok "wrote keyword + USE overrides"
 fi
