@@ -47,7 +47,10 @@ run wlsunset -l 34.05 -L -118.24
 run swayidle -w timeout 300 "swaylock -f" before-sleep "swaylock -f"
 
 # ── Clipboard history (needs cliphist + wl-clipboard) ──────────
-run wl-paste --watch cliphist store
+# Two watchers: wl-paste defaults to text only, so images need their own.
+# Both must run for the whole session or SUPER+V has nothing to show.
+run wl-paste --type text  --watch cliphist store
+run wl-paste --type image --watch cliphist store
 
 # ── Tray applets ───────────────────────────────────────────────
 run nm-applet --indicator
