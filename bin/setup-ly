@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Install ly and make it the login manager, replacing greetd.
+#
+# Run as root:   doas bash bin/setup-ly
+#
+# WHY THIS ISN'T JUST `emerge x11-misc/ly`
+# ----------------------------------------
+# GURU's ly Manifest no longer matches what Codeberg serves. Codeberg builds
+# archive tarballs on demand and the gzip output is not byte-reproducible, so:
+#
+#     Fetched file: ly-1.4.1.tar.gz VERIFY FAILED!
+#     Reason: Filesize does not match recorded size
+#     Got: 146988   Expected: 147223
+#
+# (The 404 portage prints first is only distfiles.gentoo.org, which does not
+# mirror GURU distfiles. Upstream itself is fine — both GitHub and Codeberg
+# return 200.) All three GURU versions are affected identically.
+#
+# The workaround is to re-digest the ebuild against what the server serves now.
+# BE CLEAR ABOUT WHAT THAT COSTS: it replaces upstream's recorded hash with the
+# hash of whatever you just downloaded, so the integrity check no longer proves
+# anything about the contents. It is also wiped by `emerge --sync guru`, so it
+# has to be redone after each sync. This is a GURU packaging bug worth filing
+# rather than carrying forever.
+set -euo pipefail
+[ "$(id -u)" -eq 0 ] || { echo "run as root: doas bash bin/setup-ly"; exit 1; }
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+EBUILD=/var/db/repos/guru/x11-misc/ly/ly-1.4.1.ebuild
+[ -f "$EBUILD" ] || { echo "no ly ebuild at $EBUILD — is GURU synced?"; exit 1; }
+
+echo "==> keywording ly"
+grep -q '^x11-misc/ly ' /etc/portage/package.accept_keywords/atlas 2>/dev/null \
+  || echo 'x11-misc/ly ~amd64' >> /etc/portage/package.accept_keywords/atlas
+
+echo "==> re-digesting the ebuild (see the note at the top of this file)"
+ebuild "$EBUILD" manifest
+
+echo "==> emerging ly"
+emerge --noreplace --quiet x11-misc/ly
+
+echo "==> installing config"
+install -D -m 0644 "$REPO_DIR/system/ly/config.ini" /etc/ly/config.ini
+
+echo "==> enabling ly"
+rc-update add ly default
+
+echo "==> removing greetd (ly replaces it)"
+rc-service greetd stop        2>/dev/null || true
+rc-update del greetd default  2>/dev/null || true
+# Unmerge only after ly is confirmed on disk, so a failed ly build can never
+# leave the machine with no greeter at all.
+if command -v ly >/dev/null && [ -f /etc/init.d/ly ]; then
+    emerge --quiet --unmerge gui-libs/greetd gui-apps/tuigreet 2>/dev/null || true
+    rm -rf /etc/greetd /etc/init.d/greetd
+    echo "  greetd removed"
+else
+    echo "  ly not confirmed — KEEPING greetd as a fallback"
+fi
+
+echo "==> verifying"
+command -v ly >/dev/null && echo "  ly binary:   $(command -v ly)" || { echo "  ly MISSING"; exit 1; }
+[ -f /etc/init.d/ly ] && echo "  init script: present" || { echo "  init script MISSING"; exit 1; }
+rc-update show default | grep -qw ly && echo "  runlevel:    default" || echo "  NOT in default runlevel"
+grep -q "^waylandsessions = /usr/share/wayland-sessions" /etc/ly/config.ini \
+  && echo "  sessions:    /usr/share/wayland-sessions ($(ls /usr/share/wayland-sessions | tr '\n' ' '))"
+
+cat <<'NOTE'
+
+  ly is enabled but NOT started -- it takes over a VT, and starting it from an
+  SSH session would be a good way to lose the console you are sitting on.
+  Reboot to use it.
+
+  If the greeter fails, tty2..6 still have agetty: Ctrl+Alt+F2 gives a shell
+  and `exec mango` starts the desktop directly -- greetd is gone, so a TTY
+  login is the fallback now.
+NOTE

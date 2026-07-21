@@ -12,7 +12,7 @@ Authored to be cloned onto a freshly-installed Gentoo base and run with one scri
 | Layer | Pieces |
 |-------|--------|
 | **Compositor** | MangoWM (dwl + scenefx: blur/shadow/rounding + niri-style scroller) |
-| **Desktop** | waybar · rofi · swaync · swaybg · swaylock · swayidle · wlsunset · grim/slurp · greetd+tuigreet login |
+| **Desktop** | waybar · rofi · swaync · swaybg · swaylock · swayidle · wlsunset · grim/slurp · ly login |
 | **Terminals** | ghostty (default) · alacritty · foot |
 | **Audio** | PipeWire + WirePlumber + pavucontrol (+ EasyEffects) |
 | **Bluetooth** | bluez + blueman |
@@ -52,7 +52,7 @@ Phases (`./install.sh --list`):
 4. **dotfiles** – symlink `config/*` into `~/.config`, clone nvim, set fish as shell
 5. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
 
-Then **reboot**. **tuigreet** greets you on vt7 → pick **Mango** → log in.
+Then **reboot**. **ly** greets you → pick **Mango** → log in.
 
 ---
 
@@ -93,22 +93,28 @@ installer; they are documented because they will bite again on a fresh machine.
   `beeper.com/download`.
 - **Monitor refresh** — `config/mango/monitor.conf` starts eDP-1 at **60 Hz + scale 1.5**
   for a safe first boot. Run `wlr-randr` and bump to 120 Hz once you confirm it's stable.
-- **Login manager is greetd + tuigreet, not ly.** `x11-misc/ly` (GURU) fails to
-  fetch: Codeberg generates its archive tarballs on the fly and the output is not
-  byte-reproducible, so the recorded Manifest no longer matches what the server
-  serves (expects 147223 bytes, gets 146988 — `VERIFY FAILED! Filesize does not
-  match recorded size`). The `404` you see first is only portage trying
-  `distfiles.gentoo.org`, which does not mirror GURU distfiles; it is not the
-  real cause. Fixable locally with
-  `doas ebuild /var/db/repos/guru/x11-misc/ly/ly-1.4.1.ebuild manifest`, but that
-  re-digests against whatever Codeberg serves (so it trusts an unverified
-  download) and is wiped by the next `emerge --sync guru`. All three GURU
-  versions (1.3.2, 1.4.0, 1.4.1) are affected the same way. greetd is configured on
-  **vt7** — `agetty` keeps tty1–6, so a broken greeter never locks you out
-  (Ctrl+Alt+F7 = login screen, Ctrl+Alt+F1 = plain console).
-  Gentoo's greetd ships *only* a systemd unit, so this repo provides the OpenRC
-  init script at `system/init.d/greetd`; without it `rc-update add greetd` silently
-  does nothing.
+- **Login manager is `ly`.** Install it with `doas bash bin/setup-ly` — it is
+  deliberately NOT in the `packages` phase, because it needs a workaround and
+  that should be an explicit, auditable step rather than something the installer
+  does quietly.
+
+  **Why ly needs a workaround:** GURU's Manifest no longer matches what Codeberg
+  serves. Codeberg builds archive tarballs on demand and the gzip output is not
+  byte-reproducible, so verification fails (`Filesize does not match recorded
+  size — Got: 146988  Expected: 147223`). The `404` portage prints first is only
+  `distfiles.gentoo.org`, which does not mirror GURU distfiles; upstream itself
+  returns 200. All three GURU versions (1.3.2/1.4.0/1.4.1) fail identically.
+  `bin/setup-ly` re-digests the ebuild — which means the integrity check no
+  longer proves anything about the contents — and `emerge --sync guru` wipes it,
+  so it must be redone after each sync. Worth filing upstream at GURU.
+
+  ly does real 24-bit colour (`0xSSRRGGBB` with `full_color = true`), so it
+  renders the actual cobalt `#3b6bff` on the box border, over a cobalt→navy→black
+  `colormix` shader. Config: `system/ly/config.ini`.
+
+  **Recovery:** ly takes a VT, and `agetty` still holds tty2–6. If the greeter
+  ever fails to come up, `Ctrl+Alt+F2` gives a shell and `exec mango` starts the
+  desktop directly.
 - **fish** — a starter `config.fish` is included (starship/zoxide/atuin + aliases).
   Port the rest of your kronos fish functions when you want them.
 
@@ -148,8 +154,9 @@ gentoo-dotfiles/
 ├── config/               # -> symlinked into ~/.config  (user-owned)
 ├── system/               # -> copied into /etc          (root-owned, see below)
 │   ├── portage/package.{use,accept_keywords}/atlas
-│   ├── greetd/config.toml · init.d/greetd
+│   ├── ly/config.ini     # login manager (cobalt, 24-bit)
 │   └── services.conf     # declarative <service> <runlevel>
+├── bin/setup-ly          # installs ly (GURU Manifest workaround, documented)
 ├── themes/<name>/colors.sh
 ├── bin/atlas-theme
 ├── dictation/            # Parakeet setup + transcribe + toggle

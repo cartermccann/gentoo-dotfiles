@@ -30,7 +30,7 @@ Usage: ./install.sh [options] [phase ...]
 
 Phases (run in this order if none given):
   packages   emerge desktop stack, CLI tools, langs, audio, bluetooth (needs doas)
-  flatpaks   Zen, Spotify, Beeper, Blanket, (Helium) via Flatpak
+  flatpaks   Zen, Spotify, Blanket via Flatpak (--user scope)
   ai         claude-code, codex, opencode, herdr + bun/deno/uv runtimes
   dotfiles   symlink configs into ~/.config, clone nvim, deploy shell config
   theme      install the atlas-theme switcher and apply the default (cobalt)
@@ -58,7 +58,11 @@ run_check() {
     step "system files (/etc)"
     while read -r src dst; do
         [ -z "$src" ] && continue
-        if [ ! -f "$dst" ]; then
+        if [ ! -d "$(dirname "$dst")" ]; then
+            # e.g. /etc/ly when ly isn't installed, or /etc/greetd when it is
+            # not the chosen greeter. Not drift — just not applicable here.
+            info "n/a      $dst (package not installed)"
+        elif [ ! -f "$dst" ]; then
             err "MISSING  $dst"; drift=1
         elif cmp -s "$REPO_DIR/$src" "$dst"; then
             ok "in sync  $dst"
@@ -69,8 +73,7 @@ run_check() {
     done <<'MAP'
 system/portage/package.accept_keywords/atlas /etc/portage/package.accept_keywords/atlas
 system/portage/package.use/atlas /etc/portage/package.use/atlas
-system/greetd/config.toml /etc/greetd/config.toml
-system/init.d/greetd /etc/init.d/greetd
+system/ly/config.ini /etc/ly/config.ini
 MAP
 
     step "user configs (~/.config -> repo)"

@@ -44,8 +44,8 @@ step "core packages (desktop stack, audio, bluetooth, langs)"
 CORE=(
     # compositor + session
     gui-wm/mangowm gui-libs/scenefx
-    # login: greetd + tuigreet (x11-misc/ly is unbuildable — see README)
-    gui-libs/greetd gui-apps/tuigreet
+    # login: ly. Not in CORE — it needs the GURU Manifest workaround in
+    # bin/setup-ly, which must be an explicit, auditable step.
     # wayland desktop tools
     gui-apps/waybar gui-apps/swaync gui-apps/swaybg x11-misc/rofi
     gui-apps/wl-clipboard gui-apps/grim gui-apps/slurp gui-apps/swaylock
@@ -155,16 +155,16 @@ EOF
     ok "created $sess"
 fi
 
-# ── greetd: config + OpenRC init script ────────────────────────
-# The Gentoo package ships only a systemd unit, so OpenRC needs ours.
-step "greetd (login manager)"
+# ── ly: config ─────────────────────────────────────────────────
+# ly itself is installed by bin/setup-ly (GURU Manifest workaround); this only
+# deploys its config when the binary is present.
+step "ly (login manager)"
 if [ "$DRY_RUN" = "1" ]; then
-    info "[dry-run] would install /etc/greetd/config.toml and /etc/init.d/greetd"
-elif have greetd; then
-    deploy_system_file "$REPO_DIR/system/greetd/config.toml" /etc/greetd/config.toml 0644
-    deploy_system_file "$REPO_DIR/system/init.d/greetd"      /etc/init.d/greetd      0755
+    info "[dry-run] would install /etc/ly/config.ini"
+elif have ly; then
+    deploy_system_file "$REPO_DIR/system/ly/config.ini" /etc/ly/config.ini 0644
 else
-    warn "greetd not installed — skipping its config"
+    warn "ly not installed — run:  doas bash bin/setup-ly"
 fi
 
 # ── Services ───────────────────────────────────────────────────
