@@ -112,9 +112,14 @@ installer; they are documented because they will bite again on a fresh machine.
   renders the actual cobalt `#3b6bff` on the box border, over a cobalt→navy→black
   `colormix` shader. Config: `system/ly/config.ini`.
 
-  **Recovery:** ly takes a VT, and `agetty` still holds tty2–6. If the greeter
-  ever fails to come up, `Ctrl+Alt+F2` gives a shell and `exec mango` starts the
-  desktop directly.
+  **tty2 conflict:** ly's init script hardcodes `TTY="tty2"` and runs
+  `agetty -nl /usr/bin/ly tty2`, while Gentoo's `/etc/inittab` line `c2` also
+  respawns a plain agetty there. Both fight for the terminal and the greeter
+  flickers or respawn-loops. `bin/setup-ly` comments out `c2` only.
+
+  **Recovery:** `c1` and `c3`–`c6` are left alone, so if ly fails to come up
+  `Ctrl+Alt+F1` still gives a console, and `exec mango` starts the desktop
+  directly.
 - **fish** — a starter `config.fish` is included (starship/zoxide/atuin + aliases).
   Port the rest of your kronos fish functions when you want them.
 

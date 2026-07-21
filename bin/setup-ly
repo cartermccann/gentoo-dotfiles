@@ -77,6 +77,20 @@ else
     echo "  ly not confirmed — KEEPING greetd as a fallback"
 fi
 
+echo "==> resolving the tty2 conflict"
+# ly's init script hardcodes TTY="tty2" and runs `agetty -nl /usr/bin/ly tty2`.
+# Gentoo's /etc/inittab ALSO respawns a plain agetty on tty2 (line c2), so both
+# fight for the same terminal and the greeter flickers or respawn-loops.
+# Comment out c2 only. c1 and c3-c6 stay, which is the recovery path: if ly
+# fails to come up, Ctrl+Alt+F1 still gives a console.
+if grep -qE '^c2:2345:respawn:.*tty2' /etc/inittab; then
+    cp /etc/inittab /etc/inittab.bak.$(date +%Y%m%d-%H%M%S)
+    sed -i '/^c2:2345:respawn:.*tty2/s/^/#/' /etc/inittab
+    echo "  commented out the tty2 getty in /etc/inittab"
+else
+    echo "  tty2 getty already disabled"
+fi
+
 echo "==> verifying"
 command -v ly >/dev/null && echo "  ly binary:   $(command -v ly)" || { echo "  ly MISSING"; exit 1; }
 [ -f /etc/init.d/ly ] && echo "  init script: present" || { echo "  init script MISSING"; exit 1; }
@@ -90,7 +104,7 @@ cat <<'NOTE'
   SSH session would be a good way to lose the console you are sitting on.
   Reboot to use it.
 
-  If the greeter fails, tty2..6 still have agetty: Ctrl+Alt+F2 gives a shell
-  and `exec mango` starts the desktop directly -- greetd is gone, so a TTY
-  login is the fallback now.
+  ly runs on tty2. If it fails to come up, Ctrl+Alt+F1 still gives a console
+  (c1 in /etc/inittab is untouched), and `exec mango` starts the desktop
+  directly. greetd is gone, so a TTY login is the fallback now.
 NOTE
