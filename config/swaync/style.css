@@ -28,7 +28,9 @@ window.background,
     border-radius: 14px;
     background: alpha(@base, 0.9);
     border: 1px solid @border;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    /* Kept small on purpose: the margin above is 8px, so a large blur
+       would clip into a band the same way the panel's did. */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
 }
 .notification-content { padding: 12px; border-radius: 14px; }
 .notification.critical { border-color: @crit; }
@@ -47,9 +49,15 @@ window.background,
     background: alpha(@base, 0.86);
     border: 1px solid @border;
     border-radius: 18px;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
     margin: 0;
     padding: 14px;
+    /* NO box-shadow here. swaync's control-center window is only marginally
+       larger than the panel, so a large blur has nowhere to fade: GTK clips it
+       into a hard-edged dark band down the side of the panel, which reads as a
+       grey background around it rather than as a lift. Verified by toggling
+       `box-shadow: none` on the live session -- the band disappeared and
+       nothing else changed. If the lift is ever wanted back, it needs
+       control-center-margin-* raised first to give the blur room. */
 }
 .control-center .notification { background: alpha(@surface, 0.7); }
 
