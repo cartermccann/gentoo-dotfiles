@@ -32,7 +32,7 @@ Phases (run in this order if none given):
   packages   emerge desktop stack, CLI tools, langs, audio, bluetooth (needs doas)
   flatpaks   Zen, Spotify, Blanket via Flatpak (--user scope)
   ai         claude-code, codex, opencode, herdr + bun/deno/uv runtimes
-  dotfiles   symlink configs into ~/.config, clone nvim, deploy shell config
+  dotfiles   symlink configs into ~/.config (incl. nvim), deploy shell config
   theme      install the atlas-theme switcher and apply the default (cobalt)
 
 Options:

@@ -10,6 +10,13 @@ config/ghostty/theme.conf
 config/rofi/theme.rasi
 config/mango/theme.conf
 config/swaync/theme.css
+config/nvim/lua/atlas/palette.lua
+config/nvim/lua/atlas/palette.lua.tmp
+
+# LazyVim runtime state — nvim rewrites this itself (read markers for its
+# NEWS.md). ~/.config/nvim symlinks INTO this repo, so tracking it would send
+# the checkout dirty every time you dismiss a changelog.
+config/nvim/lazyvim.json
 
 # local wallpaper binaries (drop your own in config/mango/wallpaper/)
 config/mango/wallpaper/*

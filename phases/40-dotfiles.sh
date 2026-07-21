@@ -24,26 +24,20 @@ backup_and_link "$REPO_DIR/dictation/toggle-dictation.sh" "$HOME/.local/bin/togg
 backup_and_link "$REPO_DIR/dictation/setup-dictation.sh" "$HOME/.local/bin/setup-dictation.sh"
 info "first Super+Alt+L downloads the Parakeet model (~480 MB) into a uv venv"
 
-# ── Neovim (portable LazyVim config from your dotfiles repo) ───
-step "neovim config"
+# ── Neovim ─────────────────────────────────────────────────────
+# config/nvim lives in THIS repo and is symlinked by the loop above, like every
+# other config. It used to be cloned from cartermccann/dotfiles into
+# ~/.cache/atlas/dotfiles-src and linked out of the cache, which made the editor
+# the one part of atlas that wasn't in the repo -- you could not tell what nvim
+# was running by reading this checkout, and `atlas-theme` had to write into a
+# directory the installer did not own. Retired 2026-07-21.
+step "neovim"
 nvim_cache="$HOME/.cache/atlas/dotfiles-src"
-if [ "$DRY_RUN" = "1" ]; then
-    info "[dry-run] clone cartermccann/dotfiles, link config/nvim → ~/.config/nvim"
-else
-    if [ -d "$nvim_cache/.git" ]; then
-        git -C "$nvim_cache" pull --ff-only >/dev/null 2>&1 || true
-    else
-        run mkdir -p "$(dirname "$nvim_cache")"
-        git clone --depth 1 https://github.com/cartermccann/dotfiles "$nvim_cache" >/dev/null 2>&1 \
-            || warn "could not clone dotfiles repo for nvim"
-    fi
-    if [ -d "$nvim_cache/config/nvim" ]; then
-        backup_and_link "$nvim_cache/config/nvim" "$HOME/.config/nvim"
-        info "lazy.nvim will bootstrap plugins on first 'nvim' launch"
-    else
-        warn "config/nvim not found in dotfiles clone — link it manually"
-    fi
+if [ -d "$nvim_cache" ]; then
+    info "stale nvim clone at ~/.cache/atlas/dotfiles-src — no longer used, safe to delete"
 fi
+info "lazy.nvim bootstraps plugins on first 'nvim' launch"
+ok "config/nvim linked from the repo"
 
 # ── Fish as login shell ────────────────────────────────────────
 step "fish login shell"

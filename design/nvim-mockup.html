@@ -1,0 +1,266 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>atlas.nvim — colourscheme mockup</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:40px 28px 80px; background:#0a0c11; color:#e7ebf2;
+         font:14px/1.6 "Inter", system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size:26px; margin:0 0 6px; letter-spacing:-.02em; }
+  .lede { color:#8b93a4; margin:0 0 40px; max-width:70ch; }
+  .lede code { color:#cfe0ff; }
+  section { margin-bottom:44px; }
+  header { display:flex; align-items:baseline; gap:12px; margin-bottom:12px; }
+  h2 { font-size:17px; margin:0; }
+  .tag { font:11px/1 ui-monospace,monospace; color:#8b93a4; background:#171b23;
+          border:1px solid #212734; border-radius:20px; padding:5px 10px; }
+  .sws { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .sw { display:flex; align-items:center; gap:6px; background:#0f1218;
+         border:1px solid #212734; border-radius:8px; padding:4px 9px 4px 5px; }
+  .sw i { width:14px; height:14px; border-radius:4px; display:block;
+           box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+  .sw b { font-weight:500; font-size:11px; color:#8b93a4; }
+  .sw code { font:10px/1 ui-monospace,monospace; color:#4b5262; }
+  .panes { display:none; }
+  @media (max-width: 900px) { .panes { grid-template-columns:1fr; } }
+  figure { margin:0; border:1px solid; border-radius:12px; overflow:hidden; }
+  figcaption { font:11px/1 ui-monospace,monospace; padding:9px 12px;
+                border-bottom:1px solid; letter-spacing:.04em; }
+  pre { margin:0; padding:14px 12px; overflow-x:auto;
+         font:12.5px/1.65 "JetBrainsMono Nerd Font","JetBrains Mono",ui-monospace,monospace; }
+  .ln { display:inline-block; width:2.4em; margin-right:1.1em; text-align:right;
+         color:#3a4152; user-select:none; }
+</style>
+<div class="wrap">
+<h1>atlas.nvim — colourscheme mockup</h1>
+<p class="lede">VS Code Dark+ role semantics rendered from each theme&rsquo;s own
+<code>colors.sh</code>. Every role is <em>derived</em> from the existing 16-colour palette by
+mixing toward <code>TEXT</code>, so one expression works on dark and light themes alike and
+every future theme gets a colourscheme for free. Two comment treatments shown side by side.</p>
+
+<section>
+  <header>
+    <h2>Cobalt</h2>
+    <span class="tag">cobalt</span>
+  </header>
+  <div class="sws"><div class="sw"><i style="background:#6b8ffb"></i><b>keyword</b><code>#6b8ffb</code></div><div class="sw"><i style="background:#b5a0f8"></i><b>control</b><code>#b5a0f8</code></div><div class="sw"><i style="background:#f5cc62"></i><b>function</b><code>#f5cc62</code></div><div class="sw"><i style="background:#40d6d1"></i><b>type</b><code>#40d6d1</code></div><div class="sw"><i style="background:#f7a768"></i><b>string</b><code>#f7a768</code></div><div class="sw"><i style="background:#7fddbe"></i><b>number</b><code>#7fddbe</code></div><div class="sw"><i style="background:#9ab1f8"></i><b>variable</b><code>#9ab1f8</code></div><div class="sw"><i style="background:#53d9ef"></i><b>constant</b><code>#53d9ef</code></div><div class="sw"><i style="background:#4a9281"></i><b>comment</b><code>#4a9281</code></div><div class="sw"><i style="background:8b93a4"></i><b>operator</b><code>8b93a4</code></div></div>
+  <figure style="background:#0f1218;border-color:#212734">
+    <figcaption style="color:#8b93a4;border-color:#212734">cobalt.ts</figcaption>
+    <pre style="color:#e7ebf2"><span class="ln"> 1</span><span style="color:#4a9281 font-style:italic">// Resolve the active atlas theme and hand it to the compositor.</span>
+<span class="ln"> 2</span><span style="color:#b5a0f8">import</span><span style="color:8b93a4"> { </span><span style="color:#9ab1f8">readFile</span><span style="color:8b93a4"> } </span><span style="color:#b5a0f8">from</span><span style="color:#f7a768"> &quot;node:fs/promises&quot;</span><span style="color:8b93a4">;</span>
+<span class="ln"> 3</span>
+<span class="ln"> 4</span><span style="color:#b5a0f8">export</span><span style="color:#e7ebf2"> </span><span style="color:#6b8ffb">interface</span><span style="color:#e7ebf2"> </span><span style="color:#40d6d1">Palette</span><span style="color:8b93a4"> {</span>
+<span class="ln"> 5</span><span style="color:#9ab1f8">  name</span><span style="color:8b93a4">: </span><span style="color:#40d6d1">string</span><span style="color:8b93a4">;</span>
+<span class="ln"> 6</span><span style="color:#9ab1f8">  contrast</span><span style="color:8b93a4">: </span><span style="color:#40d6d1">number</span><span style="color:8b93a4">;</span>
+<span class="ln"> 7</span><span style="color:#9ab1f8">  mode</span><span style="color:8b93a4">: </span><span style="color:#f7a768">&quot;dark&quot;</span><span style="color:8b93a4"> | </span><span style="color:#f7a768">&quot;light&quot;</span><span style="color:8b93a4">;</span>
+<span class="ln"> 8</span><span style="color:8b93a4">}</span>
+<span class="ln"> 9</span>
+<span class="ln">10</span><span style="color:#6b8ffb">const</span><span style="color:#e7ebf2"> </span><span style="color:#53d9ef">FALLBACK</span><span style="color:8b93a4"> = </span><span style="color:#f7a768">&quot;cobalt&quot;</span><span style="color:8b93a4">;</span><span style="color:#4a9281 font-style:italic">   // never leave nvim unthemed</span>
+<span class="ln">11</span><span style="color:#6b8ffb">const</span><span style="color:#e7ebf2"> </span><span style="color:#53d9ef">MIN_RATIO</span><span style="color:8b93a4"> = </span><span style="color:#7fddbe">4.5</span><span style="color:8b93a4">;</span>
+<span class="ln">12</span>
+<span class="ln">13</span><span style="color:#b5a0f8">export</span><span style="color:#e7ebf2"> </span><span style="color:#6b8ffb">async</span><span style="color:#e7ebf2"> </span><span style="color:#6b8ffb">function</span><span style="color:#e7ebf2"> </span><span style="color:#f5cc62">resolve</span><span style="color:8b93a4">(</span><span style="color:#9ab1f8">name</span><span style="color:8b93a4">: </span><span style="color:#40d6d1">string</span><span style="color:8b93a4">): </span><span style="color:#40d6d1">Promise</span><span style="color:8b93a4">&lt;</span><span style="color:#40d6d1">Palette</span><span style="color:8b93a4">&gt; {</span>
+<span class="ln">14</span><span style="color:#6b8ffb">  const</span><span style="color:#e7ebf2"> </span><span style="color:#9ab1f8">raw</span><span style="color:8b93a4"> = </span><span style="color:#b5a0f8">await</span><span style="color:#e7ebf2"> </span><span style="color:#f5cc62">readFile</span><span style="color:8b93a4">(</span><span style="color:#f7a768">`${</span><span style="color:#9ab1f8">dir</span><span style="color:#f7a768">}/colors.sh`</span><span style="color:8b93a4">, </span><span style="color:#f7a768">&quot;utf8&quot;</span><span style="color:8b93a4">);</span>
+<span class="ln">15</span><span style="color:#b5a0f8">  if</span><span style="color:8b93a4"> (!</span><span style="color:#9ab1f8">raw</span><span style="color:8b93a4">.</span><span style="color:#9ab1f8">length</span><span style="color:8b93a4">) </span><span style="color:#b5a0f8">throw</span><span style="color:#e7ebf2"> </span><span style="color:#b5a0f8">new</span><span style="color:#e7ebf2"> </span><span style="color:#40d6d1">Error</span><span style="color:8b93a4">(</span><span style="color:#f7a768">&quot;empty palette&quot;</span><span style="color:8b93a4">);</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span style="color:#b5a0f8">  for</span><span style="color:8b93a4"> (</span><span style="color:#6b8ffb">const</span><span style="color:#e7ebf2"> </span><span style="color:#9ab1f8">line</span><span style="color:#e7ebf2"> </span><span style="color:#b5a0f8">of</span><span style="color:#e7ebf2"> </span><span style="color:#9ab1f8">raw</span><span style="color:8b93a4">.</span><span style="color:#f5cc62">split</span><span style="color:8b93a4">(</span><span style="color:#f7a768">&quot;\n&quot;</span><span style="color:8b93a4">)) {</span>
+<span class="ln">18</span><span style="color:#b5a0f8">    if</span><span style="color:8b93a4"> (</span><span style="color:#9ab1f8">line</span><span style="color:8b93a4">.</span><span style="color:#f5cc62">startsWith</span><span style="color:8b93a4">(</span><span style="color:#f7a768">&quot;#&quot;</span><span style="color:8b93a4">)) </span><span style="color:#b5a0f8">continue</span><span style="color:8b93a4">;</span>
+<span class="ln">19</span><span style="color:8b93a4">  }</span>
+<span class="ln">20</span>
+<span class="ln">21</span><span style="color:#b5a0f8">  return</span><span style="color:8b93a4"> { </span><span style="color:#9ab1f8">name</span><span style="color:8b93a4">, </span><span style="color:#9ab1f8">contrast</span><span style="color:8b93a4">: </span><span style="color:#53d9ef">MIN_RATIO</span><span style="color:8b93a4">, </span><span style="color:#9ab1f8">mode</span><span style="color:8b93a4">: </span><span style="color:#f7a768">&quot;dark&quot;</span><span style="color:8b93a4"> };</span>
+<span class="ln">22</span><span style="color:8b93a4">}</span></pre>
+  </figure>
+</section>
+<section>
+  <header>
+    <h2>Cobalt Light</h2>
+    <span class="tag">cobalt-light · light</span>
+  </header>
+  <div class="sws"><div class="sw"><i style="background:#2e51bd"></i><b>keyword</b><code>#2e51bd</code></div><div class="sw"><i style="background:#72409e"></i><b>control</b><code>#72409e</code></div><div class="sw"><i style="background:#9c570a"></i><b>function</b><code>#9c570a</code></div><div class="sw"><i style="background:#178886"></i><b>type</b><code>#178886</code></div><div class="sw"><i style="background:#b95126"></i><b>string</b><code>#b95126</code></div><div class="sw"><i style="background:#216546"></i><b>number</b><code>#216546</code></div><div class="sw"><i style="background:#22377d"></i><b>variable</b><code>#22377d</code></div><div class="sw"><i style="background:#09708a"></i><b>constant</b><code>#09708a</code></div><div class="sw"><i style="background:#3d725f"></i><b>comment</b><code>#3d725f</code></div><div class="sw"><i style="background:6b7280"></i><b>operator</b><code>6b7280</code></div></div>
+  <figure style="background:#ffffff;border-color:#e8eaee">
+    <figcaption style="color:#6b7280;border-color:#e8eaee">cobalt-light.ts</figcaption>
+    <pre style="color:#0d0d12"><span class="ln"> 1</span><span style="color:#3d725f font-style:italic">// Resolve the active atlas theme and hand it to the compositor.</span>
+<span class="ln"> 2</span><span style="color:#72409e">import</span><span style="color:6b7280"> { </span><span style="color:#22377d">readFile</span><span style="color:6b7280"> } </span><span style="color:#72409e">from</span><span style="color:#b95126"> &quot;node:fs/promises&quot;</span><span style="color:6b7280">;</span>
+<span class="ln"> 3</span>
+<span class="ln"> 4</span><span style="color:#72409e">export</span><span style="color:#0d0d12"> </span><span style="color:#2e51bd">interface</span><span style="color:#0d0d12"> </span><span style="color:#178886">Palette</span><span style="color:6b7280"> {</span>
+<span class="ln"> 5</span><span style="color:#22377d">  name</span><span style="color:6b7280">: </span><span style="color:#178886">string</span><span style="color:6b7280">;</span>
+<span class="ln"> 6</span><span style="color:#22377d">  contrast</span><span style="color:6b7280">: </span><span style="color:#178886">number</span><span style="color:6b7280">;</span>
+<span class="ln"> 7</span><span style="color:#22377d">  mode</span><span style="color:6b7280">: </span><span style="color:#b95126">&quot;dark&quot;</span><span style="color:6b7280"> | </span><span style="color:#b95126">&quot;light&quot;</span><span style="color:6b7280">;</span>
+<span class="ln"> 8</span><span style="color:6b7280">}</span>
+<span class="ln"> 9</span>
+<span class="ln">10</span><span style="color:#2e51bd">const</span><span style="color:#0d0d12"> </span><span style="color:#09708a">FALLBACK</span><span style="color:6b7280"> = </span><span style="color:#b95126">&quot;cobalt&quot;</span><span style="color:6b7280">;</span><span style="color:#3d725f font-style:italic">   // never leave nvim unthemed</span>
+<span class="ln">11</span><span style="color:#2e51bd">const</span><span style="color:#0d0d12"> </span><span style="color:#09708a">MIN_RATIO</span><span style="color:6b7280"> = </span><span style="color:#216546">4.5</span><span style="color:6b7280">;</span>
+<span class="ln">12</span>
+<span class="ln">13</span><span style="color:#72409e">export</span><span style="color:#0d0d12"> </span><span style="color:#2e51bd">async</span><span style="color:#0d0d12"> </span><span style="color:#2e51bd">function</span><span style="color:#0d0d12"> </span><span style="color:#9c570a">resolve</span><span style="color:6b7280">(</span><span style="color:#22377d">name</span><span style="color:6b7280">: </span><span style="color:#178886">string</span><span style="color:6b7280">): </span><span style="color:#178886">Promise</span><span style="color:6b7280">&lt;</span><span style="color:#178886">Palette</span><span style="color:6b7280">&gt; {</span>
+<span class="ln">14</span><span style="color:#2e51bd">  const</span><span style="color:#0d0d12"> </span><span style="color:#22377d">raw</span><span style="color:6b7280"> = </span><span style="color:#72409e">await</span><span style="color:#0d0d12"> </span><span style="color:#9c570a">readFile</span><span style="color:6b7280">(</span><span style="color:#b95126">`${</span><span style="color:#22377d">dir</span><span style="color:#b95126">}/colors.sh`</span><span style="color:6b7280">, </span><span style="color:#b95126">&quot;utf8&quot;</span><span style="color:6b7280">);</span>
+<span class="ln">15</span><span style="color:#72409e">  if</span><span style="color:6b7280"> (!</span><span style="color:#22377d">raw</span><span style="color:6b7280">.</span><span style="color:#22377d">length</span><span style="color:6b7280">) </span><span style="color:#72409e">throw</span><span style="color:#0d0d12"> </span><span style="color:#72409e">new</span><span style="color:#0d0d12"> </span><span style="color:#178886">Error</span><span style="color:6b7280">(</span><span style="color:#b95126">&quot;empty palette&quot;</span><span style="color:6b7280">);</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span style="color:#72409e">  for</span><span style="color:6b7280"> (</span><span style="color:#2e51bd">const</span><span style="color:#0d0d12"> </span><span style="color:#22377d">line</span><span style="color:#0d0d12"> </span><span style="color:#72409e">of</span><span style="color:#0d0d12"> </span><span style="color:#22377d">raw</span><span style="color:6b7280">.</span><span style="color:#9c570a">split</span><span style="color:6b7280">(</span><span style="color:#b95126">&quot;\n&quot;</span><span style="color:6b7280">)) {</span>
+<span class="ln">18</span><span style="color:#72409e">    if</span><span style="color:6b7280"> (</span><span style="color:#22377d">line</span><span style="color:6b7280">.</span><span style="color:#9c570a">startsWith</span><span style="color:6b7280">(</span><span style="color:#b95126">&quot;#&quot;</span><span style="color:6b7280">)) </span><span style="color:#72409e">continue</span><span style="color:6b7280">;</span>
+<span class="ln">19</span><span style="color:6b7280">  }</span>
+<span class="ln">20</span>
+<span class="ln">21</span><span style="color:#72409e">  return</span><span style="color:6b7280"> { </span><span style="color:#22377d">name</span><span style="color:6b7280">, </span><span style="color:#22377d">contrast</span><span style="color:6b7280">: </span><span style="color:#09708a">MIN_RATIO</span><span style="color:6b7280">, </span><span style="color:#22377d">mode</span><span style="color:6b7280">: </span><span style="color:#b95126">&quot;dark&quot;</span><span style="color:6b7280"> };</span>
+<span class="ln">22</span><span style="color:6b7280">}</span></pre>
+  </figure>
+</section>
+<section>
+  <header>
+    <h2>Everforest</h2>
+    <span class="tag">everforest</span>
+  </header>
+  <div class="sws"><div class="sw"><i style="background:#97beb0"></i><b>keyword</b><code>#97beb0</code></div><div class="sw"><i style="background:#d5a3b3"></i><b>control</b><code>#d5a3b3</code></div><div class="sw"><i style="background:#d9bf8c"></i><b>function</b><code>#d9bf8c</code></div><div class="sw"><i style="background:#99c18f"></i><b>type</b><code>#99c18f</code></div><div class="sw"><i style="background:#dea488"></i><b>string</b><code>#dea488</code></div><div class="sw"><i style="background:#b9c392"></i><b>number</b><code>#b9c392</code></div><div class="sw"><i style="background:#adc1ae"></i><b>variable</b><code>#adc1ae</code></div><div class="sw"><i style="background:#97c298"></i><b>constant</b><code>#97c298</code></div><div class="sw"><i style="background:#809174"></i><b>comment</b><code>#809174</code></div><div class="sw"><i style="background:859289"></i><b>operator</b><code>859289</code></div></div>
+  <figure style="background:#2b3339;border-color:#4a555b">
+    <figcaption style="color:#859289;border-color:#4a555b">everforest.ts</figcaption>
+    <pre style="color:#d3c6aa"><span class="ln"> 1</span><span style="color:#809174 font-style:italic">// Resolve the active atlas theme and hand it to the compositor.</span>
+<span class="ln"> 2</span><span style="color:#d5a3b3">import</span><span style="color:859289"> { </span><span style="color:#adc1ae">readFile</span><span style="color:859289"> } </span><span style="color:#d5a3b3">from</span><span style="color:#dea488"> &quot;node:fs/promises&quot;</span><span style="color:859289">;</span>
+<span class="ln"> 3</span>
+<span class="ln"> 4</span><span style="color:#d5a3b3">export</span><span style="color:#d3c6aa"> </span><span style="color:#97beb0">interface</span><span style="color:#d3c6aa"> </span><span style="color:#99c18f">Palette</span><span style="color:859289"> {</span>
+<span class="ln"> 5</span><span style="color:#adc1ae">  name</span><span style="color:859289">: </span><span style="color:#99c18f">string</span><span style="color:859289">;</span>
+<span class="ln"> 6</span><span style="color:#adc1ae">  contrast</span><span style="color:859289">: </span><span style="color:#99c18f">number</span><span style="color:859289">;</span>
+<span class="ln"> 7</span><span style="color:#adc1ae">  mode</span><span style="color:859289">: </span><span style="color:#dea488">&quot;dark&quot;</span><span style="color:859289"> | </span><span style="color:#dea488">&quot;light&quot;</span><span style="color:859289">;</span>
+<span class="ln"> 8</span><span style="color:859289">}</span>
+<span class="ln"> 9</span>
+<span class="ln">10</span><span style="color:#97beb0">const</span><span style="color:#d3c6aa"> </span><span style="color:#97c298">FALLBACK</span><span style="color:859289"> = </span><span style="color:#dea488">&quot;cobalt&quot;</span><span style="color:859289">;</span><span style="color:#809174 font-style:italic">   // never leave nvim unthemed</span>
+<span class="ln">11</span><span style="color:#97beb0">const</span><span style="color:#d3c6aa"> </span><span style="color:#97c298">MIN_RATIO</span><span style="color:859289"> = </span><span style="color:#b9c392">4.5</span><span style="color:859289">;</span>
+<span class="ln">12</span>
+<span class="ln">13</span><span style="color:#d5a3b3">export</span><span style="color:#d3c6aa"> </span><span style="color:#97beb0">async</span><span style="color:#d3c6aa"> </span><span style="color:#97beb0">function</span><span style="color:#d3c6aa"> </span><span style="color:#d9bf8c">resolve</span><span style="color:859289">(</span><span style="color:#adc1ae">name</span><span style="color:859289">: </span><span style="color:#99c18f">string</span><span style="color:859289">): </span><span style="color:#99c18f">Promise</span><span style="color:859289">&lt;</span><span style="color:#99c18f">Palette</span><span style="color:859289">&gt; {</span>
+<span class="ln">14</span><span style="color:#97beb0">  const</span><span style="color:#d3c6aa"> </span><span style="color:#adc1ae">raw</span><span style="color:859289"> = </span><span style="color:#d5a3b3">await</span><span style="color:#d3c6aa"> </span><span style="color:#d9bf8c">readFile</span><span style="color:859289">(</span><span style="color:#dea488">`${</span><span style="color:#adc1ae">dir</span><span style="color:#dea488">}/colors.sh`</span><span style="color:859289">, </span><span style="color:#dea488">&quot;utf8&quot;</span><span style="color:859289">);</span>
+<span class="ln">15</span><span style="color:#d5a3b3">  if</span><span style="color:859289"> (!</span><span style="color:#adc1ae">raw</span><span style="color:859289">.</span><span style="color:#adc1ae">length</span><span style="color:859289">) </span><span style="color:#d5a3b3">throw</span><span style="color:#d3c6aa"> </span><span style="color:#d5a3b3">new</span><span style="color:#d3c6aa"> </span><span style="color:#99c18f">Error</span><span style="color:859289">(</span><span style="color:#dea488">&quot;empty palette&quot;</span><span style="color:859289">);</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span style="color:#d5a3b3">  for</span><span style="color:859289"> (</span><span style="color:#97beb0">const</span><span style="color:#d3c6aa"> </span><span style="color:#adc1ae">line</span><span style="color:#d3c6aa"> </span><span style="color:#d5a3b3">of</span><span style="color:#d3c6aa"> </span><span style="color:#adc1ae">raw</span><span style="color:859289">.</span><span style="color:#d9bf8c">split</span><span style="color:859289">(</span><span style="color:#dea488">&quot;\n&quot;</span><span style="color:859289">)) {</span>
+<span class="ln">18</span><span style="color:#d5a3b3">    if</span><span style="color:859289"> (</span><span style="color:#adc1ae">line</span><span style="color:859289">.</span><span style="color:#d9bf8c">startsWith</span><span style="color:859289">(</span><span style="color:#dea488">&quot;#&quot;</span><span style="color:859289">)) </span><span style="color:#d5a3b3">continue</span><span style="color:859289">;</span>
+<span class="ln">19</span><span style="color:859289">  }</span>
+<span class="ln">20</span>
+<span class="ln">21</span><span style="color:#d5a3b3">  return</span><span style="color:859289"> { </span><span style="color:#adc1ae">name</span><span style="color:859289">, </span><span style="color:#adc1ae">contrast</span><span style="color:859289">: </span><span style="color:#97c298">MIN_RATIO</span><span style="color:859289">, </span><span style="color:#adc1ae">mode</span><span style="color:859289">: </span><span style="color:#dea488">&quot;dark&quot;</span><span style="color:859289"> };</span>
+<span class="ln">22</span><span style="color:859289">}</span></pre>
+  </figure>
+</section>
+<section>
+  <header>
+    <h2>Gruvbox</h2>
+    <span class="tag">gruvbox</span>
+  </header>
+  <div class="sws"><div class="sw"><i style="background:#739d94"></i><b>keyword</b><code>#739d94</code></div><div class="sw"><i style="background:#be7d90"></i><b>control</b><code>#be7d90</code></div><div class="sw"><i style="background:#ddad4c"></i><b>function</b><code>#ddad4c</code></div><div class="sw"><i style="background:#88a356"></i><b>type</b><code>#88a356</code></div><div class="sw"><i style="background:#d67439"></i><b>string</b><code>#d67439</code></div><div class="sw"><i style="background:#bbb45a"></i><b>number</b><code>#bbb45a</code></div><div class="sw"><i style="background:#a0b49f"></i><b>variable</b><code>#a0b49f</code></div><div class="sw"><i style="background:#89ac7c"></i><b>constant</b><code>#89ac7c</code></div><div class="sw"><i style="background:#857f43"></i><b>comment</b><code>#857f43</code></div><div class="sw"><i style="background:a89984"></i><b>operator</b><code>a89984</code></div></div>
+  <figure style="background:#282828;border-color:#3c3836">
+    <figcaption style="color:#a89984;border-color:#3c3836">gruvbox.ts</figcaption>
+    <pre style="color:#ebdbb2"><span class="ln"> 1</span><span style="color:#857f43 font-style:italic">// Resolve the active atlas theme and hand it to the compositor.</span>
+<span class="ln"> 2</span><span style="color:#be7d90">import</span><span style="color:a89984"> { </span><span style="color:#a0b49f">readFile</span><span style="color:a89984"> } </span><span style="color:#be7d90">from</span><span style="color:#d67439"> &quot;node:fs/promises&quot;</span><span style="color:a89984">;</span>
+<span class="ln"> 3</span>
+<span class="ln"> 4</span><span style="color:#be7d90">export</span><span style="color:#ebdbb2"> </span><span style="color:#739d94">interface</span><span style="color:#ebdbb2"> </span><span style="color:#88a356">Palette</span><span style="color:a89984"> {</span>
+<span class="ln"> 5</span><span style="color:#a0b49f">  name</span><span style="color:a89984">: </span><span style="color:#88a356">string</span><span style="color:a89984">;</span>
+<span class="ln"> 6</span><span style="color:#a0b49f">  contrast</span><span style="color:a89984">: </span><span style="color:#88a356">number</span><span style="color:a89984">;</span>
+<span class="ln"> 7</span><span style="color:#a0b49f">  mode</span><span style="color:a89984">: </span><span style="color:#d67439">&quot;dark&quot;</span><span style="color:a89984"> | </span><span style="color:#d67439">&quot;light&quot;</span><span style="color:a89984">;</span>
+<span class="ln"> 8</span><span style="color:a89984">}</span>
+<span class="ln"> 9</span>
+<span class="ln">10</span><span style="color:#739d94">const</span><span style="color:#ebdbb2"> </span><span style="color:#89ac7c">FALLBACK</span><span style="color:a89984"> = </span><span style="color:#d67439">&quot;cobalt&quot;</span><span style="color:a89984">;</span><span style="color:#857f43 font-style:italic">   // never leave nvim unthemed</span>
+<span class="ln">11</span><span style="color:#739d94">const</span><span style="color:#ebdbb2"> </span><span style="color:#89ac7c">MIN_RATIO</span><span style="color:a89984"> = </span><span style="color:#bbb45a">4.5</span><span style="color:a89984">;</span>
+<span class="ln">12</span>
+<span class="ln">13</span><span style="color:#be7d90">export</span><span style="color:#ebdbb2"> </span><span style="color:#739d94">async</span><span style="color:#ebdbb2"> </span><span style="color:#739d94">function</span><span style="color:#ebdbb2"> </span><span style="color:#ddad4c">resolve</span><span style="color:a89984">(</span><span style="color:#a0b49f">name</span><span style="color:a89984">: </span><span style="color:#88a356">string</span><span style="color:a89984">): </span><span style="color:#88a356">Promise</span><span style="color:a89984">&lt;</span><span style="color:#88a356">Palette</span><span style="color:a89984">&gt; {</span>
+<span class="ln">14</span><span style="color:#739d94">  const</span><span style="color:#ebdbb2"> </span><span style="color:#a0b49f">raw</span><span style="color:a89984"> = </span><span style="color:#be7d90">await</span><span style="color:#ebdbb2"> </span><span style="color:#ddad4c">readFile</span><span style="color:a89984">(</span><span style="color:#d67439">`${</span><span style="color:#a0b49f">dir</span><span style="color:#d67439">}/colors.sh`</span><span style="color:a89984">, </span><span style="color:#d67439">&quot;utf8&quot;</span><span style="color:a89984">);</span>
+<span class="ln">15</span><span style="color:#be7d90">  if</span><span style="color:a89984"> (!</span><span style="color:#a0b49f">raw</span><span style="color:a89984">.</span><span style="color:#a0b49f">length</span><span style="color:a89984">) </span><span style="color:#be7d90">throw</span><span style="color:#ebdbb2"> </span><span style="color:#be7d90">new</span><span style="color:#ebdbb2"> </span><span style="color:#88a356">Error</span><span style="color:a89984">(</span><span style="color:#d67439">&quot;empty palette&quot;</span><span style="color:a89984">);</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span style="color:#be7d90">  for</span><span style="color:a89984"> (</span><span style="color:#739d94">const</span><span style="color:#ebdbb2"> </span><span style="color:#a0b49f">line</span><span style="color:#ebdbb2"> </span><span style="color:#be7d90">of</span><span style="color:#ebdbb2"> </span><span style="color:#a0b49f">raw</span><span style="color:a89984">.</span><span style="color:#ddad4c">split</span><span style="color:a89984">(</span><span style="color:#d67439">&quot;\n&quot;</span><span style="color:a89984">)) {</span>
+<span class="ln">18</span><span style="color:#be7d90">    if</span><span style="color:a89984"> (</span><span style="color:#a0b49f">line</span><span style="color:a89984">.</span><span style="color:#ddad4c">startsWith</span><span style="color:a89984">(</span><span style="color:#d67439">&quot;#&quot;</span><span style="color:a89984">)) </span><span style="color:#be7d90">continue</span><span style="color:a89984">;</span>
+<span class="ln">19</span><span style="color:a89984">  }</span>
+<span class="ln">20</span>
+<span class="ln">21</span><span style="color:#be7d90">  return</span><span style="color:a89984"> { </span><span style="color:#a0b49f">name</span><span style="color:a89984">, </span><span style="color:#a0b49f">contrast</span><span style="color:a89984">: </span><span style="color:#89ac7c">MIN_RATIO</span><span style="color:a89984">, </span><span style="color:#a0b49f">mode</span><span style="color:a89984">: </span><span style="color:#d67439">&quot;dark&quot;</span><span style="color:a89984"> };</span>
+<span class="ln">22</span><span style="color:a89984">}</span></pre>
+  </figure>
+</section>
+<section>
+  <header>
+    <h2>Kanagawa</h2>
+    <span class="tag">kanagawa</span>
+  </header>
+  <div class="sws"><div class="sw"><i style="background:#98add0"></i><b>keyword</b><code>#98add0</code></div><div class="sw"><i style="background:#a592b8"></i><b>control</b><code>#a592b8</code></div><div class="sw"><i style="background:#c8b385"></i><b>function</b><code>#c8b385</code></div><div class="sw"><i style="background:#7c9d84"></i><b>type</b><code>#7c9d84</code></div><div class="sw"><i style="background:#c7846a"></i><b>string</b><code>#c7846a</code></div><div class="sw"><i style="background:#a1b08c"></i><b>number</b><code>#a1b08c</code></div><div class="sw"><i style="background:#b2bcc8"></i><b>variable</b><code>#b2bcc8</code></div><div class="sw"><i style="background:#86a695"></i><b>constant</b><code>#86a695</code></div><div class="sw"><i style="background:#6a7663"></i><b>comment</b><code>#6a7663</code></div><div class="sw"><i style="background:8a8980"></i><b>operator</b><code>8a8980</code></div></div>
+  <figure style="background:#1f1f28;border-color:#363646">
+    <figcaption style="color:#8a8980;border-color:#363646">kanagawa.ts</figcaption>
+    <pre style="color:#dcd7ba"><span class="ln"> 1</span><span style="color:#6a7663 font-style:italic">// Resolve the active atlas theme and hand it to the compositor.</span>
+<span class="ln"> 2</span><span style="color:#a592b8">import</span><span style="color:8a8980"> { </span><span style="color:#b2bcc8">readFile</span><span style="color:8a8980"> } </span><span style="color:#a592b8">from</span><span style="color:#c7846a"> &quot;node:fs/promises&quot;</span><span style="color:8a8980">;</span>
+<span class="ln"> 3</span>
+<span class="ln"> 4</span><span style="color:#a592b8">export</span><span style="color:#dcd7ba"> </span><span style="color:#98add0">interface</span><span style="color:#dcd7ba"> </span><span style="color:#7c9d84">Palette</span><span style="color:8a8980"> {</span>
+<span class="ln"> 5</span><span style="color:#b2bcc8">  name</span><span style="color:8a8980">: </span><span style="color:#7c9d84">string</span><span style="color:8a8980">;</span>
+<span class="ln"> 6</span><span style="color:#b2bcc8">  contrast</span><span style="color:8a8980">: </span><span style="color:#7c9d84">number</span><span style="color:8a8980">;</span>
+<span class="ln"> 7</span><span style="color:#b2bcc8">  mode</span><span style="color:8a8980">: </span><span style="color:#c7846a">&quot;dark&quot;</span><span style="color:8a8980"> | </span><span style="color:#c7846a">&quot;light&quot;</span><span style="color:8a8980">;</span>
+<span class="ln"> 8</span><span style="color:8a8980">}</span>
+<span class="ln"> 9</span>
+<span class="ln">10</span><span style="color:#98add0">const</span><span style="color:#dcd7ba"> </span><span style="color:#86a695">FALLBACK</span><span style="color:8a8980"> = </span><span style="color:#c7846a">&quot;cobalt&quot;</span><span style="color:8a8980">;</span><span style="color:#6a7663 font-style:italic">   // never leave nvim unthemed</span>
+<span class="ln">11</span><span style="color:#98add0">const</span><span style="color:#dcd7ba"> </span><span style="color:#86a695">MIN_RATIO</span><span style="color:8a8980"> = </span><span style="color:#a1b08c">4.5</span><span style="color:8a8980">;</span>
+<span class="ln">12</span>
+<span class="ln">13</span><span style="color:#a592b8">export</span><span style="color:#dcd7ba"> </span><span style="color:#98add0">async</span><span style="color:#dcd7ba"> </span><span style="color:#98add0">function</span><span style="color:#dcd7ba"> </span><span style="color:#c8b385">resolve</span><span style="color:8a8980">(</span><span style="color:#b2bcc8">name</span><span style="color:8a8980">: </span><span style="color:#7c9d84">string</span><span style="color:8a8980">): </span><span style="color:#7c9d84">Promise</span><span style="color:8a8980">&lt;</span><span style="color:#7c9d84">Palette</span><span style="color:8a8980">&gt; {</span>
+<span class="ln">14</span><span style="color:#98add0">  const</span><span style="color:#dcd7ba"> </span><span style="color:#b2bcc8">raw</span><span style="color:8a8980"> = </span><span style="color:#a592b8">await</span><span style="color:#dcd7ba"> </span><span style="color:#c8b385">readFile</span><span style="color:8a8980">(</span><span style="color:#c7846a">`${</span><span style="color:#b2bcc8">dir</span><span style="color:#c7846a">}/colors.sh`</span><span style="color:8a8980">, </span><span style="color:#c7846a">&quot;utf8&quot;</span><span style="color:8a8980">);</span>
+<span class="ln">15</span><span style="color:#a592b8">  if</span><span style="color:8a8980"> (!</span><span style="color:#b2bcc8">raw</span><span style="color:8a8980">.</span><span style="color:#b2bcc8">length</span><span style="color:8a8980">) </span><span style="color:#a592b8">throw</span><span style="color:#dcd7ba"> </span><span style="color:#a592b8">new</span><span style="color:#dcd7ba"> </span><span style="color:#7c9d84">Error</span><span style="color:8a8980">(</span><span style="color:#c7846a">&quot;empty palette&quot;</span><span style="color:8a8980">);</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span style="color:#a592b8">  for</span><span style="color:8a8980"> (</span><span style="color:#98add0">const</span><span style="color:#dcd7ba"> </span><span style="color:#b2bcc8">line</span><span style="color:#dcd7ba"> </span><span style="color:#a592b8">of</span><span style="color:#dcd7ba"> </span><span style="color:#b2bcc8">raw</span><span style="color:8a8980">.</span><span style="color:#c8b385">split</span><span style="color:8a8980">(</span><span style="color:#c7846a">&quot;\n&quot;</span><span style="color:8a8980">)) {</span>
+<span class="ln">18</span><span style="color:#a592b8">    if</span><span style="color:8a8980"> (</span><span style="color:#b2bcc8">line</span><span style="color:8a8980">.</span><span style="color:#c8b385">startsWith</span><span style="color:8a8980">(</span><span style="color:#c7846a">&quot;#&quot;</span><span style="color:8a8980">)) </span><span style="color:#a592b8">continue</span><span style="color:8a8980">;</span>
+<span class="ln">19</span><span style="color:8a8980">  }</span>
+<span class="ln">20</span>
+<span class="ln">21</span><span style="color:#a592b8">  return</span><span style="color:8a8980"> { </span><span style="color:#b2bcc8">name</span><span style="color:8a8980">, </span><span style="color:#b2bcc8">contrast</span><span style="color:8a8980">: </span><span style="color:#86a695">MIN_RATIO</span><span style="color:8a8980">, </span><span style="color:#b2bcc8">mode</span><span style="color:8a8980">: </span><span style="color:#c7846a">&quot;dark&quot;</span><span style="color:8a8980"> };</span>
+<span class="ln">22</span><span style="color:8a8980">}</span></pre>
+  </figure>
+</section>
+<section>
+  <header>
+    <h2>Nord</h2>
+    <span class="tag">nord</span>
+  </header>
+  <div class="sws"><div class="sw"><i style="background:#9fb7cf"></i><b>keyword</b><code>#9fb7cf</code></div><div class="sw"><i style="background:#c0a3bd"></i><b>control</b><code>#c0a3bd</code></div><div class="sw"><i style="background:#ebd6aa"></i><b>function</b><code>#ebd6aa</code></div><div class="sw"><i style="background:#9ec5bd"></i><b>type</b><code>#9ec5bd</code></div><div class="sw"><i style="background:#d9a690"></i><b>string</b><code>#d9a690</code></div><div class="sw"><i style="background:#c2d3b8"></i><b>number</b><code>#c2d3b8</code></div><div class="sw"><i style="background:#bcccdd"></i><b>variable</b><code>#bcccdd</code></div><div class="sw"><i style="background:#a1ccd9"></i><b>constant</b><code>#a1ccd9</code></div><div class="sw"><i style="background:#86978b"></i><b>comment</b><code>#86978b</code></div><div class="sw"><i style="background:9aa5b8"></i><b>operator</b><code>9aa5b8</code></div></div>
+  <figure style="background:#2e3440;border-color:#434c5e">
+    <figcaption style="color:#9aa5b8;border-color:#434c5e">nord.ts</figcaption>
+    <pre style="color:#eceff4"><span class="ln"> 1</span><span style="color:#86978b font-style:italic">// Resolve the active atlas theme and hand it to the compositor.</span>
+<span class="ln"> 2</span><span style="color:#c0a3bd">import</span><span style="color:9aa5b8"> { </span><span style="color:#bcccdd">readFile</span><span style="color:9aa5b8"> } </span><span style="color:#c0a3bd">from</span><span style="color:#d9a690"> &quot;node:fs/promises&quot;</span><span style="color:9aa5b8">;</span>
+<span class="ln"> 3</span>
+<span class="ln"> 4</span><span style="color:#c0a3bd">export</span><span style="color:#eceff4"> </span><span style="color:#9fb7cf">interface</span><span style="color:#eceff4"> </span><span style="color:#9ec5bd">Palette</span><span style="color:9aa5b8"> {</span>
+<span class="ln"> 5</span><span style="color:#bcccdd">  name</span><span style="color:9aa5b8">: </span><span style="color:#9ec5bd">string</span><span style="color:9aa5b8">;</span>
+<span class="ln"> 6</span><span style="color:#bcccdd">  contrast</span><span style="color:9aa5b8">: </span><span style="color:#9ec5bd">number</span><span style="color:9aa5b8">;</span>
+<span class="ln"> 7</span><span style="color:#bcccdd">  mode</span><span style="color:9aa5b8">: </span><span style="color:#d9a690">&quot;dark&quot;</span><span style="color:9aa5b8"> | </span><span style="color:#d9a690">&quot;light&quot;</span><span style="color:9aa5b8">;</span>
+<span class="ln"> 8</span><span style="color:9aa5b8">}</span>
+<span class="ln"> 9</span>
+<span class="ln">10</span><span style="color:#9fb7cf">const</span><span style="color:#eceff4"> </span><span style="color:#a1ccd9">FALLBACK</span><span style="color:9aa5b8"> = </span><span style="color:#d9a690">&quot;cobalt&quot;</span><span style="color:9aa5b8">;</span><span style="color:#86978b font-style:italic">   // never leave nvim unthemed</span>
+<span class="ln">11</span><span style="color:#9fb7cf">const</span><span style="color:#eceff4"> </span><span style="color:#a1ccd9">MIN_RATIO</span><span style="color:9aa5b8"> = </span><span style="color:#c2d3b8">4.5</span><span style="color:9aa5b8">;</span>
+<span class="ln">12</span>
+<span class="ln">13</span><span style="color:#c0a3bd">export</span><span style="color:#eceff4"> </span><span style="color:#9fb7cf">async</span><span style="color:#eceff4"> </span><span style="color:#9fb7cf">function</span><span style="color:#eceff4"> </span><span style="color:#ebd6aa">resolve</span><span style="color:9aa5b8">(</span><span style="color:#bcccdd">name</span><span style="color:9aa5b8">: </span><span style="color:#9ec5bd">string</span><span style="color:9aa5b8">): </span><span style="color:#9ec5bd">Promise</span><span style="color:9aa5b8">&lt;</span><span style="color:#9ec5bd">Palette</span><span style="color:9aa5b8">&gt; {</span>
+<span class="ln">14</span><span style="color:#9fb7cf">  const</span><span style="color:#eceff4"> </span><span style="color:#bcccdd">raw</span><span style="color:9aa5b8"> = </span><span style="color:#c0a3bd">await</span><span style="color:#eceff4"> </span><span style="color:#ebd6aa">readFile</span><span style="color:9aa5b8">(</span><span style="color:#d9a690">`${</span><span style="color:#bcccdd">dir</span><span style="color:#d9a690">}/colors.sh`</span><span style="color:9aa5b8">, </span><span style="color:#d9a690">&quot;utf8&quot;</span><span style="color:9aa5b8">);</span>
+<span class="ln">15</span><span style="color:#c0a3bd">  if</span><span style="color:9aa5b8"> (!</span><span style="color:#bcccdd">raw</span><span style="color:9aa5b8">.</span><span style="color:#bcccdd">length</span><span style="color:9aa5b8">) </span><span style="color:#c0a3bd">throw</span><span style="color:#eceff4"> </span><span style="color:#c0a3bd">new</span><span style="color:#eceff4"> </span><span style="color:#9ec5bd">Error</span><span style="color:9aa5b8">(</span><span style="color:#d9a690">&quot;empty palette&quot;</span><span style="color:9aa5b8">);</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span style="color:#c0a3bd">  for</span><span style="color:9aa5b8"> (</span><span style="color:#9fb7cf">const</span><span style="color:#eceff4"> </span><span style="color:#bcccdd">line</span><span style="color:#eceff4"> </span><span style="color:#c0a3bd">of</span><span style="color:#eceff4"> </span><span style="color:#bcccdd">raw</span><span style="color:9aa5b8">.</span><span style="color:#ebd6aa">split</span><span style="color:9aa5b8">(</span><span style="color:#d9a690">&quot;\n&quot;</span><span style="color:9aa5b8">)) {</span>
+<span class="ln">18</span><span style="color:#c0a3bd">    if</span><span style="color:9aa5b8"> (</span><span style="color:#bcccdd">line</span><span style="color:9aa5b8">.</span><span style="color:#ebd6aa">startsWith</span><span style="color:9aa5b8">(</span><span style="color:#d9a690">&quot;#&quot;</span><span style="color:9aa5b8">)) </span><span style="color:#c0a3bd">continue</span><span style="color:9aa5b8">;</span>
+<span class="ln">19</span><span style="color:9aa5b8">  }</span>
+<span class="ln">20</span>
+<span class="ln">21</span><span style="color:#c0a3bd">  return</span><span style="color:9aa5b8"> { </span><span style="color:#bcccdd">name</span><span style="color:9aa5b8">, </span><span style="color:#bcccdd">contrast</span><span style="color:9aa5b8">: </span><span style="color:#a1ccd9">MIN_RATIO</span><span style="color:9aa5b8">, </span><span style="color:#bcccdd">mode</span><span style="color:9aa5b8">: </span><span style="color:#d9a690">&quot;dark&quot;</span><span style="color:9aa5b8"> };</span>
+<span class="ln">22</span><span style="color:9aa5b8">}</span></pre>
+  </figure>
+</section>
+<section>
+  <header>
+    <h2>Tokyo Night</h2>
+    <span class="tag">tokyo-night</span>
+  </header>
+  <div class="sws"><div class="sw"><i style="background:#8eadf6"></i><b>keyword</b><code>#8eadf6</code></div><div class="sw"><i style="background:#bca5f7"></i><b>control</b><code>#bca5f7</code></div><div class="sw"><i style="background:#d6b792"></i><b>function</b><code>#d6b792</code></div><div class="sw"><i style="background:#90cec9"></i><b>type</b><code>#90cec9</code></div><div class="sw"><i style="background:#e49c91"></i><b>string</b><code>#e49c91</code></div><div class="sw"><i style="background:#accca4"></i><b>number</b><code>#accca4</code></div><div class="sw"><i style="background:#a0b8f6"></i><b>variable</b><code>#a0b8f6</code></div><div class="sw"><i style="background:#8ecefc"></i><b>constant</b><code>#8ecefc</code></div><div class="sw"><i style="background:#768e72"></i><b>comment</b><code>#768e72</code></div><div class="sw"><i style="background:8089ad"></i><b>operator</b><code>8089ad</code></div></div>
+  <figure style="background:#1a1b26;border-color:#2a2d3f">
+    <figcaption style="color:#8089ad;border-color:#2a2d3f">tokyo-night.ts</figcaption>
+    <pre style="color:#c0caf5"><span class="ln"> 1</span><span style="color:#768e72 font-style:italic">// Resolve the active atlas theme and hand it to the compositor.</span>
+<span class="ln"> 2</span><span style="color:#bca5f7">import</span><span style="color:8089ad"> { </span><span style="color:#a0b8f6">readFile</span><span style="color:8089ad"> } </span><span style="color:#bca5f7">from</span><span style="color:#e49c91"> &quot;node:fs/promises&quot;</span><span style="color:8089ad">;</span>
+<span class="ln"> 3</span>
+<span class="ln"> 4</span><span style="color:#bca5f7">export</span><span style="color:#c0caf5"> </span><span style="color:#8eadf6">interface</span><span style="color:#c0caf5"> </span><span style="color:#90cec9">Palette</span><span style="color:8089ad"> {</span>
+<span class="ln"> 5</span><span style="color:#a0b8f6">  name</span><span style="color:8089ad">: </span><span style="color:#90cec9">string</span><span style="color:8089ad">;</span>
+<span class="ln"> 6</span><span style="color:#a0b8f6">  contrast</span><span style="color:8089ad">: </span><span style="color:#90cec9">number</span><span style="color:8089ad">;</span>
+<span class="ln"> 7</span><span style="color:#a0b8f6">  mode</span><span style="color:8089ad">: </span><span style="color:#e49c91">&quot;dark&quot;</span><span style="color:8089ad"> | </span><span style="color:#e49c91">&quot;light&quot;</span><span style="color:8089ad">;</span>
+<span class="ln"> 8</span><span style="color:8089ad">}</span>
+<span class="ln"> 9</span>
+<span class="ln">10</span><span style="color:#8eadf6">const</span><span style="color:#c0caf5"> </span><span style="color:#8ecefc">FALLBACK</span><span style="color:8089ad"> = </span><span style="color:#e49c91">&quot;cobalt&quot;</span><span style="color:8089ad">;</span><span style="color:#768e72 font-style:italic">   // never leave nvim unthemed</span>
+<span class="ln">11</span><span style="color:#8eadf6">const</span><span style="color:#c0caf5"> </span><span style="color:#8ecefc">MIN_RATIO</span><span style="color:8089ad"> = </span><span style="color:#accca4">4.5</span><span style="color:8089ad">;</span>
+<span class="ln">12</span>
+<span class="ln">13</span><span style="color:#bca5f7">export</span><span style="color:#c0caf5"> </span><span style="color:#8eadf6">async</span><span style="color:#c0caf5"> </span><span style="color:#8eadf6">function</span><span style="color:#c0caf5"> </span><span style="color:#d6b792">resolve</span><span style="color:8089ad">(</span><span style="color:#a0b8f6">name</span><span style="color:8089ad">: </span><span style="color:#90cec9">string</span><span style="color:8089ad">): </span><span style="color:#90cec9">Promise</span><span style="color:8089ad">&lt;</span><span style="color:#90cec9">Palette</span><span style="color:8089ad">&gt; {</span>
+<span class="ln">14</span><span style="color:#8eadf6">  const</span><span style="color:#c0caf5"> </span><span style="color:#a0b8f6">raw</span><span style="color:8089ad"> = </span><span style="color:#bca5f7">await</span><span style="color:#c0caf5"> </span><span style="color:#d6b792">readFile</span><span style="color:8089ad">(</span><span style="color:#e49c91">`${</span><span style="color:#a0b8f6">dir</span><span style="color:#e49c91">}/colors.sh`</span><span style="color:8089ad">, </span><span style="color:#e49c91">&quot;utf8&quot;</span><span style="color:8089ad">);</span>
+<span class="ln">15</span><span style="color:#bca5f7">  if</span><span style="color:8089ad"> (!</span><span style="color:#a0b8f6">raw</span><span style="color:8089ad">.</span><span style="color:#a0b8f6">length</span><span style="color:8089ad">) </span><span style="color:#bca5f7">throw</span><span style="color:#c0caf5"> </span><span style="color:#bca5f7">new</span><span style="color:#c0caf5"> </span><span style="color:#90cec9">Error</span><span style="color:8089ad">(</span><span style="color:#e49c91">&quot;empty palette&quot;</span><span style="color:8089ad">);</span>
+<span class="ln">16</span>
+<span class="ln">17</span><span style="color:#bca5f7">  for</span><span style="color:8089ad"> (</span><span style="color:#8eadf6">const</span><span style="color:#c0caf5"> </span><span style="color:#a0b8f6">line</span><span style="color:#c0caf5"> </span><span style="color:#bca5f7">of</span><span style="color:#c0caf5"> </span><span style="color:#a0b8f6">raw</span><span style="color:8089ad">.</span><span style="color:#d6b792">split</span><span style="color:8089ad">(</span><span style="color:#e49c91">&quot;\n&quot;</span><span style="color:8089ad">)) {</span>
+<span class="ln">18</span><span style="color:#bca5f7">    if</span><span style="color:8089ad"> (</span><span style="color:#a0b8f6">line</span><span style="color:8089ad">.</span><span style="color:#d6b792">startsWith</span><span style="color:8089ad">(</span><span style="color:#e49c91">&quot;#&quot;</span><span style="color:8089ad">)) </span><span style="color:#bca5f7">continue</span><span style="color:8089ad">;</span>
+<span class="ln">19</span><span style="color:8089ad">  }</span>
+<span class="ln">20</span>
+<span class="ln">21</span><span style="color:#bca5f7">  return</span><span style="color:8089ad"> { </span><span style="color:#a0b8f6">name</span><span style="color:8089ad">, </span><span style="color:#a0b8f6">contrast</span><span style="color:8089ad">: </span><span style="color:#8ecefc">MIN_RATIO</span><span style="color:8089ad">, </span><span style="color:#a0b8f6">mode</span><span style="color:8089ad">: </span><span style="color:#e49c91">&quot;dark&quot;</span><span style="color:8089ad"> };</span>
+<span class="ln">22</span><span style="color:8089ad">}</span></pre>
+  </figure>
+</section>
+</div>
