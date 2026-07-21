@@ -27,8 +27,13 @@ sleep 0.2   # let it release the layer surface before the replacement claims it
 
 # setsid + nohup: without these swaybg dies with the shell that ran the theme
 # switch, which is exactly how the wallpaper kept disappearing.
+# 9>&- closes any inherited lock descriptor. swaybg outlives this script, so
+# without it a caller holding a flock on fd 9 (atlas-theme used to) would have
+# that lock pinned by swaybg for the life of the session, deadlocking every
+# later theme switch. Belt and braces: atlas-theme no longer holds a lock here,
+# but nothing should be able to reintroduce that by calling this differently.
 if [ -n "$img" ]; then
-    setsid nohup swaybg -i "$img" -m fill >/dev/null 2>&1 &
+    setsid nohup swaybg -i "$img" -m fill >/dev/null 2>&1 9>&- &
 else
-    setsid nohup swaybg -c "#$ground" >/dev/null 2>&1 &
+    setsid nohup swaybg -c "#$ground" >/dev/null 2>&1 9>&- &
 fi

@@ -190,10 +190,22 @@ reload() {
 set_theme() {
   local name="$1"
   [ -d "$THEMES_DIR/$name" ] || die "unknown theme '$name' (try: atlas-theme list)"
-  exec 9>"$LOCK"; flock 9
-  render "$name"
-  echo "$name" > "$CUR_FILE"
-  reload
+
+  # The lock covers ONLY the file writing. It must not cover reload(), because
+  # reload spawns long-lived children (swaybg) that INHERIT the lock file
+  # descriptor and then hold the lock for as long as they run -- deadlocking
+  # every later invocation. Scoping the lock to a subshell also guarantees the
+  # fd is closed on exit even if render() fails.
+  #
+  # -w 5: never block forever. If something is genuinely wedged, say so and
+  # exit rather than adding another stuck process to the pile.
+  (
+    flock -w 5 9 || { echo "atlas-theme: timed out waiting for the lock" >&2; exit 1; }
+    render "$name"
+    echo "$name" > "$CUR_FILE"
+  ) 9>"$LOCK" || return 1
+
+  reload                       # outside the lock, on purpose
   command -v notify-send >/dev/null 2>&1 && notify-send "Theme" "$name" -t 1500
   echo "→ $name"
 }
