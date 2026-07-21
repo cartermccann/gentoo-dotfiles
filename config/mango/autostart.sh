@@ -6,11 +6,29 @@ set +e
 
 run() { command -v "$1" >/dev/null 2>&1 && "$@" & }
 
+# ── D-Bus activation environment ───────────────────────────────
+# Without this, D-Bus-activated services and anything using the session bus
+# fail with "Cannot autolaunch D-Bus without X11 $DISPLAY". That is what kept
+# waybar, swaync, nm-applet and blueman-applet down while swaybg, pipewire and
+# wlsunset (which need no bus) came up fine.
+# The session itself is wrapped in dbus-run-session by mango.desktop; this
+# pushes the wayland vars into the bus so activated children inherit them.
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --all \
+        WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR 2>/dev/null
+fi
+
 # ── Wallpaper (image if present, else solid Catppuccin base) ───
-if [ -f "$HOME/.config/mango/wallpaper/wallpaper.png" ]; then
-    run swaybg -i "$HOME/.config/mango/wallpaper/wallpaper.png" -m fill
+# First image found in the wallpaper dir wins; falls back to the current
+# theme's GROUND colour rather than a hardcoded Catppuccin base.
+_wp=$(find "$HOME/.config/mango/wallpaper" -maxdepth 1 -type f \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null | sort | head -1)
+if [ -n "$_wp" ]; then
+    run swaybg -i "$_wp" -m fill
 else
-    run swaybg -c 1e1e2e
+    _ground=$(sed -n 's/^GROUND=//p' \
+        "$HOME/gentoo-dotfiles/themes/$(cat "$HOME/.local/state/atlas/current-theme" 2>/dev/null || echo cobalt)/colors.sh" 2>/dev/null)
+    run swaybg -c "${_ground:-0a0c11}"
 fi
 
 # ── Audio (PipeWire — started from the session on OpenRC) ───────

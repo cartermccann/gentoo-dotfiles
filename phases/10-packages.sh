@@ -48,7 +48,7 @@ CORE=(
     # bin/setup-ly, which must be an explicit, auditable step.
     # wayland desktop tools
     gui-apps/waybar gui-apps/swaync gui-apps/swaybg x11-misc/rofi
-    gui-apps/wl-clipboard gui-apps/grim gui-apps/slurp gui-apps/swaylock
+    gui-apps/wl-clipboard gui-apps/cliphist gui-apps/grim gui-apps/slurp gui-apps/swaylock
     gui-apps/wlsunset gui-apps/swayidle gui-apps/wtype
     x11-libs/libnotify media-sound/playerctl
     app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
@@ -63,6 +63,8 @@ CORE=(
     dev-lang/rust-bin dev-lang/go dev-lang/zig net-libs/nodejs
     # shell
     app-shells/fish app-shells/starship
+    # cursor theme (matches kronos)
+    x11-themes/bibata-xcursors
     # fonts  (atom is nerdfonts, no hyphen — and it lives in GURU)
     media-fonts/nerdfonts media-fonts/noto-emoji
 )
@@ -147,9 +149,14 @@ elif [ "$DRY_RUN" = "1" ]; then
 else
     as_root tee "$sess" >/dev/null <<'EOF'
 [Desktop Entry]
+Encoding=UTF-8
 Name=Mango
 Comment=dwl-based Wayland compositor
-Exec=mango
+DesktopNames=mango;wlroots
+# dbus-run-session is required: ly/greetd start the session with no session
+# bus, and everything that touches D-Bus (waybar, swaync, nm-applet,
+# blueman-applet) then dies with "Cannot autolaunch D-Bus without X11 $DISPLAY".
+Exec=dbus-run-session -- mango
 Type=Application
 EOF
     ok "created $sess"

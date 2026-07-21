@@ -4,6 +4,7 @@ x11-terms/ghostty ~amd64
 gui-apps/swaync ~amd64
 x11-misc/ly ~amd64
 media-fonts/nerdfonts ~amd64
+x11-themes/bibata-xcursors ~amd64
 # pre-seeded so autounmask doesn't have to write them mid-run (which leaves
 # ._cfg files behind and stalls the batch)
 =x11-terms/ghostty-terminfo-1.3.1 ~amd64
