@@ -46,8 +46,17 @@ run wl-paste --type text  --watch cliphist store
 run wl-paste --type image --watch cliphist store
 
 # ── Tray applets ───────────────────────────────────────────────
+# blueman-applet is deliberately NOT started. It ships a full-colour tray
+# pixmap that waybar cannot restyle, so it was the one saturated thing in an
+# otherwise monochrome bar. The waybar `bluetooth` module already shows state
+# and opens blueman-manager on click.
+#
+# Tradeoff, so it is not a surprise later: blueman-applet is also the GUI
+# pairing agent. Incoming pair requests will not raise a dialog on their own
+# now -- open blueman-manager (click the BT chip) and it registers an agent
+# while it is open. Start `blueman-applet` by hand if you ever want the old
+# behaviour back.
 run nm-applet --indicator
-run blueman-applet
 
 # ── Polkit agent (auth dialogs) ────────────────────────────────
 run /usr/libexec/polkit-gnome-authentication-agent-1

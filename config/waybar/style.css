@@ -31,7 +31,7 @@ window#waybar {
 #clock, #mpris, #idle_inhibitor, #privacy,
 #cpu, #memory, #temperature, #disk,
 #bluetooth, #network, #pulseaudio, #backlight, #battery,
-#custom-swaync, #tray {
+#custom-swaync, #custom-power, #tray {
     padding: 2px 12px;
     margin: 4px 2px;
     border-radius: 8px;
@@ -78,6 +78,12 @@ window#waybar {
 #bluetooth.connected { color: @accent; }
 #network.disconnected { color: @crit; }
 #pulseaudio.muted     { color: @subtext; opacity: 0.6; }
+
+/* Power is the one chip that can end your session, so its hover goes red --
+   not as decoration but as the same "you are about to do something" signal the
+   close button in swaync uses. At rest it stays monochrome like everything
+   else, because a power button is not a state you need to notice. */
+#custom-power:hover { background: alpha(@crit, 0.16); color: @crit; }
 
 #custom-swaync.notification { color: @accent; }
 #custom-swaync.dnd-none,

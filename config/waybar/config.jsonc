@@ -21,7 +21,8 @@
         "backlight",
         "battery",
         "custom/swaync",
-        "tray"
+        "tray",
+        "custom/power"
     ],
 
     "clock": {
@@ -115,6 +116,15 @@
 
     "tray": { "icon-size": 16, "spacing": 8 },
 
+    // Session actions. Opens the same rofi menu as Super+Shift+Escape, so the
+    // pointer and the keyboard reach one implementation.
+    "custom/power": {
+        "format": "󰐥",
+        "tooltip": true,
+        "tooltip-format": "Session\nlock \u00b7 logout \u00b7 suspend \u00b7 reboot \u00b7 shutdown",
+        "on-click": "~/.config/mango/scripts/powermenu.sh"
+    },
+
     "custom/swaync": {
         "tooltip": true,
         "format": "{icon}",
@@ -129,11 +139,19 @@
         "escape": true
     },
 
+    // Every state carries the BT label, like every other chip. Leaving
+    // `format-on` undefined was the bug: with the controller powered but
+    // nothing paired, waybar fell through to the bare `format` glyph and this
+    // was the one unlabelled chip in the bar.
     "bluetooth": {
-        "format": "󰂯",
-        "format-disabled": "󰂲",
-        "format-connected": "󰂯  <small>BT</small> {num_connections}",
-        "tooltip-format-connected": "{device_enumerate}",
+        "format": "󰂯  <small>BT</small> {status}",
+        "format-on": "󰂯  <small>BT</small> on",
+        "format-off": "󰂲  <small>BT</small> off",
+        "format-disabled": "󰂲  <small>BT</small> off",
+        "format-no-controller": "󰂲  <small>BT</small> n/a",
+        "format-connected": "󰂱  <small>BT</small> {num_connections}",
+        "tooltip-format": "{controller_alias}\n{status}",
+        "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
         "on-click": "blueman-manager"
     },
 
