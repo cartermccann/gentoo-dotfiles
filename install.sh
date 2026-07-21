@@ -37,6 +37,7 @@ Phases (run in this order if none given):
 
 Options:
   --dry-run   print what would happen, change nothing
+  --check     diff the repo against the live system, change nothing
   --list      list phases and exit
   -h, --help  this help
 
@@ -47,9 +48,68 @@ Examples:
 EOF
 }
 
+# ── --check: is the live system still what the repo says? ──────
+# The Nix-ish property we want: the repo is the source of truth, and any
+# drift is visible rather than silent.
+run_check() {
+    banner "atlas / config check" "repo vs live system"
+    local drift=0
+
+    step "system files (/etc)"
+    while read -r src dst; do
+        [ -z "$src" ] && continue
+        if [ ! -f "$dst" ]; then
+            err "MISSING  $dst"; drift=1
+        elif cmp -s "$REPO_DIR/$src" "$dst"; then
+            ok "in sync  $dst"
+        else
+            warn "DRIFTED  $dst"; drift=1
+            diff -u "$dst" "$REPO_DIR/$src" | sed -n '3,12p' | sed 's/^/      /'
+        fi
+    done <<'MAP'
+system/portage/package.accept_keywords/atlas /etc/portage/package.accept_keywords/atlas
+system/portage/package.use/atlas /etc/portage/package.use/atlas
+system/greetd/config.toml /etc/greetd/config.toml
+system/init.d/greetd /etc/init.d/greetd
+MAP
+
+    step "user configs (~/.config -> repo)"
+    for d in "$REPO_DIR"/config/*/; do
+        local n dst; n=$(basename "$d"); dst="$HOME/.config/$n"
+        if [ -L "$dst" ] && [ "$(readlink -f "$dst")" = "$(readlink -f "$d")" ]; then
+            ok "linked   ~/.config/$n"
+        elif [ -e "$dst" ]; then
+            warn "NOT A LINK  ~/.config/$n (local copy shadows the repo)"; drift=1
+        else
+            err "MISSING  ~/.config/$n"; drift=1
+        fi
+    done
+
+    step "services"
+    while read -r svc lvl; do
+        case "$svc" in ""|\#*) continue ;; esac
+        if ! [ -f "/etc/init.d/$svc" ]; then err "no init script: $svc"; drift=1
+        elif rc-update show "$lvl" 2>/dev/null | grep -qw "$svc"; then ok "$svc -> $lvl"
+        else warn "NOT ENABLED  $svc ($lvl)"; drift=1; fi
+    done < "$REPO_DIR/system/services.conf"
+
+    step "pending portage config"
+    local cfgs; cfgs=$(find /etc/portage -name '._cfg*' 2>/dev/null | head)
+    if [ -n "$cfgs" ]; then
+        warn "unmerged ._cfg files — review before dispatch-conf, they can be STALE:"
+        printf '      %s\n' $cfgs; drift=1
+    else ok "no unmerged ._cfg files"; fi
+
+    echo
+    if [ "$drift" = "0" ]; then ok "system matches the repo"
+    else warn "drift found — './install.sh packages' redeploys system files"; fi
+    return 0
+}
+
 SELECTED=()
 for arg in "$@"; do
     case "$arg" in
+        --check) run_check; exit 0 ;;
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;

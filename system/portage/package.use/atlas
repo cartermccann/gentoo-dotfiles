@@ -1,0 +1,32 @@
+x11-misc/rofi wayland
+media-video/pipewire sound-server pipewire-alsa
+dev-lang/rust-bin clippy rustfmt rust-analyzer rust-src
+net-libs/nodejs npm
+
+# ── REQUIRED_USE "any-of ( wayland X )" ────────────────────────
+# The base 23.0 profile sets neither X nor wayland, so every package with
+# this constraint hard-fails. autounmask writes keywords but will NOT flip a
+# REQUIRED_USE flag, so these must be declared up front.
+x11-terms/ghostty wayland
+dev-cpp/gtkmm wayland X
+dev-cpp/cairomm wayland X
+x11-libs/cairo X
+xfce-base/xfce4-panel wayland
+xfce-base/libxfce4ui wayland
+xfce-base/libxfce4windowing wayland X
+xfce-base/xfce4-appfinder wayland
+xfce-base/exo wayland
+
+# ── swaync / gtk4 stack (else mesa+gtk get rebuilt without wayland) ──
+>=gui-libs/gtk4-layer-shell-1.1.1-r1 introspection vala
+gui-libs/gtk wayland
+media-libs/mesa wayland
+
+# ── dist-kernel ────────────────────────────────────────────────
+sys-kernel/installkernel dracut
+
+# ── fonts ──────────────────────────────────────────────────────
+# nerdfonts defaults to symbols-only. Every config in this repo asks for
+# "JetBrainsMono Nerd Font" by name, so it has to be enabled explicitly or
+# waybar/ghostty/foot/rofi all silently fall back to a default face.
+media-fonts/nerdfonts jetbrainsmono

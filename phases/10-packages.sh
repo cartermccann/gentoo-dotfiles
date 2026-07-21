@@ -8,61 +8,25 @@ source "$REPO_DIR/lib/common.sh"
 step "portage config (keywords + USE)"
 run_root mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use
 
-kw=/etc/portage/package.accept_keywords/atlas
-use=/etc/portage/package.use/atlas
-if [ "$DRY_RUN" = "1" ]; then
-    info "[dry-run] would write $kw and $use"
-else
-    as_root tee "$kw" >/dev/null <<'EOF'
-gui-wm/mangowm ~amd64
-gui-libs/scenefx ~amd64
-x11-terms/ghostty ~amd64
-gui-apps/swaync ~amd64
-media-fonts/nerdfonts ~amd64
-# pre-seeded so autounmask doesn't have to write them mid-run (which leaves
-# ._cfg files behind and stalls the batch)
-=x11-terms/ghostty-terminfo-1.3.1 ~amd64
-=dev-lang/zig-bin-0.15.2 ~amd64
-=app-misc/brightnessctl-0.5.1 ~amd64
-=gui-apps/wtype-0.4 ~amd64
-=gui-apps/wlsunset-0.4.0 ~amd64
-EOF
-    as_root tee "$use" >/dev/null <<'EOF'
-x11-misc/rofi wayland
-media-video/pipewire sound-server pipewire-alsa
-dev-lang/rust-bin clippy rustfmt rust-analyzer rust-src
-net-libs/nodejs npm
+# Source of truth is system/portage/ in this repo — real files you can read,
+# diff and edit. deploy_system_file copies and reports drift rather than
+# symlinking: /etc/portage decides what root emerges, so pointing it at a
+# user-writable git checkout would be a privilege-escalation path.
+deploy_system_file() {   # src dst mode
+    local src="$1" dst="$2" mode="${3:-0644}"
+    if [ "$DRY_RUN" = "1" ]; then info "[dry-run] install $src -> $dst"; return; fi
+    if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+        ok "${dst} (unchanged)"
+    else
+        [ -f "$dst" ] && as_root cp "$dst" "$dst.bak.$(date +%Y%m%d-%H%M%S)"
+        as_root install -D -m "$mode" "$src" "$dst" && ok "${dst}"
+    fi
+}
 
-# ── REQUIRED_USE "any-of ( wayland X )" ────────────────────────
-# The base 23.0 profile sets neither X nor wayland, so every package with
-# this constraint hard-fails. autounmask writes keywords but will NOT flip a
-# REQUIRED_USE flag, so these must be declared up front.
-x11-terms/ghostty wayland
-dev-cpp/gtkmm wayland X
-dev-cpp/cairomm wayland X
-x11-libs/cairo X
-xfce-base/xfce4-panel wayland
-xfce-base/libxfce4ui wayland
-xfce-base/libxfce4windowing wayland X
-xfce-base/xfce4-appfinder wayland
-xfce-base/exo wayland
-
-# ── swaync / gtk4 stack (else mesa+gtk get rebuilt without wayland) ──
->=gui-libs/gtk4-layer-shell-1.1.1-r1 introspection vala
-gui-libs/gtk wayland
-media-libs/mesa wayland
-
-# ── dist-kernel ────────────────────────────────────────────────
-sys-kernel/installkernel dracut
-
-# ── fonts ──────────────────────────────────────────────────────
-# nerdfonts defaults to symbols-only. Every config in this repo asks for
-# "JetBrainsMono Nerd Font" by name, so it has to be enabled explicitly or
-# waybar/ghostty/foot/rofi all silently fall back to a default face.
-media-fonts/nerdfonts jetbrainsmono
-EOF
-    ok "wrote keyword + USE overrides"
-fi
+deploy_system_file "$REPO_DIR/system/portage/package.accept_keywords/atlas" \
+                   /etc/portage/package.accept_keywords/atlas
+deploy_system_file "$REPO_DIR/system/portage/package.use/atlas" \
+                   /etc/portage/package.use/atlas
 
 # ── GURU overlay ───────────────────────────────────────────────
 step "GURU overlay"
@@ -197,10 +161,8 @@ step "greetd (login manager)"
 if [ "$DRY_RUN" = "1" ]; then
     info "[dry-run] would install /etc/greetd/config.toml and /etc/init.d/greetd"
 elif have greetd; then
-    run_root mkdir -p /etc/greetd
-    as_root install -m 0644 "$REPO_DIR/system/greetd/config.toml" /etc/greetd/config.toml
-    as_root install -m 0755 "$REPO_DIR/system/init.d/greetd"      /etc/init.d/greetd
-    ok "greetd config + OpenRC init script installed (greeter on vt7)"
+    deploy_system_file "$REPO_DIR/system/greetd/config.toml" /etc/greetd/config.toml 0644
+    deploy_system_file "$REPO_DIR/system/init.d/greetd"      /etc/init.d/greetd      0755
 else
     warn "greetd not installed — skipping its config"
 fi
@@ -219,11 +181,10 @@ add_svc() {  # name runlevel
     fi
     as_root rc-update add "$1" "$2" >/dev/null 2>&1 && ok "$1 -> $2" || warn "could not enable $1"
 }
-add_svc dbus default
-add_svc elogind boot
-add_svc NetworkManager default
-add_svc bluetooth default
-add_svc greetd default
+while read -r _svc _lvl; do
+    case "$_svc" in ""|\#*) continue ;; esac
+    add_svc "$_svc" "$_lvl"
+done < "$REPO_DIR/system/services.conf"
 if [ ${#svc_missing[@]} -gt 0 ]; then
     warn "services NOT enabled (missing packages): ${svc_missing[*]}"
     warn "  install them, then re-run: ./install.sh packages"
