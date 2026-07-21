@@ -33,8 +33,25 @@ echo "==> keywording ly"
 grep -q '^x11-misc/ly ' /etc/portage/package.accept_keywords/atlas 2>/dev/null \
   || echo 'x11-misc/ly ~amd64' >> /etc/portage/package.accept_keywords/atlas
 
+echo "==> clearing the failed download"
+# A previous attempt leaves the rejected tarball as
+# /var/cache/distfiles/ly-<v>.tar.gz._checksum_failure_.XXXX. While that is
+# present, `ebuild ... manifest` will not re-fetch, so the digest never
+# changes and the next emerge fails exactly the same way.
+rm -f /var/cache/distfiles/ly-*.tar.gz._checksum_failure_.* \
+      /var/cache/distfiles/ly-*.tar.gz.__download__ 2>/dev/null || true
+
 echo "==> re-digesting the ebuild (see the note at the top of this file)"
-ebuild "$EBUILD" manifest
+# --force is required: without it portage keeps the existing Manifest entries
+# and the size/hash mismatch survives.
+if ! ebuild --force "$EBUILD" manifest; then
+    echo
+    echo "  re-digest FAILED. ly is not installed and greetd is untouched," >&2
+    echo "  so your current login manager still works. Nothing to recover." >&2
+    exit 1
+fi
+echo "  new recorded size: $(awk '/ly-1.4.1.tar.gz/{print $3}' \
+    /var/db/repos/guru/x11-misc/ly/Manifest)"
 
 echo "==> emerging ly"
 emerge --noreplace --quiet x11-misc/ly
