@@ -92,8 +92,17 @@ tested on atlas until you run it:
   `beeper.com/download`.
 - **Monitor refresh** — `config/mango/monitor.conf` starts eDP-1 at **60 Hz + scale 1.5**
   for a safe first boot. Run `wlr-randr` and bump to 120 Hz once you confirm it's stable.
-- **Login manager is greetd + tuigreet, not ly.** `x11-misc/ly`'s only ebuild (1.4.1)
-  404s on its upstream tarball, so it cannot be installed. greetd is configured on
+- **Login manager is greetd + tuigreet, not ly.** `x11-misc/ly` (GURU) fails to
+  fetch: Codeberg generates its archive tarballs on the fly and the output is not
+  byte-reproducible, so the recorded Manifest no longer matches what the server
+  serves (expects 147223 bytes, gets 146988 — `VERIFY FAILED! Filesize does not
+  match recorded size`). The `404` you see first is only portage trying
+  `distfiles.gentoo.org`, which does not mirror GURU distfiles; it is not the
+  real cause. Fixable locally with
+  `doas ebuild /var/db/repos/guru/x11-misc/ly/ly-1.4.1.ebuild manifest`, but that
+  re-digests against whatever Codeberg serves (so it trusts an unverified
+  download) and is wiped by the next `emerge --sync guru`. All three GURU
+  versions (1.3.2, 1.4.0, 1.4.1) are affected the same way. greetd is configured on
   **vt7** — `agetty` keeps tty1–6, so a broken greeter never locks you out
   (Ctrl+Alt+F7 = login screen, Ctrl+Alt+F1 = plain console).
   Gentoo's greetd ships *only* a systemd unit, so this repo provides the OpenRC

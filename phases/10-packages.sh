@@ -44,7 +44,7 @@ step "core packages (desktop stack, audio, bluetooth, langs)"
 CORE=(
     # compositor + session
     gui-wm/mangowm gui-libs/scenefx
-    # login: greetd + tuigreet (x11-misc/ly's only ebuild 404s upstream)
+    # login: greetd + tuigreet (x11-misc/ly is unbuildable — see README)
     gui-libs/greetd gui-apps/tuigreet
     # wayland desktop tools
     gui-apps/waybar gui-apps/swaync gui-apps/swaybg x11-misc/rofi
