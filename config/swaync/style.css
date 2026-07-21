@@ -28,9 +28,10 @@ window.background,
     border-radius: 14px;
     background: alpha(@base, 0.9);
     border: 1px solid @border;
-    /* Kept small on purpose: the margin above is 8px, so a large blur
-       would clip into a band the same way the panel's did. */
-    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    /* NO box-shadow. Same clipping problem as the control-center panel: the
+       toast's window is only its own size plus the 8px margin, so even a 6px
+       blur has nowhere to fade and GTK clips it into a hard-edged dark ring
+       tracing the rounded corners. The 1px border already defines the edge. */
 }
 .notification-content { padding: 12px; border-radius: 14px; }
 .notification.critical { border-color: @crit; }
