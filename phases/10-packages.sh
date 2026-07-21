@@ -48,7 +48,7 @@ CORE=(
     # bin/setup-ly, which must be an explicit, auditable step.
     # wayland desktop tools
     gui-apps/waybar gui-apps/swaync gui-apps/swaybg x11-misc/rofi
-    gui-apps/wl-clipboard gui-apps/cliphist gui-apps/grim gui-apps/slurp gui-apps/swaylock
+    gui-apps/wl-clipboard app-misc/cliphist gui-apps/grim gui-apps/slurp gui-apps/swaylock
     gui-apps/wlsunset gui-apps/swayidle gui-apps/wtype
     x11-libs/libnotify media-sound/playerctl
     app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
