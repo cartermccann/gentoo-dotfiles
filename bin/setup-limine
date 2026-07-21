@@ -26,6 +26,29 @@ HOOK_DST="/etc/kernel/postinst.d/95-limine.install"
 LOADER='\EFI\Limine\BOOTX64.EFI'
 LABEL="Limine"
 
+# Find the boot number for a label.
+#
+# Do NOT anchor a label match with '$'. `efibootmgr` -- even without -v --
+# prints the device path after a TAB on the same line, so "Boot0005* Limine"
+# is really "Boot0005* Limine\tHD(1,GPT,...)/\EFI\...". An anchored match
+# silently finds nothing, and `efibootmgr -n ""` then sets BootNext to 0000,
+# which on this machine is the firmware's "Internal Storage" entry. That is
+# how the first run armed a one-shot test that pointed at the wrong thing.
+boot_num_for_label() {
+    local want="$1" line num label
+    while IFS= read -r line; do
+        case "$line" in Boot[0-9A-F][0-9A-F][0-9A-F][0-9A-F]*) ;; *) continue ;; esac
+        num="${line:4:4}"
+        label="${line:8}"; label="${label#\*}"
+        label="${label#"${label%%[![:space:]]*}"}"
+        label="${label%%$'\t'*}"
+        [ "$label" = "$want" ] && { printf '%s\n' "$num"; return 0; }
+    done < <(efibootmgr)
+    return 1
+}
+
+boot_order() { efibootmgr | sed -n 's/^BootOrder: //p'; }
+
 c()   { printf '\033[1;34m▸\033[0m %s\n' "$*"; }
 ok()  { printf '  \033[1;32m✓\033[0m %s\n' "$*"; }
 warn(){ printf '  \033[1;33m!\033[0m %s\n' "$*"; }
@@ -42,8 +65,13 @@ esp_part="$(cat "/sys/class/block/$(basename "$esp_src")/partition")"
 
 revert() {
     c "removing Limine"
-    for n in $(efibootmgr | sed -n "s/^Boot\([0-9A-F]\{4\}\)\*\? $LABEL\$/\1/p"); do
-        efibootmgr -b "$n" -B >/dev/null && ok "deleted NVRAM entry Boot$n"
+    # Bounded: if a delete ever fails, stop rather than spin forever looking at
+    # an entry that will not go away.
+    local guard=0
+    while n="$(boot_num_for_label "$LABEL")" && [ "$guard" -lt 16 ]; do
+        guard=$((guard + 1))
+        efibootmgr -b "$n" -B >/dev/null || die "could not delete Boot$n"
+        ok "deleted NVRAM entry Boot$n"
     done
     rm -rf "$ESP/EFI/Limine" "$ESP/atlas" "$ESP/limine.conf" "$ESP/wallpaper.jpg"
     rm -f "$HOOK_DST" /etc/limine/palette.conf
@@ -53,9 +81,8 @@ revert() {
 }
 
 set_default() {
-    n="$(efibootmgr | sed -n "s/^Boot\([0-9A-F]\{4\}\)\*\? $LABEL\$/\1/p" | head -1)"
-    [ -n "$n" ] || die "no $LABEL entry found — run without --default first"
-    order="$(efibootmgr | sed -n 's/^BootOrder: //p')"
+    n="$(boot_num_for_label "$LABEL")" || die "no $LABEL entry found — run without --default first"
+    order="$(boot_order)"
     neworder="$n,$(echo "$order" | sed "s/\b$n\b,\?//g" | sed 's/,$//')"
     efibootmgr -o "$neworder" >/dev/null && ok "BootOrder → $neworder"
     warn "GRUB stays in the list as the next entry; pick it from the firmware menu if needed"
@@ -160,17 +187,31 @@ prune_stale
 
 # ── 5. NVRAM entry ─────────────────────────────────────────────
 c "NVRAM entry"
-if efibootmgr | grep -qE "^Boot[0-9A-F]{4}\*? $LABEL\$"; then
-    ok "$LABEL entry already present"
+if n="$(boot_num_for_label "$LABEL")"; then
+    ok "$LABEL entry already present (Boot$n)"
 else
+    order_before="$(boot_order)"
     efibootmgr --create --disk "$esp_disk" --part "$esp_part" \
         --label "$LABEL" --loader "$LOADER" >/dev/null \
         || die "efibootmgr failed to create the entry"
-    ok "created $LABEL → $esp_disk part $esp_part $LOADER"
+    n="$(boot_num_for_label "$LABEL")" || die "created the entry but cannot find it again"
+    ok "created $LABEL → $esp_disk part $esp_part $LOADER (Boot$n)"
+
+    # `efibootmgr --create` PREPENDS the new entry to BootOrder, which would
+    # make Limine the default the moment it is installed -- the exact opposite
+    # of what this script promises. Put the old default back in front and slot
+    # Limine in second, so it is visible in the firmware menu but nothing boots
+    # it until --default or the one-shot below.
+    if [ -n "$order_before" ]; then
+        first="${order_before%%,*}"; rest="${order_before#*,}"
+        [ "$rest" = "$order_before" ] && rest=""
+        neworder="$first,$n${rest:+,$rest}"
+        efibootmgr -o "$neworder" >/dev/null \
+            && ok "BootOrder → $neworder (default is still Boot$first, not Limine)"
+    fi
 fi
 
 # ── 6. arm the one-shot test ───────────────────────────────────
-n="$(efibootmgr | sed -n "s/^Boot\([0-9A-F]\{4\}\)\*\? $LABEL\$/\1/p" | head -1)"
 efibootmgr -n "$n" >/dev/null && ok "BootNext → Boot$n (one-shot)"
 
 cat <<EOF
