@@ -1,0 +1,24 @@
+# Console font — atlas
+#
+# This is what sizes the ly greeter. ly's big clock is drawn as a 5x5 grid of
+# U+2593 cells per digit (ly-ui/src/components/BigLabel.zig, CHAR_WIDTH =
+# CHAR_HEIGHT = 5), and that 5x5 is fixed. The console font's cell size is
+# therefore the ONLY control over how big the clock is:
+#
+#   default8x16   ->  digit  40x80 px,  clock 192x80 px   (the kernel default)
+#   solar24x32    ->  digit 120x160 px, clock 576x160 px
+#
+# solar24x32 also has the coarsest U+2593 dither of the candidates, so the
+# digits read as pixel texture rather than a solid fill.
+#
+# CAREFUL if you ever change this: the font MUST carry U+2593 or the clock
+# renders as blanks. Most Terminus console faces do NOT -- the codepage
+# variants (ter-v32b, ter-1xx, ter-c32b, ...) ship U+2588/2591/2592 but not
+# 2593. Only the Unicode variants (ter-uXXb) do. Check before switching:
+#
+#   zcat /usr/share/consolefonts/<font>.psf*.gz > /tmp/f.psf
+#   psfgettable /tmp/f.psf | grep U+2593
+#
+# solar24x32 comes from sys-apps/kbd, which is already part of the base
+# system, so this needs no extra package.
+consolefont="solar24x32"

@@ -75,6 +75,7 @@ system/portage/package.accept_keywords/atlas /etc/portage/package.accept_keyword
 system/portage/package.use/atlas /etc/portage/package.use/atlas
 system/ly/config.ini /etc/ly/config.ini
 system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install
+system/conf.d/consolefont /etc/conf.d/consolefont
 MAP
 
     step "user configs (~/.config -> repo)"
