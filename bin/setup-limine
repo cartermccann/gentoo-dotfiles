@@ -129,12 +129,19 @@ else
     warn "theme '$theme' not found; the hook falls back to baked-in cobalt"
 fi
 
-wp="$(find "$REPO/config/mango/wallpaper" -maxdepth 1 -type f \
-        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null | sort | head -1)"
-if [ -n "$wp" ]; then
-    cp -f "$wp" "$ESP/wallpaper.jpg" && ok "wallpaper → $ESP/wallpaper.jpg ($(basename "$wp"))"
+# Boot screen is flat cobalt by default -- deliberately quieter than the
+# desktop. Set LIMINE_WALLPAPER=1 to put the desktop wallpaper behind the menu
+# instead, which switches the hook to a translucent inset panel.
+if [ "${LIMINE_WALLPAPER:-0}" = 1 ]; then
+    wp="$(find "$REPO/config/mango/wallpaper" -maxdepth 1 -type f \
+            \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) 2>/dev/null | sort | head -1)"
+    if [ -n "$wp" ]; then
+        cp -f "$wp" "$ESP/wallpaper.jpg" && ok "wallpaper → $ESP/wallpaper.jpg ($(basename "$wp"))"
+    else
+        warn "LIMINE_WALLPAPER=1 but no image found in config/mango/wallpaper/"
+    fi
 else
-    warn "no wallpaper found; Limine will use a flat background"
+    rm -f "$ESP/wallpaper.jpg" && ok "flat background (LIMINE_WALLPAPER=1 for the photo)"
 fi
 
 # ── 3. the kernel hook, then run it ────────────────────────────
