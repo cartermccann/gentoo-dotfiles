@@ -1,10 +1,26 @@
-/* swaync — glass notification center. Colors from active theme (atlas-theme). */
+/* swaync — glass notification center. Colors from active theme (atlas-theme).
+ * swaync 0.12 is GTK4, and GTK4 paints unstyled containers with its own pale
+ * default background, so every container in the tree needs an explicit one. */
 @import "theme.css";
 
 * {
     font-family: "JetBrainsMono Nerd Font";
     font-size: 13px;
 }
+
+/* ── The fullscreen click-catcher ──────────────────────────────────────
+   swaync opens a fullscreen window (class .blank-window) behind the panel to
+   catch clicks outside it. Left unstyled, GTK4 paints it with its DEFAULT
+   window background: an opaque pale sheet over the whole screen. This one
+   rule is the difference between "glass panel" and "the desktop went grey". */
+.blank-window { background: transparent; }
+
+/* GTK4 toplevels need the same treatment or the pale default shows through
+   behind the rounded corners. */
+window,
+window.background,
+.floating-notifications,
+.floating-notifications.background { background: transparent; }
 
 /* ── Popup toasts ── */
 .notification {
@@ -18,6 +34,7 @@
 .notification.critical { border-color: @crit; }
 .summary { color: @text; font-weight: 600; }
 .body { color: @subtext; }
+.time { color: @subtext; font-size: 12px; }
 .notification-default-action:hover { background: alpha(@surface, 0.9); }
 .close-button {
     background: transparent; color: @subtext; border-radius: 8px;
@@ -35,6 +52,24 @@
     padding: 14px;
 }
 .control-center .notification { background: alpha(@surface, 0.7); }
+
+/* Scrolled list + rows inside the panel: more default-background containers. */
+.control-center-list,
+.control-center-list-placeholder,
+.notification-row,
+.notification-background { background: transparent; }
+
+.notification-group,
+.notification-group-headers { background: transparent; color: @subtext; }
+.notification-group-buttons button,
+.notification-group-close-all-button,
+.notification-group-close-button,
+.notification-group-collapse-button {
+    background: alpha(@surface, 0.8);
+    color: @subtext;
+    border-radius: 8px;
+}
+.notification-group-buttons button:hover { background: @accent; color: @base; }
 
 .widget-title { color: @text; font-size: 15px; font-weight: 600; padding: 6px 4px 12px; }
 .widget-title > button {
