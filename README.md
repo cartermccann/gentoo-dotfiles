@@ -52,11 +52,35 @@ Phases (`./install.sh --list`):
 4. **dotfiles** – symlink `config/*` into `~/.config` (nvim included), set fish as shell
 5. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
 
-Then install the login manager (a separate, deliberate step — see below):
+Then install the login manager and (optionally) the bootloader — both separate,
+deliberate steps:
 
 ```bash
-doas bash bin/setup-ly
+doas bash bin/setup-ly       # login manager (see below for the Manifest workaround)
+doas bash bin/setup-limine   # bootloader, installed ALONGSIDE grub
 ```
+
+### Bootloader (Limine)
+
+`bin/setup-limine` installs Limine **next to GRUB, never over it** — GRUB's EFI
+binary, its NVRAM entry and the kernels in `/boot` on btrfs are all left alone. The
+first run arms `efibootmgr --bootnext`, a **one-shot** boot: if Limine fails, the next
+reboot returns to GRUB by itself with nothing to undo. Promote it only once you've
+seen it work.
+
+```bash
+doas bash bin/setup-limine              # install + arm the one-shot test
+doas bash bin/setup-limine --default    # make it the default, after it boots clean
+doas bash bin/setup-limine --revert     # remove it; GRUB untouched
+PRUNE_DRY_RUN=1 doas bash bin/setup-limine   # show which dead NVRAM entries would go
+```
+
+Limine reads **FAT and ISO9660 only** (deliberate upstream policy), and this machine
+keeps `/boot` on btrfs — so `system/kernel/postinst.d/95-limine.install` mirrors the
+kernels onto the ESP and regenerates `limine.conf` on every kernel install. Gentoo's
+`installkernel` has hooks for grub, systemd-boot, refind, efistub and uki but none for
+limine; that file is the missing one. Colours come from the active atlas theme, so the
+boot menu matches ly, waybar and neovim.
 
 Then **reboot**. **ly** greets you → pick **Mango** → log in.
 
