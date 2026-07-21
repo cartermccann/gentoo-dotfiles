@@ -18,4 +18,26 @@ export XDG_CURRENT_DESKTOP=mango
 export XDG_SESSION_TYPE=wayland
 export XDG_SESSION_DESKTOP=mango
 
-exec dbus-run-session -- mango "$@"
+#  3. Logging. ly points the session's stdout at ~/ly-session.log but leaves
+#     stderr pointed at /dev/tty2 -- so every warning and every config error
+#     mango emits is written straight to a VT that the compositor paints over
+#     about a second later. It is visible just long enough to notice and not
+#     long enough to read, and it is stored nowhere.
+#
+#     That cost real time: a bad line in bind.conf silently killed a keybind,
+#     and finding out what it said meant recovering the VT's text buffer out
+#     of /dev/vcs2 after the fact. Send stderr to a file instead.
+#
+#     One rotation is kept, matching the .old convention the kernel images in
+#     /boot already use, so the previous session survives one relogin -- which
+#     is exactly what you want when a session dies and takes its screen away.
+LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}"
+LOG="$LOG_DIR/mango-session.log"
+mkdir -p "$LOG_DIR"
+[ -f "$LOG" ] && mv -f "$LOG" "$LOG.old"
+{
+    echo "─── session start: $(date '+%Y-%m-%d %H:%M:%S') ───"
+    echo "─── mango: $(command -v mango) ───"
+} > "$LOG"
+
+exec dbus-run-session -- mango "$@" 2>>"$LOG"
