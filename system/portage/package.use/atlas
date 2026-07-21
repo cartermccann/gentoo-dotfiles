@@ -17,6 +17,16 @@ xfce-base/libxfce4windowing wayland X
 xfce-base/xfce4-appfinder wayland
 xfce-base/exo wayland
 
+# ── seat management (REQUIRED for any wlroots compositor) ──────
+# sys-auth/seatd ships libseat, and the base profile builds it with every
+# backend off: USE="-builtin -elogind -server -systemd". libseat.so then has
+# no way to open a seat, and mango dies at startup with:
+#   [libseat] No backend was able to open a seat
+#   [backend/backend.c:399] Failed to start a DRM session
+# elogind is already running and owns seat0, so the logind backend is the
+# right one here — no seatd daemon needed.
+sys-auth/seatd elogind
+
 # ── swaync / gtk4 stack (else mesa+gtk get rebuilt without wayland) ──
 >=gui-libs/gtk4-layer-shell-1.1.1-r1 introspection vala
 gui-libs/gtk wayland
