@@ -27,14 +27,20 @@ return {
           { section = "header" },
           -- Which theme is live, so the dashboard answers the question you ask
           -- it most often after `atlas-theme set`.
-          {
-            padding = 1,
-            text = function()
-              local ok, roles = pcall(require, "atlas.roles")
-              local name = ok and roles.palette().NAME or "Atlas"
-              return { { "󰏘  " .. name, hl = "SnacksDashboardFooter" } }
-            end,
-          },
+          --
+          -- This is a snacks.dashboard.Gen -- a function returning a SECTION.
+          -- `text` itself must be a string or Text[]; handing it a function
+          -- gets you "attempt to index local 'texts' (a function value)" out of
+          -- dashboard.lua:372. Being a Gen also means it re-reads the palette
+          -- each time the dashboard opens, so it stays right after a switch.
+          function()
+            local ok, roles = pcall(require, "atlas.roles")
+            local name = ok and roles.palette().NAME or "Atlas"
+            return {
+              padding = 1,
+              text = { { "󰏘  " .. name, hl = "SnacksDashboardFooter", align = "center" } },
+            }
+          end,
           { section = "keys", gap = 1, padding = 1 },
           { section = "startup" },
         },
