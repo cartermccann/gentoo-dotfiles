@@ -70,6 +70,26 @@ return {
         { "filetype", icon_only = false, separator = "", padding = { left = 1, right = 1 } },
       }
     end,
+    config = function(_, opts)
+      local lualine = require("lualine")
+      lualine.setup(opts)
+      -- lualine bakes its theme into highlight groups at setup and re-applies
+      -- them on every redraw, so re-sourcing the colourscheme is not enough:
+      -- the bar keeps the old accent while the buffer underneath has already
+      -- changed. Rebuild the theme whenever the colourscheme changes.
+      vim.api.nvim_create_autocmd("ColorScheme", {
+        group = vim.api.nvim_create_augroup("atlas_lualine", { clear = true }),
+        callback = function()
+          local ok, theme = pcall(function()
+            return require("atlas.lualine")()
+          end)
+          if ok then
+            opts.options.theme = theme
+            lualine.setup(opts)
+          end
+        end,
+      })
+    end,
   },
 
   -----------------------------------------------------------------------------
