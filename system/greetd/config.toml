@@ -8,7 +8,16 @@ vt = 7
 
 [default_session]
 # tuigreet reads /usr/share/wayland-sessions, so Mango appears in the picker.
-# Theme colours track the cobalt accent — tuigreet only accepts ANSI names,
-# so "blue" is as close to #3b6bff as this layer gets.
-command = "tuigreet --time --remember --remember-user-session --greeting 'atlas' --sessions /usr/share/wayland-sessions --theme 'border=blue;text=white;prompt=blue;time=darkgray;action=blue;button=blue;container=black;input=white'"
+#
+# Monochrome on purpose (ly-like). Plain white on black with grey chrome —
+# no accent colour, so nothing depends on how a given TTY renders its palette.
+#
+# Do NOT put "blue" here: in a console that is ANSI 4 = #0000AA, which is
+# near-unreadable on a black container. And note tuigreet 0.9.1 has NO
+# lightblue/lightcyan/lightgreen/lightyellow/lightmagenta — an unsupported
+# name is silently ignored and you get the default instead of an error.
+# Verified present in this build:
+#   black white lightwhite gray lightgray darkgray lightblack
+#   red lightred green yellow blue cyan
+command = "tuigreet --time --remember --remember-user-session --greeting 'atlas' --sessions /usr/share/wayland-sessions --theme 'border=darkgray;text=white;prompt=lightwhite;time=gray;action=gray;button=lightwhite;container=black;input=white'"
 user = "greetd"
