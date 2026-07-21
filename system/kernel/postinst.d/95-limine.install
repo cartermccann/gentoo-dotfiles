@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+# 95-limine.install — mirror /boot kernels onto the ESP and regenerate limine.conf
+#
+# Gentoo's sys-kernel/installkernel ships bootloader hooks for grub,
+# systemd-boot, refind, efistub and uki. There is no limine flag, so this is
+# that missing hook. Like 91-grub-mkconfig.install it takes no arguments: it
+# rescans /boot on every kernel install and rewrites the config from scratch.
+#
+# ── Why the kernels are COPIED rather than /boot being relocated ────────────
+# Limine reads FAT and ISO9660 only. That is a deliberate upstream decision
+# ("offload filesystem parsing to the kernel"), not a missing feature, and it
+# will not change. This machine keeps /boot on the btrfs root.
+#
+# The obvious fix is to mount the ESP at /boot. Do not: that hides the btrfs
+# /boot underneath it, and the btrfs /boot is what GRUB boots from. The moment
+# Limine is installed you would have destroyed the only fallback -- on a
+# machine that is usually reached over SSH, where a bootloader that fails with
+# no fallback means physically walking to it with a USB stick.
+#
+# So the ESP gets its own copy under $KDIR and GRUB keeps booting from btrfs,
+# completely untouched. Cost is ~40 MB per kernel generation on a 1 GB
+# partition that was 99.9% empty. That is a good trade for a fallback.
+#
+# ── Colours ────────────────────────────────────────────────────────────────
+# Palette comes from /etc/limine/palette.conf when present (written by
+# bin/setup-limine from the active atlas theme), else the baked-in cobalt below.
+# This file is root-owned in /etc on purpose -- it runs as root during emerge,
+# so it must not source anything out of a user-writable checkout.
+
+set -uo pipefail
+
+ESP="${ESP:-/efi}"
+BOOTDIR="${BOOTDIR:-/boot}"   # overridable so this can be exercised in a sandbox
+KDIR="$ESP/atlas"                 # kernel copies live here, on FAT32
+CONF="$ESP/limine.conf"
+PALETTE="/etc/limine/palette.conf"
+
+einfo() { echo " * ${*}"; }
+ewarn() { echo " * ${*}" >&2; }
+
+# Not set up yet (or the ESP is not mounted) -- do nothing rather than write a
+# config no firmware will read. Exit 0: a missing bootloader must never fail an
+# emerge of the kernel.
+[ -d "$ESP/EFI/Limine" ] || { einfo "limine: $ESP/EFI/Limine absent, skipping"; exit 0; }
+[ -d "$BOOTDIR" ] || exit 0
+
+# ── Kernel command line ────────────────────────────────────────────────────
+# /etc/kernel/cmdline is the conventional Gentoo location. If it is missing,
+# fall back to what the running kernel actually booted with, minus BOOT_IMAGE
+# (which GRUB adds and which points into the btrfs layout, not the ESP).
+CMDLINE_FILE="${CMDLINE_FILE:-/etc/kernel/cmdline}"
+if [ -r "$CMDLINE_FILE" ]; then
+    CMDLINE="$(tr -s '[:space:]' ' ' < "$CMDLINE_FILE" | sed 's/^ *//;s/ *$//')"
+else
+    CMDLINE="$(sed 's/BOOT_IMAGE=[^ ]* *//' /proc/cmdline | sed 's/^ *//;s/ *$//')"
+    ewarn "limine: no $CMDLINE_FILE, inherited from /proc/cmdline"
+fi
+# Sanity-check it. A bootloader config with a wrong or missing root= is a
+# machine that does not boot, and this hook runs unattended during emerge, so
+# it must refuse rather than write something plausible-looking. Caught in
+# testing: run in a sandbox on a different host, the /proc/cmdline fallback
+# cheerfully produced a config full of that host's boot parameters and only
+# printed a warning.
+case "$CMDLINE" in
+    *root=*) : ;;
+    *) ewarn "limine: cmdline has no root= ('$CMDLINE') — refusing to write $CONF"; exit 0 ;;
+esac
+
+# ── Palette ────────────────────────────────────────────────────────────────
+# Cobalt, mirroring themes/cobalt/colors.sh.
+BASE=0a0c11; TEXT=e7ebf2; ACCENT=3b6bff
+T0=212734;  T1=f87171; T2=34d399; T3=fbbf24; T4=3b6bff; T5=a78bfa; T6=22d3ee; T7=c7cdd8
+T8=3a4152;  T9=fca5a5; T10=6ee7b7; T11=fcd34d; T12=6b8fff; T13=c4b5fd; T14=67e8f9; T15=e7ebf2
+# shellcheck disable=SC1090
+[ -r "$PALETTE" ] && . "$PALETTE"
+
+# ── Mirror the kernels ─────────────────────────────────────────────────────
+mkdir -p "$KDIR" || { ewarn "limine: cannot create $KDIR"; exit 0; }
+
+for img in "$BOOTDIR"/vmlinuz-*; do
+    [ -f "$img" ] || continue
+    base="${img##*/}"
+    # cp -u would be nice but FAT32 timestamps are 2-second granular and the
+    # comparison goes wrong across filesystems; compare sizes instead and copy
+    # when they differ. Kernels are immutable per version, so this is enough.
+    if [ ! -f "$KDIR/$base" ] || [ "$(stat -c%s "$img")" != "$(stat -c%s "$KDIR/$base" 2>/dev/null)" ]; then
+        cp -f "$img" "$KDIR/$base" || { ewarn "limine: failed to copy $base"; continue; }
+    fi
+done
+for ird in "$BOOTDIR"/initramfs-*.img "$BOOTDIR"/initramfs-*.img.old; do
+    [ -f "$ird" ] || continue
+    base="${ird##*/}"
+    if [ ! -f "$KDIR/$base" ] || [ "$(stat -c%s "$ird")" != "$(stat -c%s "$KDIR/$base" 2>/dev/null)" ]; then
+        cp -f "$ird" "$KDIR/$base" || ewarn "limine: failed to copy $base"
+    fi
+done
+
+# Prune ESP copies whose source is gone, so the ESP cannot slowly fill up
+# across kernel upgrades.
+for f in "$KDIR"/*; do
+    [ -f "$f" ] || continue
+    base="${f##*/}"
+    [ -f "$BOOTDIR/$base" ] || { rm -f "$f" && einfo "limine: pruned stale $base"; }
+done
+
+# ── Build the entry list ───────────────────────────────────────────────────
+# One entry per vmlinuz, newest first, each with its matching initramfs.
+# `.old` images become a "previous kernel" entry rather than being hidden --
+# that is the recovery path when a new kernel does not boot.
+entries=""
+add_entry() {
+    local label="$1" kern="$2" ird="$3"
+    entries+="/${label}
+    protocol: linux
+    path: boot():/atlas/${kern}
+"
+    [ -n "$ird" ] && entries+="    module_path: boot():/atlas/${ird}
+"
+    entries+="    cmdline: ${CMDLINE}
+
+"
+}
+
+for img in $(printf '%s\n' "$BOOTDIR"/vmlinuz-* | grep -v '\.old$' | sort -Vr); do
+    [ -f "$img" ] || continue
+    ver="${img##*/vmlinuz-}"
+    ird="initramfs-${ver}.img"
+    [ -f "$BOOTDIR/$ird" ] || ird=""
+    add_entry "Gentoo Linux ${ver}" "vmlinuz-${ver}" "$ird"
+done
+for img in "$BOOTDIR"/vmlinuz-*.old; do
+    [ -f "$img" ] || continue
+    ver="${img##*/vmlinuz-}"; ver="${ver%.old}"
+    ird="initramfs-${ver}.img.old"
+    [ -f "$BOOTDIR/$ird" ] || ird=""
+    add_entry "Gentoo Linux ${ver} (previous)" "vmlinuz-${ver}.old" "$ird"
+done
+
+[ -n "$entries" ] || { ewarn "limine: no kernels found in $BOOTDIR, leaving $CONF alone"; exit 0; }
+
+# ── Write the config ───────────────────────────────────────────────────────
+# Written to a temp file and renamed, so a half-written config can never be
+# what the firmware finds if this is interrupted.
+wallpaper_line=""
+[ -f "$ESP/wallpaper.jpg" ] && wallpaper_line="wallpaper: boot():/wallpaper.jpg
+wallpaper_style: stretched"
+
+cat > "$CONF.tmp" <<EOF
+# GENERATED by /etc/kernel/postinst.d/95-limine.install — do not edit.
+# Kernel entries are rebuilt from /boot on every kernel install.
+# Colours come from /etc/limine/palette.conf (see bin/setup-limine).
+
+timeout: 3
+default_entry: 1
+remember_last_entry: yes
+graphics: yes
+
+interface_branding: atlas
+interface_branding_colour: ${ACCENT}
+${wallpaper_line}
+
+# Translucent panel over the wallpaper, matching the glass idiom the rest of
+# the desktop uses. TT=c0 in TTRRGGBB is the transparency byte.
+term_background: c0${BASE}
+term_foreground: ${TEXT}
+term_palette: ${T0};${T1};${T2};${T3};${T4};${T5};${T6};${T7}
+term_palette_bright: ${T8};${T9};${T10};${T11};${T12};${T13};${T14};${T15}
+term_margin: 32
+term_margin_gradient: 4
+
+${entries}/Reboot to Firmware Setup
+    protocol: efi_boot_entry
+    entry: Setup
+EOF
+
+mv -f "$CONF.tmp" "$CONF" || { ewarn "limine: failed to install $CONF"; exit 0; }
+einfo "limine: wrote $CONF"
+exit 0

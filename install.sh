@@ -74,6 +74,7 @@ run_check() {
 system/portage/package.accept_keywords/atlas /etc/portage/package.accept_keywords/atlas
 system/portage/package.use/atlas /etc/portage/package.use/atlas
 system/ly/config.ini /etc/ly/config.ini
+system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install
 MAP
 
     step "user configs (~/.config -> repo)"
