@@ -12,16 +12,17 @@ Authored to be cloned onto a freshly-installed Gentoo base and run with one scri
 | Layer | Pieces |
 |-------|--------|
 | **Compositor** | MangoWM (dwl + scenefx: blur/shadow/rounding + niri-style scroller) |
-| **Desktop** | waybar · rofi · mako · swaybg · swaylock · wlsunset · grim/slurp · ly login |
+| **Desktop** | waybar · rofi · swaync · swaybg · swaylock · swayidle · wlsunset · grim/slurp · greetd+tuigreet login |
 | **Terminals** | ghostty (default) · alacritty · foot |
 | **Audio** | PipeWire + WirePlumber + pavucontrol (+ EasyEffects) |
 | **Bluetooth** | bluez + blueman |
 | **Langs** | rust · go · zig · node · (bun/deno/uv via installers) · python |
 | **CLI** | ripgrep, fd, eza, bat, zoxide, yazi, lazygit, just, atuin, … |
 | **AI CLIs** | claude-code · codex · opencode · herdr |
-| **Flatpak apps** | Zen · Spotify · Beeper · Blanket · (Helium: AppImage) |
+| **Flatpak apps** | Zen · Spotify · Blanket  (Beeper + Helium: AppImage only) |
 | **Shell** | fish + starship + atuin + zoxide |
-| **Editor** | your LazyVim config, pulled from `cartermccann/dotfiles` |
+| **Editor** | neovim + your LazyVim config, pulled from `cartermccann/dotfiles` |
+| **Dictation** | Parakeet TDT 0.6B via sherpa-onnx -> wtype  (`Super+Ctrl+D`) |
 
 ---
 
@@ -46,12 +47,12 @@ cd ~/gentoo-dotfiles
 Phases (`./install.sh --list`):
 
 1. **packages** – emerge the desktop stack, CLI tools, langs, audio, bluetooth; enable GURU; write keyword/USE overrides; enable services (needs `doas`)
-2. **flatpaks** – Zen, Spotify, Beeper, Blanket
+2. **flatpaks** – Zen, Spotify, Blanket (`--user` scope)
 3. **ai** – claude-code, codex, opencode, herdr + bun/deno/uv
 4. **dotfiles** – symlink `config/*` into `~/.config`, clone nvim, set fish as shell
 5. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
 
-Then **reboot**. `ly` greets you → pick **Mango** → log in.
+Then **reboot**. **tuigreet** greets you on vt7 → pick **Mango** → log in.
 
 ---
 
@@ -76,16 +77,16 @@ Full map: `config/mango/bind.conf`.
 
 ## Known gaps / things to verify
 
-These are flagged because the repo was authored on another machine and can't be
-tested on atlas until you run it:
+Everything below was found on the real atlas install and is already handled by the
+installer; they are documented because they will bite again on a fresh machine.
 
 - **CLI tool atoms** — the `packages` phase installs the tool list resiliently
   (tries each, reports misses). If it lists "unresolved tools", fix the atom with
   `emerge -s <name>` and add it.
-- **ghostty** — expected in GURU (`gui-apps/ghostty`). If the atom differs or it's
-  absent, build from source with zig (already installed): the Ghostty docs cover it.
-- **herdr** — installed via `cargo install --git … --tag v0.7.1`. If that fails,
-  drop a release binary into `~/.local/bin`.
+- **herdr** — needs **Zig 0.15.2**, not the newest zig. Its vendored `libghostty-vt`
+  `@compileError`s on 0.16 (`Dir.readFileAlloc` changed arity), so the ai phase puts
+  `/opt/zig-bin-0.15.2` first on PATH for that one build. If it still fails, drop a
+  release binary into `~/.local/bin`.
 - **Helium browser** — not on Flathub (verified: `flatpak search helium` returns only a
   GTK theme). Grab the AppImage from `github.com/imputnet/helium-chromium/releases`.
 - **Beeper** — no Flathub app-id exists at all. Download the Linux AppImage from
@@ -141,8 +142,32 @@ Gruvbox, Everforest, Kanagawa.
 
 ```
 gentoo-dotfiles/
-├── install.sh            # orchestrator
-├── lib/common.sh         # logging, doas, symlink helpers
-├── phases/               # 10-packages · 20-flatpaks · 30-ai-tools · 40-dotfiles
-└── config/               # mango, ghostty, alacritty, foot, waybar, rofi, mako, fish
+├── install.sh            # orchestrator  (--dry-run, --check, --list)
+├── lib/common.sh         # logging/TUI, doas, symlink + deploy helpers
+├── phases/               # 10-packages · 20-flatpaks · 30-ai-tools · 40-dotfiles · 50-theme
+├── config/               # -> symlinked into ~/.config  (user-owned)
+├── system/               # -> copied into /etc          (root-owned, see below)
+│   ├── portage/package.{use,accept_keywords}/atlas
+│   ├── greetd/config.toml · init.d/greetd
+│   └── services.conf     # declarative <service> <runlevel>
+├── themes/<name>/colors.sh
+├── bin/atlas-theme
+├── dictation/            # Parakeet setup + transcribe + toggle
+└── design/               # shell mockup (design contract)
 ```
+
+### Why `system/` is copied and `config/` is symlinked
+
+`~/.config` symlinks straight into the repo, so editing a config here changes the
+live system immediately. `/etc` does **not**: those files are copied. `/etc/portage`
+decides what root emerges and `/etc/init.d` runs as root at boot, so pointing either
+at a user-writable git checkout would mean anyone who can write the checkout controls
+root. The tradeoff is that `/etc` can drift, so:
+
+```bash
+./install.sh --check      # diff repo vs live: /etc files, ~/.config symlinks,
+                          # enabled services, and unmerged ._cfg files
+```
+
+`._cfg` files are worth checking: portage's autounmask leftovers can be **stale**, and
+merging one blindly can revert newer config. Diff before `dispatch-conf`.
