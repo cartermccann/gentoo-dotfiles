@@ -1,0 +1,177 @@
+<meta charset="utf-8">
+<title>atlas — bootloader options</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:40px 28px 90px; background:#0a0c11; color:#e7ebf2;
+         font:14px/1.65 "Inter", system-ui, sans-serif; }
+  .wrap { max-width:1200px; margin:0 auto; }
+  h1 { font-size:27px; margin:0 0 6px; letter-spacing:-.02em; }
+  .lede { color:#8b93a4; margin:0 0 14px; max-width:76ch; }
+  .lede code, code.i { color:#cfe0ff; font:12px ui-monospace,monospace; }
+  .fact { background:#0f1218; border:1px solid #212734; border-left:3px solid #3b6bff;
+          border-radius:0 10px 10px 0; padding:12px 16px; margin:0 0 36px; max-width:76ch; }
+  .fact b { color:#e7ebf2; }
+  h2 { font-size:18px; margin:38px 0 4px; }
+  .sub { color:#8b93a4; font-size:13px; margin:0 0 14px; }
+  .pick { display:inline-block; font:11px/1 ui-monospace,monospace; letter-spacing:.06em;
+          background:#3b6bff; color:#0a0c11; border-radius:20px; padding:5px 10px;
+          margin-left:8px; vertical-align:2px; font-weight:700; }
+  .warn { background:#f8717120; color:#f87171; }
+
+  /* ── a fake 16:10 screen ── */
+  .screen { position:relative; aspect-ratio:16/10; border-radius:14px; overflow:hidden;
+            border:1px solid #212734; background:#05070b; }
+  .dune { position:absolute; inset:0;
+          background:
+            radial-gradient(120% 80% at 70% 8%, #f0a860 0%, #c8742e 22%, #7a3f1c 45%, transparent 70%),
+            linear-gradient(180deg, #1b1410 0%, #2a1c14 40%, #4a2c18 68%, #77461f 100%); }
+  .dune::after { content:""; position:absolute; inset:0;
+          background:linear-gradient(180deg, transparent 55%, #12100e 100%); }
+
+  /* Limine: translucent terminal panel over the wallpaper */
+  .lim { position:absolute; inset:8%;
+         background:rgba(10,12,17,.52); backdrop-filter:blur(2px);
+         border:1px solid rgba(59,107,255,.55); border-radius:6px;
+         font:13px/1.75 ui-monospace,"JetBrains Mono",monospace; padding:16px 20px; }
+  .lim .brand { color:#3b6bff; font-weight:700; letter-spacing:.14em; }
+  .lim .hint { color:#8b93a4; font-size:11.5px; }
+  .lim .row { color:#c7cdd8; padding:1px 10px; border-radius:3px; }
+  .lim .row.on { background:#3b6bff; color:#0a0c11; font-weight:700; }
+  .lim .row.dim { color:#6b7280; }
+  .lim hr { border:0; border-top:1px solid rgba(255,255,255,.10); margin:10px 0; }
+
+  /* rEFInd: centred icon row */
+  .ref { position:absolute; inset:0; display:flex; flex-direction:column;
+         align-items:center; justify-content:center; gap:26px;
+         font:13px/1.6 ui-monospace,monospace; }
+  .icons { display:flex; gap:26px; }
+  .ico { width:78px; height:78px; border-radius:18px; display:grid; place-items:center;
+         font-size:30px; background:rgba(15,18,24,.72); border:1px solid #212734; }
+  .ico.on { border-color:#3b6bff; box-shadow:0 0 0 3px rgba(59,107,255,.35); background:rgba(15,18,24,.9); }
+  .ref .cap { color:#e7ebf2; letter-spacing:.04em; }
+  .ref .hint { color:#8b93a4; font-size:11.5px; }
+
+  /* systemd-boot: bare text, no wallpaper, no theming */
+  .sdb { position:absolute; inset:0; background:#000; color:#c7cdd8;
+         font:13px/1.9 ui-monospace,monospace; padding:26px 30px; }
+  .sdb .on { background:#c7cdd8; color:#000; }
+  .sdb .hint { color:#555; }
+
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  @media (max-width:1000px){ .grid { grid-template-columns:1fr; } }
+
+  table { width:100%; border-collapse:collapse; margin-top:42px; font-size:13px; }
+  th,td { text-align:left; padding:11px 12px; border-bottom:1px solid #212734; vertical-align:top; }
+  th { color:#8b93a4; font-weight:500; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; }
+  td:first-child { color:#8b93a4; width:23%; }
+  .yes { color:#34d399; } .no { color:#f87171; } .meh { color:#fbbf24; }
+  caption { text-align:left; color:#8b93a4; padding-bottom:10px; }
+</style>
+<div class="wrap">
+
+<h1>atlas — bootloader options</h1>
+<p class="lede">Three realistic candidates, drawn to what each can actually render. Current setup is
+GRUB on the 1&nbsp;GB ESP at <code class="i">/efi</code>, with kernels in <code class="i">/boot</code> on
+the btrfs root.</p>
+
+<div class="fact">
+  <b>The constraint that decides this:</b> Limine reads <b>FAT and ISO9660 only</b> &mdash; a deliberate
+  upstream choice, not a gap. Your kernels are on btrfs, so Limine means mounting the ESP at
+  <code class="i">/boot</code> and adding a kernel hook, because Gentoo's <code class="i">installkernel</code>
+  has flags for grub, systemd-boot, refind, efistub and uki &mdash; but none for limine.
+  <br><br>
+  Verified along the way: Secure Boot is <b>off</b>, the ESP is <b>1&nbsp;GB with 336&nbsp;KB used</b>,
+  and your kernel files have <b>zero compressed extents</b>, so a filesystem driver can read them.
+</div>
+
+<h2>1 · Limine <span class="pick">clean + modern</span></h2>
+<p class="sub">Translucent terminal panel over a wallpaper, cobalt branding, full 16-colour palette.
+The only one whose native look already matches the rest of the system.</p>
+<div class="screen">
+  <div class="dune"></div>
+  <div class="lim">
+    <div class="brand">ATLAS</div>
+    <hr>
+    <div class="row on">&nbsp;Gentoo Linux&nbsp;</div>
+    <div class="row">&nbsp;Gentoo Linux (fallback initramfs)&nbsp;</div>
+    <div class="row">&nbsp;Windows Boot Manager&nbsp;</div>
+    <div class="row dim">&nbsp;Reboot to Firmware Setup&nbsp;</div>
+    <hr>
+    <div class="hint">↑↓ select &nbsp;·&nbsp; ENTER boot &nbsp;·&nbsp; E edit &nbsp;·&nbsp; booting in 3s</div>
+  </div>
+</div>
+
+<h2>2 · rEFInd</h2>
+<p class="sub">Graphical icon row, fully themeable. Native <code class="i">installkernel</code> support and a
+btrfs driver, so <code class="i">/boot</code> stays exactly where it is &mdash; the least invasive option.</p>
+<div class="screen">
+  <div class="dune" style="opacity:.55"></div>
+  <div class="ref">
+    <div class="icons">
+      <div class="ico on">🐧</div>
+      <div class="ico">🪟</div>
+      <div class="ico">🔧</div>
+      <div class="ico">⏻</div>
+    </div>
+    <div class="cap">Boot Gentoo Linux from btrfs</div>
+    <div class="hint">arrow keys select &nbsp;·&nbsp; ENTER boot &nbsp;·&nbsp; F2 options</div>
+  </div>
+</div>
+
+<h2>3 · systemd-boot</h2>
+<p class="sub">The minimal option. Genuinely clean, but there is no theming at all &mdash; no wallpaper,
+no colours, no branding. This is the whole screen.</p>
+<div class="screen">
+  <div class="sdb">
+    <div><span class="on">&nbsp;Gentoo Linux&nbsp;</span></div>
+    <div>&nbsp;Gentoo Linux (fallback)&nbsp;</div>
+    <div>&nbsp;Windows Boot Manager&nbsp;</div>
+    <div>&nbsp;Reboot Into Firmware Interface&nbsp;</div>
+    <br>
+    <div class="hint">Press Enter to boot, 'e' to edit, 'd' to set default</div>
+  </div>
+</div>
+
+<table>
+  <caption>Tradeoffs, for your machine specifically</caption>
+  <tr><th></th><th>Limine</th><th>rEFInd</th><th>systemd-boot</th><th>GRUB (today)</th></tr>
+  <tr><td>Looks</td>
+      <td class="yes">wallpaper, translucent panel, palette, branding</td>
+      <td class="yes">icon themes, backgrounds, fonts</td>
+      <td class="no">none — plain text</td>
+      <td class="meh">themeable, but dated by default</td></tr>
+  <tr><td>Kernels stay on btrfs</td>
+      <td class="no">no — ESP must move to /boot</td>
+      <td class="yes">yes — with USE=btrfs driver</td>
+      <td class="no">no — ESP or XBOOTLDR</td>
+      <td class="yes">yes — native</td></tr>
+  <tr><td>installkernel support</td>
+      <td class="no">none — needs a custom hook</td>
+      <td class="yes">USE=refind</td>
+      <td class="yes">USE=systemd-boot</td>
+      <td class="yes">USE=grub, already on</td></tr>
+  <tr><td>Packaging</td>
+      <td class="meh">~amd64, needs keywording (like ly)</td>
+      <td class="yes">binary package</td>
+      <td class="yes">systemd-utils[boot]</td>
+      <td class="yes">installed</td></tr>
+  <tr><td>Work to switch</td>
+      <td class="meh">highest — remount ESP, migrate kernels, write hook</td>
+      <td class="yes">lowest — emerge, flip a USE flag, run refind-install</td>
+      <td class="meh">medium — migrate kernels to ESP</td>
+      <td class="yes">none</td></tr>
+</table>
+
+<div class="fact" style="margin-top:34px; border-left-color:#fbbf24">
+  <b>However it goes, the rollout is the same and it is reversible.</b> GRUB stays installed and its EFI
+  entry stays intact. The new loader gets added as a second entry, then tested with
+  <code class="i">efibootmgr --bootnext</code> &mdash; a <b>one-shot</b> boot. If it fails, the very next
+  reboot falls back to GRUB on its own, with nothing to undo. Only after it boots clean does the
+  default order change.
+  <br><br>
+  This matters because atlas is reachable only over SSH: a bootloader that fails without a fallback
+  is the one change that would need you to walk over with a USB stick.
+</div>
+
+</div>
