@@ -68,23 +68,33 @@ run_root emerge --verbose --autounmask --autounmask-write --autounmask-continue 
 
 # ── CLI tools (resilient: try each, report misses) ─────────────
 step "CLI tools (from your kronos toolset)"
+# Category-qualified so bare-name ambiguity can't abort them.
 TOOLS=(
-    ripgrep fd eza bat zoxide atuin yazi jq yq tree fzf
-    lazygit git-lfs just watchexec tokei hyperfine
-    dev-util/git-delta difftastic sd procs dust duf broot
-    tealdeer glow gum ouch yt-dlp
-    cava cmatrix cbonsai
+    sys-apps/ripgrep sys-apps/fd sys-apps/eza sys-apps/bat
+    app-shells/zoxide app-shells/atuin app-shells/fzf
+    app-misc/yazi app-misc/jq app-misc/yq app-text/tree
+    dev-vcs/lazygit dev-vcs/git-lfs dev-util/git-delta dev-util/difftastic
+    dev-util/just dev-util/watchexec dev-util/tokei app-benchmarks/hyperfine
+    app-text/sd sys-process/procs sys-apps/dust sys-fs/duf sys-apps/broot
+    app-misc/tealdeer app-misc/glow app-misc/gum app-arch/ouch net-misc/yt-dlp
+    media-sound/cava app-misc/cmatrix games-misc/cbonsai
 )
 missed=()
+log="$HOME/.cache/atlas-tools-emerge.log"; mkdir -p "$(dirname "$log")"; : > "$log"
 for pkg in "${TOOLS[@]}"; do
     if [ "$DRY_RUN" = "1" ]; then info "[dry-run] emerge $pkg"; continue; fi
-    if as_root emerge --noreplace --quiet --autounmask-continue "$pkg" >/dev/null 2>&1; then
+    echo "### $pkg" >> "$log"
+    if as_root emerge --noreplace --quiet --autounmask --autounmask-continue "$pkg" >>"$log" 2>&1; then
         ok "$pkg"
     else
-        missed+=("$pkg"); warn "could not emerge '$pkg' (atom may differ)"
+        missed+=("$pkg"); warn "skipped '$pkg'"
     fi
 done
-[ ${#missed[@]} -gt 0 ] && warn "unresolved tools: ${missed[*]} — fix atom names with 'emerge -s <name>'"
+if [ ${#missed[@]} -gt 0 ]; then
+    warn "unresolved: ${missed[*]}"
+    warn "  reasons logged to $log   ·   find a right atom with:  emerge -s <name>"
+    warn "  if the log shows keyword/USE changes were written, run: doas dispatch-conf && ./install.sh packages"
+fi
 
 # ── Wayland session entry for ly ───────────────────────────────
 step "mango wayland session (for ly)"
