@@ -27,6 +27,13 @@ xfce-base/exo wayland
 # right one here — no seatd daemon needed.
 sys-auth/seatd elogind
 
+# ── image decoding (system-wide, not just the wallpaper) ───────
+# The base profile builds gdk-pixbuf with USE="-jpeg -gif -tiff", so it ships
+# loaders for bmp/ico/tga/xpm and nothing anyone actually uses. Every GTK app
+# that renders a jpg silently fails to "recognize the image file format" --
+# swaybg, thunar thumbnails, image previews.
+x11-libs/gdk-pixbuf jpeg gif tiff
+
 # ── wallpaper ──────────────────────────────────────────────────
 # Without gdk-pixbuf, swaybg is PNG-only: it starts, fails to decode any
 # jpg, and leaves a blank screen with the error only in its own stderr.
