@@ -17,7 +17,7 @@ else
 gui-wm/mangowm ~amd64
 gui-libs/scenefx ~amd64
 x11-misc/ly ~amd64
-gui-apps/ghostty ~amd64
+x11-terms/ghostty ~amd64
 gui-apps/swaync ~amd64
 EOF
     as_root tee "$use" >/dev/null <<'EOF'
@@ -51,7 +51,7 @@ CORE=(
     x11-libs/libnotify media-sound/playerctl
     app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
     # terminals + file manager
-    gui-apps/ghostty x11-terms/alacritty gui-apps/foot xfce-base/thunar
+    x11-terms/ghostty x11-terms/alacritty gui-apps/foot xfce-base/thunar
     # audio
     media-video/pipewire media-video/wireplumber media-sound/pavucontrol
     # bluetooth
@@ -63,8 +63,32 @@ CORE=(
     # fonts
     media-fonts/nerd-fonts media-fonts/noto-emoji
 )
-run_root emerge --verbose --autounmask --autounmask-write --autounmask-continue "${CORE[@]}" \
-    || warn "core emerge reported issues — review output above (may need a USE/keyword accept, then re-run)"
+LOG="$HOME/.cache/atlas-emerge.log"; mkdir -p "$(dirname "$LOG")"; : > "$LOG"
+
+# Try a qualified atom, then fall back to the bare name (covers a wrong
+# category guess); autounmask accepts ~amd64/USE; everything logged.
+emerge_pkg() {
+    local atom="$1" bare="${1##*/}"
+    [ "$DRY_RUN" = "1" ] && { info "[dry-run] emerge $atom"; return 0; }
+    echo "### $atom" >> "$LOG"
+    as_root emerge --noreplace --quiet --autounmask --autounmask-continue "$atom" >>"$LOG" 2>&1 && return 0
+    [ "$bare" = "$atom" ] && return 1
+    echo "### retry bare: $bare" >> "$LOG"
+    as_root emerge --noreplace --quiet --autounmask --autounmask-continue "$bare" >>"$LOG" 2>&1
+}
+
+# CORE as one fast transaction; if it fails, install individually so one bad
+# atom can't block the rest of the desktop.
+if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] emerge ${#CORE[@]} core packages"
+elif ! as_root emerge --verbose --autounmask --autounmask-write --autounmask-continue "${CORE[@]}"; then
+    warn "core batch had issues — installing core packages individually"
+    core_missed=()
+    for pkg in "${CORE[@]}"; do
+        emerge_pkg "$pkg" && ok "$pkg" || { core_missed+=("$pkg"); warn "skipped '$pkg'"; }
+    done
+    [ ${#core_missed[@]} -gt 0 ] && warn "core unresolved: ${core_missed[*]} (see $LOG)"
+fi
 
 # ── CLI tools (resilient: try each, report misses) ─────────────
 step "CLI tools (from your kronos toolset)"
@@ -80,20 +104,13 @@ TOOLS=(
     media-sound/cava app-misc/cmatrix games-misc/cbonsai
 )
 missed=()
-log="$HOME/.cache/atlas-tools-emerge.log"; mkdir -p "$(dirname "$log")"; : > "$log"
 for pkg in "${TOOLS[@]}"; do
-    if [ "$DRY_RUN" = "1" ]; then info "[dry-run] emerge $pkg"; continue; fi
-    echo "### $pkg" >> "$log"
-    if as_root emerge --noreplace --quiet --autounmask --autounmask-continue "$pkg" >>"$log" 2>&1; then
-        ok "$pkg"
-    else
-        missed+=("$pkg"); warn "skipped '$pkg'"
-    fi
+    emerge_pkg "$pkg" && ok "$pkg" || { missed+=("$pkg"); warn "skipped '$pkg'"; }
 done
 if [ ${#missed[@]} -gt 0 ]; then
     warn "unresolved: ${missed[*]}"
-    warn "  reasons logged to $log   ·   find a right atom with:  emerge -s <name>"
-    warn "  if the log shows keyword/USE changes were written, run: doas dispatch-conf && ./install.sh packages"
+    warn "  reasons: $LOG   ·   find the right atom with:  emerge -s <name>"
+    warn "  if keyword/USE changes were written: doas dispatch-conf && ./install.sh packages"
 fi
 
 # ── Wayland session entry for ly ───────────────────────────────
