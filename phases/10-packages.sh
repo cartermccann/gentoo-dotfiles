@@ -103,10 +103,15 @@ TOOLS=(
     app-misc/tealdeer app-misc/glow app-misc/gum app-arch/ouch net-misc/yt-dlp
     media-sound/cava app-misc/cmatrix games-misc/cbonsai
 )
-missed=()
+missed=(); _ti=0; _tn=${#TOOLS[@]}
 for pkg in "${TOOLS[@]}"; do
-    emerge_pkg "$pkg" && ok "$pkg" || { missed+=("$pkg"); warn "skipped '$pkg'"; }
+    _ti=$((_ti + 1))
+    if [ "$DRY_RUN" = "1" ]; then info "would emerge $pkg"; continue; fi
+    progress "$_ti" "$_tn" "${pkg##*/}"
+    emerge_pkg "$pkg" || missed+=("$pkg")
 done
+[ "$DRY_RUN" = "1" ] || { progress "$_tn" "$_tn" "done"; printf '\n'; }
+ok "$(( _tn - ${#missed[@]} ))/$_tn tools installed"
 if [ ${#missed[@]} -gt 0 ]; then
     warn "unresolved: ${missed[*]}"
     warn "  reasons: $LOG   ·   find the right atom with:  emerge -s <name>"

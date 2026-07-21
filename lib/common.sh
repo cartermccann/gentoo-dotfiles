@@ -1,16 +1,48 @@
 #!/usr/bin/env bash
-# Shared helpers for the atlas-dotfiles installer.
+# Shared helpers for the gentoo-dotfiles installer.
 
-# ── Colors / logging ───────────────────────────────────────────
+# ── Palette (16-color — safe in the bare Linux console) ────────
 if [ -t 1 ]; then
-    C_RESET=$'\e[0m'; C_BLUE=$'\e[34m'; C_GREEN=$'\e[32m'
-    C_YELLOW=$'\e[33m'; C_RED=$'\e[31m'; C_BOLD=$'\e[1m'
+    C_RESET=$'\e[0m'; C_BOLD=$'\e[1m'; C_DIM=$'\e[2m'
+    C_BLUE=$'\e[94m'; C_GREEN=$'\e[92m'; C_YELLOW=$'\e[93m'
+    C_RED=$'\e[91m'; C_CYAN=$'\e[96m'; C_GREY=$'\e[90m'
 else
-    C_RESET=; C_BLUE=; C_GREEN=; C_YELLOW=; C_RED=; C_BOLD=
+    C_RESET=; C_BOLD=; C_DIM=; C_BLUE=; C_GREEN=; C_YELLOW=; C_RED=; C_CYAN=; C_GREY=
 fi
+BOX_W=52
+
+_rule() { printf '─%.0s' $(seq "${1:-$BOX_W}"); }
+
+banner() {   # title [subtitle]
+    local t="$1" s="${2:-}" pad
+    printf '\n%s%s╭%s╮%s\n' "$C_BLUE" "$C_BOLD" "$(_rule)" "$C_RESET"
+    printf -v pad '%-*s' "$BOX_W" "  $t"
+    printf '%s%s│%s%s%s%s%s│%s\n' "$C_BLUE" "$C_BOLD" "$C_RESET" "$C_BOLD" "$pad" "$C_RESET" "$C_BLUE$C_BOLD" "$C_RESET"
+    if [ -n "$s" ]; then
+        printf -v pad '%-*s' "$BOX_W" "  $s"
+        printf '%s%s│%s%s%s%s%s│%s\n' "$C_BLUE" "$C_BOLD" "$C_RESET" "$C_DIM" "$pad" "$C_RESET" "$C_BLUE$C_BOLD" "$C_RESET"
+    fi
+    printf '%s%s╰%s╯%s\n' "$C_BLUE" "$C_BOLD" "$(_rule)" "$C_RESET"
+}
+
+phase_banner() {  # name num total
+    printf '\n%s%s▶ %s%s  %sphase %s/%s%s\n' "$C_BLUE" "$C_BOLD" "$1" "$C_RESET" "$C_GREY" "$2" "$3" "$C_RESET"
+    printf '%s%s%s\n' "$C_GREY" "$(_rule)" "$C_RESET"
+}
+
+progress() {  # current total label
+    local cur=$1 tot=$2 label=${3:-} w=22 filled bar empty
+    [ "$tot" -gt 0 ] || tot=1
+    filled=$(( cur * w / tot )); [ "$filled" -gt "$w" ] && filled=$w
+    printf -v bar '%*s' "$filled" ''; bar=${bar// /█}
+    printf -v empty '%*s' "$((w-filled))" ''; empty=${empty// /░}
+    printf '\r  %s%s%s%s%s %s%d/%d%s %s%-22.22s%s' \
+        "$C_GREEN" "$bar" "$C_GREY" "$empty" "$C_RESET" \
+        "$C_BOLD" "$cur" "$tot" "$C_RESET" "$C_DIM" "$label" "$C_RESET"
+}
 
 step() { printf '\n%s▸ %s%s\n' "$C_BOLD$C_BLUE" "$*" "$C_RESET"; }
-info() { printf '  %s\n' "$*"; }
+info() { printf '  %s%s%s\n' "$C_GREY" "$*" "$C_RESET"; }
 ok()   { printf '  %s✓%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
 warn() { printf '  %s!%s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 err()  { printf '  %s✗%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; }

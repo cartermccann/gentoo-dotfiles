@@ -64,23 +64,23 @@ if [ "$(id -u)" -eq 0 ]; then
     exit 1
 fi
 
-printf '%s╔══════════════════════════════════════╗%s\n' "$C_BOLD$C_BLUE" "$C_RESET"
-printf '%s║   atlas · Gentoo + MangoWM setup     ║%s\n' "$C_BOLD$C_BLUE" "$C_RESET"
-printf '%s╚══════════════════════════════════════╝%s\n' "$C_BOLD$C_BLUE" "$C_RESET"
+banner "atlas / Gentoo + MangoWM" "cobalt-glass desktop setup"
 [ "$DRY_RUN" = "1" ] && warn "DRY RUN — nothing will be changed"
 info "phases: ${SELECTED[*]}"
 
 keep_auth_warm            # prompt for doas once, then refresh in the background
 trap stop_auth_warm EXIT
 
+_i=0; _n=${#SELECTED[@]}
 for name in "${SELECTED[@]}"; do
+    _i=$((_i + 1))
     file="$REPO_DIR/phases/${PHASE_FILES[$name]}"
     if [ ! -f "$file" ]; then err "missing phase file: $file"; continue; fi
-    step "phase: $name"
+    phase_banner "$name" "$_i" "$_n"
     # shellcheck disable=SC1090
     bash "$file"
 done
 
-step "done"
-ok "Reboot when ready. ly will greet you — pick the Mango session and log in."
-info "First-time keys:  Super+D launcher · Super+Return ghostty · Super+Q close · Super+Shift+Q exit"
+banner "done" "reboot -> ly -> pick Mango -> log in"
+ok "Super+D launcher · Super+Return ghostty · Super+Q close · Super+Shift+Q exit"
+info "theme: Super+Ctrl+T   ·   dictation: Super+Ctrl+D"
