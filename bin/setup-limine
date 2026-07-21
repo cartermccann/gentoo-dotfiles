@@ -102,6 +102,12 @@ c "installing the Limine EFI binary"
 install -Dm644 /usr/share/limine/BOOTX64.EFI "$ESP/EFI/Limine/BOOTX64.EFI" \
     || die "could not write to $ESP — is it mounted read-write?"
 ok "$ESP/EFI/Limine/BOOTX64.EFI"
+# Removable-media fallback path. Not required for the NVRAM entry to work --
+# the entry points at \EFI\Limine\BOOTX64.EFI and that is what boots -- but
+# Surface firmware is known to reset NVRAM, and this keeps a working loader
+# reachable if the entry ever disappears. Nothing was at this path before.
+install -Dm644 /usr/share/limine/BOOTX64.EFI "$ESP/EFI/BOOT/BOOTX64.EFI" \
+    && ok "$ESP/EFI/BOOT/BOOTX64.EFI (fallback path)"
 
 # ── 2. wallpaper + palette from the active theme ───────────────
 c "theme"

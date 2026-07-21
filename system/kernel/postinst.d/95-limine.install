@@ -175,4 +175,18 @@ EOF
 
 mv -f "$CONF.tmp" "$CONF" || { ewarn "limine: failed to install $CONF"; exit 0; }
 einfo "limine: wrote $CONF"
+
+# Also drop a copy next to each EFI binary. For EFI boots Limine checks
+# "<EFI app path>/limine.conf" FIRST, and only then scans the boot drive for
+# /boot/limine/limine.conf, /boot/limine.conf, /limine/limine.conf and
+# /limine.conf in that order.
+#
+# This is not belt-and-braces: with the config only at the ESP root, the first
+# real boot attempt failed silently -- the firmware consumed BootNext, Limine
+# exited fast enough to show nothing, and the machine fell through to GRUB.
+# Putting the config at the app path made it boot on the next try. Keep it.
+for d in "$ESP/EFI/Limine" "$ESP/EFI/BOOT"; do
+    [ -d "$d" ] || continue
+    cp -f "$CONF" "$d/limine.conf" && einfo "limine: wrote $d/limine.conf"
+done
 exit 0
