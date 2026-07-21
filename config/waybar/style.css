@@ -1,4 +1,10 @@
-/* waybar — structure only. Colors come from the active theme via atlas-theme. */
+/* waybar — structure only. Colors come from the active theme via atlas-theme.
+ *
+ * Palette discipline: the bar is monochrome (@subtext) with ONE accent
+ * (@accent) on the clock and on active/hover states. Colour is reserved for
+ * things that are genuinely a state you must notice -- low battery, thermal
+ * critical, mic/camera live. @good (a green) is deliberately unused: charging
+ * is not an alarm, so it reads as accent like everything else. */
 @import "theme.css";
 
 * {
@@ -21,27 +27,72 @@ window#waybar {
     padding: 0 6px;
 }
 
-#clock, #cpu, #memory, #tray,
-#pulseaudio, #network, #backlight, #battery {
+/* Every chip shares one shape. */
+#clock, #mpris, #idle_inhibitor, #privacy,
+#cpu, #memory, #temperature, #disk,
+#bluetooth, #network, #pulseaudio, #backlight, #battery,
+#custom-swaync, #tray {
     padding: 2px 12px;
     margin: 4px 2px;
     border-radius: 8px;
     background: alpha(@surface, 0.7);
     color: @subtext;
+    transition: background-color 220ms cubic-bezier(.2,.8,.2,1),
+                color            220ms cubic-bezier(.2,.8,.2,1);
 }
 
-#clock     { color: @accent; }
-#cpu       { color: @good; }
-#battery.charging { color: @good; }
+/* Hover lifts a chip toward the accent, same curve as the compositor. */
+#clock:hover, #mpris:hover, #idle_inhibitor:hover,
+#cpu:hover, #memory:hover, #temperature:hover, #disk:hover,
+#bluetooth:hover, #network:hover, #pulseaudio:hover,
+#backlight:hover, #battery:hover, #custom-swaync:hover {
+    background: alpha(@surface2, 0.9);
+    color: @text;
+}
+
+#clock { color: @accent; }
+
+/* Music: accent while playing, dimmed and italic when paused. */
+#mpris          { color: @accent; }
+#mpris.paused   { color: @subtext; }
+#mpris.stopped  { color: @subtext; opacity: 0.55; }
+
+/* Inhibitor is off by default and should read as "nothing happening". */
+#idle_inhibitor              { color: @subtext; }
+#idle_inhibitor.activated    { color: @accent; background: alpha(@accent, 0.16); }
+
+/* Privacy is the one place a warm colour earns its keep -- if the mic or
+   camera is live you should notice without reading. */
+#privacy { color: @warn; background: alpha(@warn, 0.14); }
+#privacy-item { padding: 0 4px; }
+
+/* System group: collapsed to the cpu chip, expands on hover. */
+#cpu, #memory, #temperature, #disk { color: @subtext; }
+#temperature.critical { color: @crit; background: alpha(@crit, 0.16); }
+
+/* Battery: charging is NOT an alarm, so it takes the accent, not green. */
+#battery.charging { color: @accent; }
 #battery.warning  { color: @warn; }
-#battery.critical { color: @crit; }
+#battery.critical { color: @crit; background: alpha(@crit, 0.16); }
+
+#bluetooth.connected { color: @accent; }
+#network.disconnected { color: @crit; }
+#pulseaudio.muted     { color: @subtext; opacity: 0.6; }
+
+#custom-swaync.notification { color: @accent; }
+#custom-swaync.dnd-none,
+#custom-swaync.dnd-notification { color: @subtext; opacity: 0.6; }
+
+#tray menu { background: @base; border: 1px solid @border; border-radius: 8px; }
 
 #taskbar button {
     padding: 2px 6px;
     margin: 4px 2px;
     border-radius: 8px;
+    transition: background-color 220ms cubic-bezier(.2,.8,.2,1);
 }
 #taskbar button.active { background: alpha(@surface2, 0.8); }
+#taskbar button:hover  { background: alpha(@surface, 0.9); }
 
 tooltip { background: @base; border: 1px solid @accent; border-radius: 8px; }
 tooltip label { color: @text; }

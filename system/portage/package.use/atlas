@@ -27,6 +27,12 @@ xfce-base/exo wayland
 # right one here — no seatd daemon needed.
 sys-auth/seatd elogind
 
+# ── waybar modules ─────────────────────────────────────────────
+# The base profile builds waybar with nearly every backend off, which makes
+# most of the bar's config silently dead: no tray, no pulseaudio, no network,
+# no backlight, no mpris. The modules parse fine and simply never render.
+gui-apps/waybar backlight mpris network pipewire pulseaudio tray upower wifi
+
 # ── swaync / gtk4 stack (else mesa+gtk get rebuilt without wayland) ──
 >=gui-libs/gtk4-layer-shell-1.1.1-r1 introspection vala
 gui-libs/gtk wayland
