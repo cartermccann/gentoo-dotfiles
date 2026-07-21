@@ -19,13 +19,42 @@ gui-libs/scenefx ~amd64
 x11-misc/ly ~amd64
 x11-terms/ghostty ~amd64
 gui-apps/swaync ~amd64
+media-fonts/nerdfonts ~amd64
+# pre-seeded so autounmask doesn't have to write them mid-run (which leaves
+# ._cfg files behind and stalls the batch)
+=x11-terms/ghostty-terminfo-1.3.1 ~amd64
+=dev-lang/zig-bin-0.15.2 ~amd64
+=app-misc/brightnessctl-0.5.1 ~amd64
+=gui-apps/wtype-0.4 ~amd64
+=gui-apps/wlsunset-0.4.0 ~amd64
 EOF
     as_root tee "$use" >/dev/null <<'EOF'
 x11-misc/rofi wayland
-x11-terms/ghostty wayland
 media-video/pipewire sound-server pipewire-alsa
 dev-lang/rust-bin clippy rustfmt rust-analyzer rust-src
 net-libs/nodejs npm
+
+# ── REQUIRED_USE "any-of ( wayland X )" ────────────────────────
+# The base 23.0 profile sets neither X nor wayland, so every package with
+# this constraint hard-fails. autounmask writes keywords but will NOT flip a
+# REQUIRED_USE flag, so these must be declared up front.
+x11-terms/ghostty wayland
+dev-cpp/gtkmm wayland X
+dev-cpp/cairomm wayland X
+x11-libs/cairo X
+xfce-base/xfce4-panel wayland
+xfce-base/libxfce4ui wayland
+xfce-base/libxfce4windowing wayland X
+xfce-base/xfce4-appfinder wayland
+xfce-base/exo wayland
+
+# ── swaync / gtk4 stack (else mesa+gtk get rebuilt without wayland) ──
+>=gui-libs/gtk4-layer-shell-1.1.1-r1 introspection vala
+gui-libs/gtk wayland
+media-libs/mesa wayland
+
+# ── dist-kernel ────────────────────────────────────────────────
+sys-kernel/installkernel dracut
 EOF
     ok "wrote keyword + USE overrides"
 fi
@@ -52,8 +81,9 @@ CORE=(
     gui-apps/wlsunset gui-apps/swayidle gui-apps/wtype
     x11-libs/libnotify media-sound/playerctl
     app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
-    # terminals + file manager
+    # terminals + file manager + editor
     x11-terms/ghostty x11-terms/alacritty gui-apps/foot xfce-base/thunar
+    app-editors/neovim
     # audio
     media-video/pipewire media-video/wireplumber media-sound/pavucontrol
     # bluetooth
@@ -62,8 +92,8 @@ CORE=(
     dev-lang/rust-bin dev-lang/go dev-lang/zig net-libs/nodejs
     # shell
     app-shells/fish app-shells/starship
-    # fonts
-    media-fonts/nerd-fonts media-fonts/noto-emoji
+    # fonts  (atom is nerdfonts, no hyphen — and it lives in GURU)
+    media-fonts/nerdfonts media-fonts/noto-emoji
 )
 LOG="$HOME/.cache/atlas-emerge.log"; mkdir -p "$(dirname "$LOG")"; : > "$LOG"
 
@@ -102,7 +132,7 @@ TOOLS=(
     dev-vcs/lazygit dev-vcs/git-lfs dev-util/git-delta dev-util/difftastic
     dev-util/just dev-util/watchexec dev-util/tokei app-benchmarks/hyperfine
     app-text/sd sys-process/procs sys-apps/dust sys-fs/duf sys-apps/broot
-    app-misc/tealdeer app-misc/glow app-misc/gum app-arch/ouch net-misc/yt-dlp
+    app-misc/tealdeer app-misc/glow app-arch/ouch net-misc/yt-dlp
     media-sound/cava app-misc/cmatrix games-misc/cbonsai
 )
 missed=(); _ti=0; _tn=${#TOOLS[@]}
@@ -118,6 +148,22 @@ if [ ${#missed[@]} -gt 0 ]; then
     warn "unresolved: ${missed[*]}"
     warn "  reasons: $LOG   ·   find the right atom with:  emerge -s <name>"
     warn "  if keyword/USE changes were written: doas dispatch-conf && ./install.sh packages"
+fi
+
+# ── gum: not packaged in ::gentoo or ::guru — install via go ───
+step "gum (via go install — no ebuild exists)"
+if have gum; then
+    ok "gum already installed"
+elif [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] go install github.com/charmbracelet/gum@latest"
+elif have go; then
+    if go install github.com/charmbracelet/gum@latest >>"$LOG" 2>&1; then
+        ok "gum -> $(go env GOBIN 2>/dev/null || echo "$HOME/go/bin")"
+    else
+        warn "gum install failed (see $LOG)"
+    fi
+else
+    warn "go not available — skipping gum"
 fi
 
 # ── Wayland session entry for ly ───────────────────────────────
@@ -140,12 +186,27 @@ fi
 
 # ── Services ───────────────────────────────────────────────────
 step "enable services"
-run_root rc-update add dbus default
-run_root rc-update add elogind boot
-run_root rc-update add NetworkManager default
-run_root rc-update add bluetooth default
-run_root rc-update add ly default
-ok "services queued (dbus, elogind, NetworkManager, bluetooth, ly)"
+# Guard on the init script existing — `rc-update add` on a package that failed
+# to emerge fails silently here and you only find out at boot (this is exactly
+# how atlas ended up with no display manager on the first run).
+svc_missing=()
+add_svc() {  # name runlevel
+    if [ "$DRY_RUN" = "1" ]; then info "[dry-run] rc-update add $1 $2"; return; fi
+    if [ ! -f "/etc/init.d/$1" ]; then
+        svc_missing+=("$1"); warn "no init script for '$1' — package not installed?"
+        return
+    fi
+    as_root rc-update add "$1" "$2" >/dev/null 2>&1 && ok "$1 -> $2" || warn "could not enable $1"
+}
+add_svc dbus default
+add_svc elogind boot
+add_svc NetworkManager default
+add_svc bluetooth default
+add_svc ly default
+if [ ${#svc_missing[@]} -gt 0 ]; then
+    warn "services NOT enabled (missing packages): ${svc_missing[*]}"
+    warn "  install them, then re-run: ./install.sh packages"
+fi
 warn "ly takes over a tty at boot — if you hit a getty conflict, see README."
 
 ok "packages phase complete"

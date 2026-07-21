@@ -41,9 +41,22 @@ if have corepack; then run_root corepack enable || npm_g pnpm; else npm_g pnpm; 
 # ── herdr (Carter's agent workspace manager) ───────────────────
 step "herdr"
 if have cargo; then
+    # herdr vendors libghostty-vt, whose build.zig hard-requires Zig 0.15.2 and
+    # @compileError's on anything newer (0.16 moved Dir.readFileAlloc's arity).
+    # ghostty already pulls dev-lang/zig-bin-0.15.2 in, so prefer it on PATH
+    # rather than eselect-switching the system zig out from under the user.
+    ZIG_015=/opt/zig-bin-0.15.2
+    if [ -x "$ZIG_015/zig" ] || [ -x "$ZIG_015/bin/zig" ]; then
+        [ -x "$ZIG_015/bin/zig" ] && ZIG_DIR="$ZIG_015/bin" || ZIG_DIR="$ZIG_015"
+        info "pinning Zig 0.15.2 for the herdr build ($(zig version 2>/dev/null) is system)"
+    else
+        ZIG_DIR=""
+        warn "zig-bin-0.15.2 not found — herdr may fail against a newer zig"
+    fi
     if [ "$DRY_RUN" = "1" ]; then
         info "[dry-run] cargo install --git https://github.com/ogulcancelik/herdr --tag v0.7.1"
-    elif cargo install --git https://github.com/ogulcancelik/herdr --tag v0.7.1 >/dev/null 2>&1; then
+    elif PATH="${ZIG_DIR:+$ZIG_DIR:}$PATH" \
+         cargo install --git https://github.com/ogulcancelik/herdr --tag v0.7.1 >>"${LOG:-/dev/null}" 2>&1; then
         ok "herdr (cargo)"
     else
         warn "herdr cargo build failed — grab a prebuilt binary from"
