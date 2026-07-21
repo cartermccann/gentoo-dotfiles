@@ -12,17 +12,17 @@ Authored to be cloned onto a freshly-installed Gentoo base and run with one scri
 | Layer | Pieces |
 |-------|--------|
 | **Compositor** | MangoWM (dwl + scenefx: blur/shadow/rounding + niri-style scroller) |
-| **Desktop** | waybar · rofi · swaync · swaybg · swaylock · swayidle · wlsunset · grim/slurp · ly login |
-| **Terminals** | ghostty (default) · alacritty · foot |
-| **Audio** | PipeWire + WirePlumber + pavucontrol (+ EasyEffects) |
+| **Desktop** | waybar · rofi · swaync · swaybg · swaylock · swayidle · wlsunset · grim/slurp · cliphist · ly login |
+| **Terminals** | ghostty (default) · alacritty |
+| **Audio** | PipeWire + WirePlumber + pavucontrol |
 | **Bluetooth** | bluez + blueman |
 | **Langs** | rust · go · zig · node · (bun/deno/uv via installers) · python |
 | **CLI** | ripgrep, fd, eza, bat, zoxide, yazi, lazygit, just, atuin, … |
 | **AI CLIs** | claude-code · codex · opencode · herdr |
 | **Flatpak apps** | Zen · Spotify · Blanket  (Beeper + Helium: AppImage only) |
-| **Shell** | fish + starship + atuin + zoxide |
+| **Shell** | fish + starship (themed cobalt prompt) + atuin + zoxide |
 | **Editor** | neovim + your LazyVim config, pulled from `cartermccann/dotfiles` |
-| **Dictation** | Parakeet TDT 0.6B via sherpa-onnx -> wtype  (`Super+Ctrl+D`) |
+| **Dictation** | Parakeet TDT 0.6B via sherpa-onnx -> wtype  (`Super+Alt+L`) |
 
 ---
 
@@ -52,6 +52,12 @@ Phases (`./install.sh --list`):
 4. **dotfiles** – symlink `config/*` into `~/.config`, clone nvim, set fish as shell
 5. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
 
+Then install the login manager (a separate, deliberate step — see below):
+
+```bash
+doas bash bin/setup-ly
+```
+
 Then **reboot**. **ly** greets you → pick **Mango** → log in.
 
 ---
@@ -60,22 +66,44 @@ Then **reboot**. **ly** greets you → pick **Mango** → log in.
 
 | Key | Action | Key | Action |
 |-----|--------|-----|--------|
-| `Super+Return` | ghostty | `Super+D` | app launcher (rofi) |
+| `Super+Return` | ghostty | `Super+Space` | app launcher (rofi) |
 | `Super+E` | file manager (thunar) | `Super+W` | Zen browser |
-| `Super+Q` | close window | `Super+Shift+Q` | exit compositor |
-| `Super+F` | fullscreen | `Super+Shift+Space` | float toggle |
+| `Super+Q` / `Super+W` | close window | `Super+Shift+E` | exit compositor |
+| `Super+F` | maximize | `Super+Shift+F` | true fullscreen |
 | `Super+hjkl` / arrows | focus | `Super+Shift+hjkl` | move window |
-| `Super+T` | tile layout | `Super+S` | **scroller** (niri-style) |
+| `Super+T` | float toggle | `Super+Ctrl+S` | **scroller** (niri-style) |
 | `Super+1..9` | switch tag | `Super+Shift+1..9` | send window to tag |
 | `Super+B` | toggle bar | `Super+Shift+S` | region screenshot |
+| `Super+V` | clipboard history | `Super+Tab` | next workspace |
 | `Super+Escape` | lock | `Super+Shift+R` | reload config |
-| `Super+Ctrl+T` | theme picker | `Super+Shift+T` | toggle light/dark |
+| `Super+Alt+T` | theme picker | `Super+Shift+T` | toggle light/dark |
+| `Super+Alt+L` | dictation | `Super+Ctrl+N` | night light |
 
-Full map: `config/mango/bind.conf`.
+Full map: `config/mango/bind.conf` — ported from kronos Hyprland, so muscle
+memory carries over. Binds with no mango equivalent are listed at the bottom of
+that file rather than silently dropped.
 
 ---
 
 ## Known gaps / things to verify
+
+### The base-profile trap (read this first)
+
+This system uses the **base 23.0 profile**, not `desktop`, so the binhost's USE
+flags keep matching. The cost is that the profile enables **nothing**, and seven
+separate packages shipped broken because of it. All seven fixes live in
+`system/portage/package.use/atlas`; they are listed here because the failures are
+silent and the symptom never points at the cause:
+
+| package | default | symptom |
+|---------|---------|---------|
+| `x11-terms/ghostty` | `-wayland` | `REQUIRED_USE any-of ( X wayland )`, won't build |
+| `dev-cpp/gtkmm`, `xfce-base/*` | `-wayland -X` | same; blocks **waybar** and **thunar** |
+| `sys-auth/seatd` | all backends off | **mango would not start at all** — libseat "No backend was able to open a seat" |
+| `gui-apps/waybar` | `-tray -pulseaudio -network -backlight -mpris` | modules parse fine and silently never render |
+| `gui-apps/swaybg` | `-gdk-pixbuf` | PNG-only; blank wallpaper, error only on its stderr |
+| `x11-libs/gdk-pixbuf` | `-jpeg` | **any GTK app** fails to decode a jpg |
+| `media-fonts/nerdfonts` | symbols-only | every config asking for JetBrainsMono silently falls back |
 
 Everything below was found on the real atlas install and is already handled by the
 installer; they are documented because they will bite again on a fresh machine.

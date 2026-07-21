@@ -59,8 +59,8 @@ run_check() {
     while read -r src dst; do
         [ -z "$src" ] && continue
         if [ ! -d "$(dirname "$dst")" ]; then
-            # e.g. /etc/ly when ly isn't installed, or /etc/greetd when it is
-            # not the chosen greeter. Not drift — just not applicable here.
+            # e.g. /etc/ly before bin/setup-ly has been run.
+            # Not drift — just not applicable on this machine yet.
             info "n/a      $dst (package not installed)"
         elif [ ! -f "$dst" ]; then
             err "MISSING  $dst"; drift=1
@@ -144,6 +144,8 @@ for name in "${SELECTED[@]}"; do
     bash "$file"
 done
 
-banner "done" "reboot -> ly -> pick Mango -> log in"
-ok "Super+D launcher · Super+Return ghostty · Super+Q close · Super+Shift+Q exit"
-info "theme: Super+Ctrl+T   ·   dictation: Super+Ctrl+D"
+banner "done" "run bin/setup-ly, then reboot"
+warn "ly is NOT installed by this script — it needs a Manifest workaround:"
+warn "    doas bash bin/setup-ly      (see README for why)"
+ok "Super+Space launcher · Super+Return ghostty · Super+Q close · Super+Shift+E exit"
+info "theme: Super+Alt+T   ·   dictation: Super+Alt+L   ·   clipboard: Super+V"

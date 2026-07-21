@@ -47,31 +47,6 @@ EOF
   # swaync reuses the waybar palette
   mkdir -p "$C/swaync"; cp "$C/waybar/theme.css" "$C/swaync/theme.css" 2>/dev/null || true
 
-  # ── foot ──
-  mkdir -p "$C/foot"
-  cat > "$C/foot/theme.ini" <<EOF
-[colors]
-alpha=0.95
-background=$BASE
-foreground=$TEXT
-regular0=$T0
-regular1=$T1
-regular2=$T2
-regular3=$T3
-regular4=$T4
-regular5=$T5
-regular6=$T6
-regular7=$T7
-bright0=$T8
-bright1=$T9
-bright2=$T10
-bright3=$T11
-bright4=$T12
-bright5=$T13
-bright6=$T14
-bright7=$T15
-EOF
-
   # ── alacritty ──
   mkdir -p "$C/alacritty"
   cat > "$C/alacritty/theme.toml" <<EOF
@@ -124,28 +99,6 @@ EOF
     accent: #$ACCENT;
     urgent: #$T1;
 }
-EOF
-
-  # ── mako (full regen, no include support) ──
-  mkdir -p "$C/mako"
-  cat > "$C/mako/config" <<EOF
-font=JetBrainsMono Nerd Font 10
-background-color=#$BASE
-text-color=#$TEXT
-border-color=#$ACCENT
-progress-color=over #$SURFACE
-border-size=2
-border-radius=12
-padding=12
-margin=12
-default-timeout=6000
-max-visible=5
-anchor=top-right
-layer=overlay
-
-[urgency=high]
-border-color=#$T1
-default-timeout=0
 EOF
 
   # ── mango (window borders, sourced by config.conf) ──

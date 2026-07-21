@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install ly and make it the login manager, replacing greetd.
+# Install ly and enable it as the login manager.
 #
 # Run as root:   doas bash bin/setup-ly
 #
@@ -48,8 +48,8 @@ echo "==> re-digesting the ebuild (see the note at the top of this file)"
 # and the size/hash mismatch survives.
 if ! ebuild --force "$EBUILD" manifest; then
     echo
-    echo "  re-digest FAILED. ly is not installed and greetd is untouched," >&2
-    echo "  so your current login manager still works. Nothing to recover." >&2
+    echo "  re-digest FAILED. ly was not installed and nothing was changed." >&2
+    echo "  Log in on a TTY and run 'exec mango' if you need the desktop." >&2
     exit 1
 fi
 echo "  new recorded size: $(awk '/ly-1.4.1.tar.gz/{print $3}' \
@@ -64,18 +64,6 @@ install -D -m 0644 "$REPO_DIR/system/ly/config.ini" /etc/ly/config.ini
 echo "==> enabling ly"
 rc-update add ly default
 
-echo "==> removing greetd (ly replaces it)"
-rc-service greetd stop        2>/dev/null || true
-rc-update del greetd default  2>/dev/null || true
-# Unmerge only after ly is confirmed on disk, so a failed ly build can never
-# leave the machine with no greeter at all.
-if command -v ly >/dev/null && [ -f /etc/init.d/ly ]; then
-    emerge --quiet --unmerge gui-libs/greetd gui-apps/tuigreet 2>/dev/null || true
-    rm -rf /etc/greetd /etc/init.d/greetd
-    echo "  greetd removed"
-else
-    echo "  ly not confirmed — KEEPING greetd as a fallback"
-fi
 
 echo "==> resolving the tty2 conflict"
 # ly's init script hardcodes TTY="tty2" and runs `agetty -nl /usr/bin/ly tty2`.
@@ -106,5 +94,5 @@ cat <<'NOTE'
 
   ly runs on tty2. If it fails to come up, Ctrl+Alt+F1 still gives a console
   (c1 in /etc/inittab is untouched), and `exec mango` starts the desktop
-  directly. greetd is gone, so a TTY login is the fallback now.
+  directly — a TTY login is the fallback.
 NOTE

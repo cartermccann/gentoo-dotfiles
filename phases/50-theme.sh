@@ -20,4 +20,4 @@ else
 fi
 
 ok "theme phase complete"
-info "switch: 'atlas-theme pick' (Super+Ctrl+T) · toggle light/dark (Super+Shift+T) · list: 'atlas-theme list'"
+info "switch: 'atlas-theme pick' (Super+Alt+T) · toggle light/dark (Super+Shift+T) · list: 'atlas-theme list'"

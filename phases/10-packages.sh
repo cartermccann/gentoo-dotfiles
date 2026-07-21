@@ -199,6 +199,6 @@ if [ ${#svc_missing[@]} -gt 0 ]; then
     warn "services NOT enabled (missing packages): ${svc_missing[*]}"
     warn "  install them, then re-run: ./install.sh packages"
 fi
-warn "greetd owns vt1 at boot — if you hit an agetty conflict, see README."
+warn "ly owns tty2 at boot — bin/setup-ly disables the competing getty."
 
 ok "packages phase complete"

@@ -22,7 +22,7 @@ run mkdir -p "$HOME/.local/bin"
 run chmod +x "$REPO_DIR"/dictation/*.sh
 backup_and_link "$REPO_DIR/dictation/toggle-dictation.sh" "$HOME/.local/bin/toggle-dictation.sh"
 backup_and_link "$REPO_DIR/dictation/setup-dictation.sh" "$HOME/.local/bin/setup-dictation.sh"
-info "first Super+Ctrl+D downloads the Parakeet model (~480 MB) into a uv venv"
+info "first Super+Alt+L downloads the Parakeet model (~480 MB) into a uv venv"
 
 # ── Neovim (portable LazyVim config from your dotfiles repo) ───
 step "neovim config"
