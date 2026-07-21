@@ -21,6 +21,11 @@ return {
     },
   },
 
+  -- LazyVim's own spec ships these two, so dropping them from this file is not
+  -- enough -- they have to be disabled explicitly or they reinstall on sync.
+  { "folke/tokyonight.nvim", enabled = false },
+  { "catppuccin/nvim", enabled = false },
+
   -- Neo-tree: disable git-status name coloring
   {
     "nvim-neo-tree/neo-tree.nvim",
