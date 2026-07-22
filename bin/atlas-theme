@@ -45,13 +45,21 @@ render() {
   # mat-tint  = chips and other elements INSIDE a material -- a wash that
   #             composites against the panel, never a second alpha over the
   #             desktop, which would multiply and go murky.
+  #
+  # NOTE the dark-mode tint is BLACK, not white, and that is deliberate. The
+  # intuition is that a dark material should be lightened by its chips, and on
+  # a dense panel that is right. But the bar is thin: over a bright wallpaper
+  # it composites LIGHT, and dark-mode text is near-white, so a lightening
+  # tint drove chip text toward white-on-white -- the clock and CPU chip
+  # vanished over the brightest part of the sky. Darkening instead guarantees
+  # the chip is always darker than its own text, whatever is behind it.
   local mat_thin mat_popover mat_tint mat_tint_hi
   if [ "${MODE:-dark}" = "light" ]; then
     mat_thin="rgba(255,255,255,0.88)"; mat_popover="rgba(255,255,255,0.94)"
     mat_tint="rgba(0,0,0,0.055)";      mat_tint_hi="rgba(0,0,0,0.11)"
   else
     mat_thin="rgba(15,18,24,0.46)";    mat_popover="rgba(15,18,24,0.62)"
-    mat_tint="rgba(255,255,255,0.07)"; mat_tint_hi="rgba(255,255,255,0.14)"
+    mat_tint="rgba(0,0,0,0.26)";       mat_tint_hi="rgba(0,0,0,0.42)"
   fi
 
   cat > "$C/waybar/theme.css" <<EOF
