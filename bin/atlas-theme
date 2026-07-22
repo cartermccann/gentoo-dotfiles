@@ -122,11 +122,9 @@ EOF
   # the stylesheet the way waybar's GTK CSS does it -- it has to be emitted
   # here, per theme.
   #
-  # The alpha values are deliberately moderate (a8 = 66%, b3 = 70%). mango
-  # runs scenefx blur behind these, and the readable result comes from a high
-  # blur radius at moderate opacity, not from a low opacity at low radius --
-  # which is the correction Apple spent the whole iOS 26 beta cycle making
-  # after Liquid Glass menus turned illegible over bright backgrounds.
+  # Dark surfaces run thin (73 = 45%, 8c = 55%). They can afford to: a dark
+  # material over a bright wallpaper still wins the blend and keeps its text.
+  #
   # Glass has to be mode-aware, and this is not cosmetic.
   #
   # A dark surface at 66% over a bright wallpaper still reads dark, because the
