@@ -6,10 +6,16 @@
 # therefore the ONLY control over how big the clock is:
 #
 #   default8x16   ->  digit  40x80 px,  clock 192x80 px   (the kernel default)
+#   ter-u24b      ->  digit  60x120 px, clock 288x120 px
 #   solar24x32    ->  digit 120x160 px, clock 576x160 px
 #
-# solar24x32 also has the coarsest U+2593 dither of the candidates, so the
-# digits read as pixel texture rather than a solid fill.
+# ter-u24b matches what kronos runs (12x24 Terminus) so the two greeters agree,
+# and unlike solar24x32's 24px-wide cells it leaves the greeter's TEXT normally
+# proportioned instead of stretched.
+#
+# Note kronos itself sets ter-v24n, which is the CODEPAGE variant and does NOT
+# carry U+2593 -- so kronos's own big clock has no glyph to draw with. ter-u24b
+# is the Unicode sibling: same family, same 12x24 cell, glyph present.
 #
 # CAREFUL if you ever change this: the font MUST carry U+2593 or the clock
 # renders as blanks. Most Terminus console faces do NOT -- the codepage
@@ -19,6 +25,8 @@
 #   zcat /usr/share/consolefonts/<font>.psf*.gz > /tmp/f.psf
 #   psfgettable /tmp/f.psf | grep U+2593
 #
-# solar24x32 comes from sys-apps/kbd, which is already part of the base
-# system, so this needs no extra package.
-consolefont="solar24x32"
+# ter-u24b comes from media-fonts/terminus-font, which phases/10-packages.sh
+# installs for exactly this reason. If that package is ever dropped, the
+# consolefont service silently falls back to the 8x16 default and the clock
+# shrinks -- so the two belong together.
+consolefont="ter-u24b"

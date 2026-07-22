@@ -67,6 +67,10 @@ CORE=(
     x11-themes/bibata-xcursors
     # fonts  (atom is nerdfonts, no hyphen — and it lives in GURU)
     media-fonts/nerdfonts media-fonts/noto-emoji
+    # console font for the ly greeter — see system/conf.d/consolefont.
+    # Load-bearing, not cosmetic: consolefont names ter-u24b, and if the
+    # package is absent the service falls back to the tiny 8x16 default.
+    media-fonts/terminus-font
 )
 LOG="$HOME/.cache/atlas-emerge.log"; mkdir -p "$(dirname "$LOG")"; : > "$LOG"
 
