@@ -20,7 +20,22 @@ window#waybar {
     color: @text;
 }
 
-.modules-left,
+/* The LEFT cluster runs denser than the other two, and that is not an
+   inconsistency. It holds the clock, which is the only thing in the bar you
+   read as text rather than glance at as a value -- and it sits at the top-left
+   corner, which on most wallpapers (this one included) is the brightest
+   region. At @mat-thin it was the one element still failing, and piling more
+   shadow on it made it look heavy without making it legible: a shadow
+   separates a glyph from its backdrop, it cannot supply contrast that is not
+   there. A real material behind it can, and the cluster is small enough that
+   the extra density costs almost no glass. */
+.modules-left {
+    background: @mat-popover;
+    border: 1px solid @border;
+    border-radius: 12px;
+    padding: 0 6px;
+}
+
 .modules-center,
 .modules-right {
     background: @mat-thin;
@@ -67,7 +82,9 @@ window#waybar {
     color: @text;
 }
 
-#clock { color: @accent; }
+/* No shadow here: the left cluster supplies the contrast now, and the shadow
+   was the visible part of the problem rather than the fix. */
+#clock, #mpris, #idle_inhibitor { text-shadow: none; }
 
 /* Music: accent while playing, dimmed and italic when paused. */
 #mpris          { color: @accent; }
