@@ -23,7 +23,7 @@ window#waybar {
 .modules-left,
 .modules-center,
 .modules-right {
-    background: alpha(@base, 0.55);
+    background: @mat-thin;
     border: 1px solid @border;
     border-radius: 12px;
     padding: 0 6px;
@@ -37,7 +37,7 @@ window#waybar {
     padding: 2px 12px;
     margin: 4px 2px;
     border-radius: 8px;
-    background: alpha(@text, 0.07);
+    background: @mat-tint;
     color: @subtext;
     transition: background-color 220ms cubic-bezier(.2,.8,.2,1),
                 color            220ms cubic-bezier(.2,.8,.2,1);
@@ -48,7 +48,7 @@ window#waybar {
 #cpu:hover, #memory:hover, #temperature:hover, #disk:hover,
 #bluetooth:hover, #network:hover, #pulseaudio:hover,
 #backlight:hover, #battery:hover, #custom-swaync:hover {
-    background: alpha(@text, 0.14);
+    background: @mat-tint-hi;
     color: @text;
 }
 

@@ -26,7 +26,7 @@ window.background,
 .notification {
     margin: 8px;
     border-radius: 14px;
-    background: alpha(@base, 0.78);
+    background: @mat-popover;
     border: 1px solid @border;
     /* NO box-shadow. Same clipping problem as the control-center panel: the
        toast's window is only its own size plus the 8px margin, so even a 6px
@@ -38,7 +38,7 @@ window.background,
 .summary { color: @text; font-weight: 600; }
 .body { color: @subtext; }
 .time { color: @subtext; font-size: 12px; }
-.notification-default-action:hover { background: alpha(@text, 0.10); }
+.notification-default-action:hover { background: @mat-tint-hi; }
 .close-button {
     background: transparent; color: @subtext; border-radius: 8px;
     margin: 6px; padding: 2px 8px;
@@ -47,7 +47,7 @@ window.background,
 
 /* ── Control center panel ── */
 .control-center {
-    background: alpha(@base, 0.74);
+    background: @mat-popover;
     border: 1px solid @border;
     border-radius: 18px;
     margin: 0;

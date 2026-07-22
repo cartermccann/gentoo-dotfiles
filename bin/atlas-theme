@@ -32,6 +32,28 @@ render() {
 
   # ── waybar (GTK CSS named colors) ──
   mkdir -p "$C/waybar"
+  # Material densities, composed here rather than in the stylesheet.
+  #
+  # GTK CSS can do alpha(@colour, 0.55) but the 0.55 cannot itself be a
+  # variable, so a static stylesheet cannot vary density by mode -- and it has
+  # to. A 55% DARK bar over any wallpaper still reads dark and its text stays
+  # legible; a 55% LIGHT bar turns into a pale wash and mid-grey chip text
+  # disappears into it. Same failure as the launcher, one layer up.
+  #
+  # Light therefore runs much denser, exactly as macOS light materials do.
+  # mat-thin  = waybar   (chrome over content, the most transparent layer)
+  # mat-tint  = chips and other elements INSIDE a material -- a wash that
+  #             composites against the panel, never a second alpha over the
+  #             desktop, which would multiply and go murky.
+  local mat_thin mat_popover mat_tint mat_tint_hi
+  if [ "${MODE:-dark}" = "light" ]; then
+    mat_thin="rgba(255,255,255,0.88)"; mat_popover="rgba(255,255,255,0.94)"
+    mat_tint="rgba(0,0,0,0.055)";      mat_tint_hi="rgba(0,0,0,0.11)"
+  else
+    mat_thin="rgba(15,18,24,0.55)";    mat_popover="rgba(15,18,24,0.78)"
+    mat_tint="rgba(255,255,255,0.07)"; mat_tint_hi="rgba(255,255,255,0.14)"
+  fi
+
   cat > "$C/waybar/theme.css" <<EOF
 @define-color base #$BASE;
 @define-color surface #$SURFACE;
@@ -43,6 +65,12 @@ render() {
 @define-color warn #$T3;
 @define-color crit #$T1;
 @define-color border $BORDER;
+
+/* materials — density varies by mode, see bin/atlas-theme */
+@define-color mat-thin $mat_thin;
+@define-color mat-popover $mat_popover;
+@define-color mat-tint $mat_tint;
+@define-color mat-tint-hi $mat_tint_hi;
 EOF
   # swaync reuses the waybar palette
   mkdir -p "$C/swaync"; cp "$C/waybar/theme.css" "$C/swaync/theme.css" 2>/dev/null || true
