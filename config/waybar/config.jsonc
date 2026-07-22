@@ -86,17 +86,17 @@
         "modules": ["cpu", "memory", "temperature", "disk"]
     },
 
-    "cpu":    { "format": "󰘚  <small>CPU</small> {usage}%", "interval": 3, "on-click": "ghostty -e btop" },
-    "memory": { "format": "󰍛  <small>RAM</small> {percentage}%", "interval": 5, "tooltip-format": "{used:0.1f}G / {total:0.1f}G" },
+    "cpu":    { "format": "󰘚  {usage}%", "interval": 3, "on-click": "ghostty -e btop" },
+    "memory": { "format": "󰍛  {percentage}%", "interval": 5, "tooltip-format": "{used:0.1f}G / {total:0.1f}G" },
     "temperature": {
         "interval": 5,
         "critical-threshold": 82,
-        "format": "󰔏  <small>TEMP</small> {temperatureC}°",
-        "format-critical": "󰔏  <small>TEMP</small> {temperatureC}°"
+        "format": "󰔏  {temperatureC}°",
+        "format-critical": "󰔏  {temperatureC}°"
     },
     "disk": {
         "interval": 60,
-        "format": "󰋊  <small>DISK</small> {percentage_used}%",
+        "format": "󰋊  {percentage_used}%",
         "path": "/",
         "tooltip-format": "{used} / {total} on {path}"
     },
@@ -145,32 +145,34 @@
         "escape": true
     },
 
-    // Every state carries the BT label, like every other chip. Leaving
-    // `format-on` undefined was the bug: with the controller powered but
-    // nothing paired, waybar fell through to the bare `format` glyph and this
-    // was the one unlabelled chip in the bar.
-    // One glyph in every state, with the label carrying on/off/count -- the
+    // One glyph in every state. `format-on` must stay defined even though it is
+    // now identical to `format`: leaving it out was a real bug, because with the
+    // controller powered but nothing paired waybar fell through to the bare
+    // `format` and this became the one chip that rendered differently.
+    //
+    // State is carried by COLOUR, not words -- #bluetooth.connected goes accent
+    // and .off dims, the
     // same way #pulseaudio.muted dims rather than swapping its icon. This is
     // nf-fa-bluetooth, not the Material Design one: MDI only draws bluetooth as
     // a thin stroke rune, which read a full weight lighter than the solid
     // wifi/vol/bri/bat silhouettes either side of it. Rendered side by side to
     // pick it.
     "bluetooth": {
-        "format": "  <small>BT</small> {status}",
-        "format-on": "  <small>BT</small> on",
-        "format-off": "  <small>BT</small> off",
-        "format-disabled": "  <small>BT</small> off",
-        "format-no-controller": "  <small>BT</small> n/a",
-        "format-connected": "  <small>BT</small> {num_connections}",
+        "format": "",
+        "format-on": "",
+        "format-off": "",
+        "format-disabled": "",
+        "format-no-controller": "",
+        "format-connected": "  {num_connections}",
         "tooltip-format": "{controller_alias}\n{status}",
         "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
         "on-click": "blueman-manager"
     },
 
     "pulseaudio": {
-        "format": "{icon}  <small>VOL</small> {volume}%",
-        "format-muted": "󰖁  <small>VOL</small> muted",
-        "format-bluetooth": "{icon}  <small>VOL</small> {volume}%",
+        "format": "{icon}  {volume}%",
+        "format-muted": "󰖁",
+        "format-bluetooth": "{icon}  {volume}%",
         "format-icons": { "headphone": "󰋋", "headset": "󰋎", "default": ["󰕿", "󰖀", "󰕾"] },
         "scroll-step": 5,
         "on-click": "pavucontrol",
@@ -179,9 +181,9 @@
     },
 
     "network": {
-        "format-wifi": "󰤨  <small>WIFI</small> {signalStrength}%",
-        "format-ethernet": "󰌢  <small>LAN</small>",
-        "format-disconnected": "󰤯  <small>NET</small> off",
+        "format-wifi": "󰤨  {signalStrength}%",
+        "format-ethernet": "󰌢",
+        "format-disconnected": "󰤯",
         "tooltip-format-wifi": "{essid} ({signalStrength}%)\n{ipaddr}",
         "tooltip-format-ethernet": "{ifname}\n{ipaddr}",
         "interval": 5,
@@ -189,16 +191,16 @@
     },
 
     "backlight": {
-        "format": "{icon}  <small>BRI</small> {percent}%",
+        "format": "{icon}  {percent}%",
         "format-icons": ["󰃚", "󰃛", "󰃜", "󰃝", "󰃞", "󰃟", "󰃠", "󰃡", "󰃢"],
         "scroll-step": 5
     },
 
     "battery": {
         "states": { "warning": 30, "critical": 15 },
-        "format": "{icon}  <small>BAT</small> {capacity}%",
-        "format-charging": "󰂄  <small>BAT</small> {capacity}%",
-        "format-plugged": "󰂀  <small>BAT</small> {capacity}%",
+        "format": "{icon}  {capacity}%",
+        "format-charging": "󰂄  {capacity}%",
+        "format-plugged": "󰂀  {capacity}%",
         "tooltip-format": "{timeTo}  ({power:0.1f} W)",
         "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁹"]
     }
