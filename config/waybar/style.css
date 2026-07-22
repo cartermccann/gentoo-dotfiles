@@ -34,18 +34,22 @@ window#waybar {
 #cpu, #memory, #temperature, #disk,
 #bluetooth, #network, #pulseaudio, #backlight, #battery,
 #custom-swaync, #custom-power, #tray {
-    padding: 2px 12px;
-    margin: 4px 2px;
+    padding: 2px 10px;
+    margin: 4px 0;
     border-radius: 8px;
-    background: @mat-tint;
+    /* CAPSULE-FREE. No per-item background: items sit directly on the bar's
+       material, the way the macOS menu bar and noctalia both do it (noctalia
+       ships showCapsule=false, backgroundOpacity=0).
+       Capsules were doing two jobs. Visually they were eight pills in a row
+       where one clean strip reads better. Functionally they were a legibility
+       floor -- a dark tint guaranteeing the chip was darker than its own text
+       whatever the wallpaper did. Removing them puts that entirely on the
+       shadow below, so if the clock ever washes out over bright sky again,
+       this is the trade that did it: strengthen the shadow before bringing
+       the capsules back. */
+    background: transparent;
     color: @text;
-    /* The bar is a THIN material (0.40) so the wallpaper reads through it --
-       which means the text sits on an unpredictable backdrop and @subtext
-       disappeared entirely over bright sky. Two fixes, both foreground:
-       full @text, and a shadow so the glyph edge survives on ANY luminance.
-       This is the macOS menu-bar answer: strengthen the foreground rather
-       than thicken the material, so the glass stays glass. */
-    text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.45);
     transition: background-color 220ms cubic-bezier(.2,.8,.2,1),
                 color            220ms cubic-bezier(.2,.8,.2,1);
 }
