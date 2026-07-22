@@ -20,6 +20,7 @@ Authored to be cloned onto a freshly-installed Gentoo base and run with one scri
 | **CLI** | ripgrep, fd, eza, bat, zoxide, yazi, lazygit, just, atuin, … |
 | **AI CLIs** | claude-code · codex · opencode · herdr |
 | **Flatpak apps** | Zen · Spotify · Blanket  (Beeper + Helium: AppImage only) |
+| **Fonts** | **Geist** for UI (waybar/rofi/swaync) · JetBrainsMono Nerd Font for terminals and icons |
 | **Shell** | fish + starship (themed cobalt prompt) + atuin + zoxide |
 | **Editor** | neovim + LazyVim (`config/nvim`) with the theme-aware `atlas` colourscheme |
 | **Dictation** | Parakeet TDT 0.6B via sherpa-onnx -> wtype  (`Super+Alt+L`) |
@@ -49,8 +50,12 @@ Phases (`./install.sh --list`):
 1. **packages** – emerge the desktop stack, CLI tools, langs, audio, bluetooth; enable GURU; write keyword/USE overrides; enable services (needs `doas`)
 2. **flatpaks** – Zen, Spotify, Blanket (`--user` scope)
 3. **ai** – claude-code, codex, opencode, herdr + bun/deno/uv
-4. **dotfiles** – symlink `config/*` into `~/.config` (nvim included), set fish as shell
-5. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
+4. **dotfiles** – symlink `config/*` into `~/.config` (nvim included), set fish as shell;
+   link the `NoDisplay` stubs in `share/applications` that hide terminal apps and
+   duplicates from the launcher
+5. **fonts** – fetch **Geist** (the UI typeface) from upstream into
+   `~/.local/share/fonts`; it is not in the Gentoo tree
+6. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
 
 Then install the login manager and (optionally) the bootloader — both separate,
 deliberate steps:
@@ -172,6 +177,11 @@ installer; they are documented because they will bite again on a fresh machine.
   **Recovery:** `c1` and `c3`–`c6` are left alone, so if ly fails to come up
   `Ctrl+Alt+F1` still gives a console, and `exec mango` starts the desktop
   directly.
+- **waybar `on-click` never runs a shell.** waybar launches these through
+  `Glib::spawn_command_line_async`, which splits the string into argv itself, so a
+  leading `~` is passed through literally, the path does not exist, and the click
+  silently does nothing — no error anywhere. Any command starting with `~` must be
+  wrapped: `sh -c ~/.config/...`. This killed the power chip and volume mute.
 - **fish** — a starter `config.fish` is included (starship/zoxide/atuin + aliases).
   Port the rest of your kronos fish functions when you want them.
 
@@ -181,7 +191,7 @@ installer; they are documented because they will bite again on a fresh machine.
 (`themes/<name>/colors.sh`) is rendered into every app's colors and reloaded live.
 
 ```bash
-atlas-theme            # rofi picker            (Super+Ctrl+T)
+atlas-theme            # rofi picker            (Super+Alt+T)
 atlas-theme toggle     # cobalt <-> cobalt-light (Super+Shift+T)
 atlas-theme set nord   # apply by name
 atlas-theme list       # cobalt · cobalt-light · tokyo-night · nord · gruvbox · everforest · kanagawa
@@ -209,19 +219,68 @@ Gruvbox, Everforest, Kanagawa.
 
 ---
 
+## Glass / materials
+
+Every surface is translucent over real compositor blur. mango links `libscenefx`,
+and `blur_layer=1` is what extends it to waybar, swaync and rofi at all — those
+are layer-shell surfaces, not windows.
+
+Density is **not** uniform. Four materials, thin to dense, which is what produces
+depth rather than one flat sheet everywhere:
+
+| Surface | dark | light | role |
+|---------|------|-------|------|
+| waybar | 0.46 | 0.88 | thin — chrome over content |
+| rofi | 0.45 | 0.90 | menu |
+| swaync | 0.62 | 0.94 | popover |
+| ghostty | 0.55 | — | window (holds code) |
+
+Two rules that cost a day to find, and both are counter-intuitive:
+
+**Blur radius is a trade, not a dial to max out.** More diffusion does improve
+legibility over a busy backdrop — but it also averages the backdrop into flat
+mush, and the surviving structure is the entire reason a surface reads as glass
+rather than as grey paint. At radius 26 the desktop looked solid. It runs at 14.
+
+**Light mode must be far denser than dark.** A dark surface at 45% over a bright
+wallpaper still reads dark, because the dark base wins the blend. A *light*
+surface at 45% becomes a bright wash carrying near-white text. Densities are
+therefore emitted per-mode by `atlas-theme`, because GTK CSS can do
+`alpha(@colour, 0.55)` but the `0.55` cannot itself be a variable.
+
+Elements *inside* a material use a **tint** (`@mat-tint`), never their own alpha
+over the desktop — two translucent layers multiply and the inner one goes murky.
+In dark mode that tint is **black**, not white: the bar is thin enough to
+composite light over bright sky, and dark-mode text is near-white, so a
+lightening tint drove chip text toward white-on-white.
+
+### Known limitation
+
+`blur_optimized=1` means **window content never enters the backdrop** — a
+launcher over a terminal blurs the wallpaper, not the terminal. Verified by
+capturing byte-identical panels with and without a window behind. Setting it to
+`0` does not fix this and makes it worse (the surface goes flat). This is
+upstream in scenefx, not a setting here.
+
+Consequence worth knowing: glass is only as interesting as the wallpaper. Over a
+flat, dark image there is nothing to show and the effect looks like paint.
+
+---
+
 ## Layout
 
 ```
 gentoo-dotfiles/
 ├── install.sh            # orchestrator  (--dry-run, --check, --list)
 ├── lib/common.sh         # logging/TUI, doas, symlink + deploy helpers
-├── phases/               # 10-packages · 20-flatpaks · 30-ai-tools · 40-dotfiles · 50-theme
+├── phases/               # 10-packages · 20-flatpaks · 30-ai-tools · 40-dotfiles · 45-fonts · 50-theme
 ├── config/               # -> symlinked into ~/.config  (user-owned)
 ├── system/               # -> copied into /etc          (root-owned, see below)
 │   ├── portage/package.{use,accept_keywords}/atlas
 │   ├── ly/config.ini     # login manager (cobalt, 24-bit)
 │   └── services.conf     # declarative <service> <runlevel>
 ├── bin/setup-ly          # installs ly (GURU Manifest workaround, documented)
+├── share/applications/   # -> NoDisplay stubs, hide junk from the launcher
 ├── themes/<name>/colors.sh
 ├── bin/atlas-theme
 ├── config/nvim/          # LazyVim + the theme-aware `atlas` colourscheme
