@@ -40,4 +40,44 @@ mkdir -p "$LOG_DIR"
     echo "─── mango: $(command -v mango) ───"
 } > "$LOG"
 
-exec dbus-run-session -- mango "$@" 2>>"$LOG"
+#  4. Cleanup. Wayland clients die with the compositor because their socket
+#     goes away, but the audio daemons do not: pipewire and pipewire-pulse are
+#     not Wayland clients, so when autostart.sh exits they are reparented to
+#     init and simply keep running. Log out and back in and the next session's
+#     pipewire is competing with the previous one's for the same socket.
+#
+#     Verified by logging out and looking: pipewire (2282) and pipewire-pulse
+#     (2277) were still alive with the compositor long gone. wireplumber did
+#     exit on its own.
+#
+#     A session id survives reparenting to init -- the orphans still carried
+#     the dead session's SID -- so it is an exact handle on "everything this
+#     login started", with no name matching and no pidfile to go stale.
+#
+#     NOTE: this is why mango is not exec'd. exec would replace this script
+#     and there would be nothing left to run the cleanup.
+dbus-run-session -- mango "$@" 2>>"$LOG"
+rc=$?
+
+reap() {
+    local sig="$1" p sid
+    sid=$(ps -o sid= -p $$ 2>/dev/null | tr -d ' ')
+    # No session id (or ps without -s support) -> do nothing rather than guess.
+    [ -n "$sid" ] || return 0
+    for p in $(ps -o pid= -s "$sid" 2>/dev/null); do
+        [ "$p" = "$$" ] && continue      # never signal ourselves
+        kill "-$sig" "$p" 2>/dev/null
+    done
+}
+
+{
+    echo "─── session end: $(date '+%Y-%m-%d %H:%M:%S'), mango exited rc=$rc ───"
+    echo "─── reaping session leftovers ───"
+    ps -o pid=,args= -s "$(ps -o sid= -p $$ | tr -d ' ')" 2>/dev/null | grep -v "^ *$$ "
+} >> "$LOG" 2>&1
+
+reap TERM
+sleep 1
+reap KILL
+
+exit "$rc"

@@ -4,7 +4,17 @@
 # optional tool never breaks the session.
 set +e
 
-run() { command -v "$1" >/dev/null 2>&1 && "$@" & }
+# Guard FIRST, then background a simple command.
+#
+# The obvious one-liner -- `command -v "$1" >/dev/null && "$@" &` -- backgrounds
+# a COMPOUND, so bash has to fork a subshell to hold the && and that subshell
+# lingers as a second process per service, showing up as another
+# "bash autostart.sh". Splitting the guard out means `"$@" &` is a simple
+# command, which bash execs directly. One process per service, not two.
+run() {
+    command -v "$1" >/dev/null 2>&1 || return 0
+    "$@" &
+}
 
 # ── D-Bus activation environment ───────────────────────────────
 # Without this, D-Bus-activated services and anything using the session bus
