@@ -59,7 +59,17 @@ inputbar {
 prompt { text-color: @accent; }
 entry  { placeholder: "Search…"; placeholder-color: @fg-alt; }
 
-listview { lines: 8; columns: 1; scrollbar: false; padding: 12px 0 0 0; spacing: 4px; }
+/* border: 0 is load-bearing. rofi's BUILT-IN theme sets
+ *   listview { border: 2px dash 0px 0px; }
+ * which draws a dashed rule across the top of the list, just under the search
+ * box. Nothing in this file asked for it and it does not inherit from the
+ * window border, so it survives every other override and reads as a row of
+ * dots under the input. Leave this at 0 unless you actually want a separator. */
+listview {
+    lines: 8; columns: 1; scrollbar: false;
+    border: 0;
+    padding: 12px 0 0 0; spacing: 4px;
+}
 
 element { padding: 9px 12px; border-radius: 9px; spacing: 11px; }
 /* Every state needs an explicit background. Anything left unstyled falls back
