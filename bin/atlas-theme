@@ -50,7 +50,7 @@ render() {
     mat_thin="rgba(255,255,255,0.88)"; mat_popover="rgba(255,255,255,0.94)"
     mat_tint="rgba(0,0,0,0.055)";      mat_tint_hi="rgba(0,0,0,0.11)"
   else
-    mat_thin="rgba(15,18,24,0.40)";    mat_popover="rgba(15,18,24,0.62)"
+    mat_thin="rgba(15,18,24,0.46)";    mat_popover="rgba(15,18,24,0.62)"
     mat_tint="rgba(255,255,255,0.07)"; mat_tint_hi="rgba(255,255,255,0.14)"
   fi
 

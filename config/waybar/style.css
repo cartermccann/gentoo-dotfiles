@@ -38,7 +38,14 @@ window#waybar {
     margin: 4px 2px;
     border-radius: 8px;
     background: @mat-tint;
-    color: @subtext;
+    color: @text;
+    /* The bar is a THIN material (0.40) so the wallpaper reads through it --
+       which means the text sits on an unpredictable backdrop and @subtext
+       disappeared entirely over bright sky. Two fixes, both foreground:
+       full @text, and a shadow so the glyph edge survives on ANY luminance.
+       This is the macOS menu-bar answer: strengthen the foreground rather
+       than thicken the material, so the glass stays glass. */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.55);
     transition: background-color 220ms cubic-bezier(.2,.8,.2,1),
                 color            220ms cubic-bezier(.2,.8,.2,1);
 }
