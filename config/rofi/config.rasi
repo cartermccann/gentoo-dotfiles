@@ -75,8 +75,14 @@ element { padding: 9px 12px; border-radius: 9px; spacing: 11px; }
 /* Every state needs an explicit background. Anything left unstyled falls back
    to rofi's built-in theme, which is light -- that is what made the entries
    and the mode tabs render white on the dark window. */
-element normal.normal   { background-color: transparent; text-color: @fg-alt; }
-element alternate.normal{ background-color: transparent; text-color: @fg-alt; }
+/* List text stays at full @fg, NOT the dimmer @fg-alt. Dimming unselected rows
+ * looks tidier on an opaque panel, but this panel is translucent over an
+ * arbitrary wallpaper -- low-contrast text on glass is the exact failure that
+ * made Liquid Glass menus unreadable. The selection tint is the differentiator
+ * here; contrast is not spent on it. @fg-alt is reserved for the placeholder
+ * and the inactive mode tabs, which are chrome rather than content. */
+element normal.normal   { background-color: transparent; text-color: @fg; }
+element alternate.normal{ background-color: transparent; text-color: @fg; }
 element normal.urgent   { background-color: transparent; text-color: @urgent; }
 element normal.active   { background-color: transparent; text-color: @accent; }
 /* Selection is a TINT, not a fill. A solid accent bar was the loudest thing on
