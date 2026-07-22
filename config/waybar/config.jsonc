@@ -26,8 +26,8 @@
     ],
 
     "clock": {
-        "format": "󰥔  {:%a %d %b  %H:%M}",
-        "format-alt": "󰥔  {:%H:%M:%S}",
+        "format": "<span color='#3b6bff'>󰥔</span>  {:%a %d %b  %H:%M}",
+        "format-alt": "<span color='#3b6bff'>󰥔</span>  {:%H:%M:%S}",
         "tooltip-format": "<tt><small>{calendar}</small></tt>",
         "calendar": {
             "mode": "month",
@@ -63,7 +63,7 @@
     // Coffee-cup toggle: keeps the screen awake for video or long builds.
     "idle_inhibitor": {
         "format": "{icon}",
-        "format-icons": { "activated": "󰅶", "deactivated": "󰛊" },
+        "format-icons": { "activated": "󰅶", "deactivated": "󰒲" },
         "tooltip-format-activated": "Idle inhibited — screen stays awake",
         "tooltip-format-deactivated": "Idle normal"
     },
@@ -190,9 +190,16 @@
         "on-click": "ghostty -e nmtui"
     },
 
+    // SEVEN icons, not nine. Material Design's graduated brightness ramp is
+    // brightness-1..7 (U+F00DA-F00E0); the next two codepoints are different
+    // icons entirely -- U+F00E1 is brightness-auto and U+F00E2 is
+    // brightness-percent, a sun with a percent slash. waybar indexes this array
+    // by percentage and takes the LAST entry at 100%, so including them meant
+    // the bar showed brightness-percent almost all the time, which at 13px
+    // reads as a broom rather than a brightness level.
     "backlight": {
         "format": "{icon}  {percent}%",
-        "format-icons": ["󰃚", "󰃛", "󰃜", "󰃝", "󰃞", "󰃟", "󰃠", "󰃡", "󰃢"],
+        "format-icons": ["󰃚", "󰃛", "󰃜", "󰃝", "󰃞", "󰃟", "󰃠"],
         "scroll-step": 5
     },
 
