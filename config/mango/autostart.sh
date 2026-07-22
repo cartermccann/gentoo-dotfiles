@@ -66,7 +66,18 @@ run wl-paste --type image --watch cliphist store
 # now -- open blueman-manager (click the BT chip) and it registers an agent
 # while it is open. Start `blueman-applet` by hand if you ever want the old
 # behaviour back.
-run nm-applet --indicator
+# nm-applet is deliberately NOT started, for the same reason as blueman-applet.
+#
+# It never actually ran here: gnome-extra/nm-applet is built with -appindicator
+# on this box, so `--indicator` aborts at startup with "indicator support not
+# available" and the process dies. That one line was the error flashing past on
+# every login, and pgrep confirmed nothing survived.
+#
+# Nothing is lost by dropping it. The waybar `network` module already shows
+# wifi/signal/IP and opens `nmtui` in ghostty on click, which is where you join
+# a new network or enter a password. Rebuilding with USE=appindicator would put
+# a tray icon back, but it would be another full-colour pixmap in a monochrome
+# bar -- exactly what blueman-applet was removed for.
 
 # ── Polkit agent (auth dialogs) ────────────────────────────────
 run /usr/libexec/polkit-gnome-authentication-agent-1
