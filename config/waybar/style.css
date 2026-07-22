@@ -49,7 +49,11 @@ window#waybar {
        the capsules back. */
     background: transparent;
     color: @text;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 8px rgba(0,0,0,0.45);
+    /* One tight edge, no halo. The wide second shadow that used to sit here
+       (0 0 8px) smudged a dark cloud around every glyph -- it read as a
+       drop shadow on the text rather than as contrast. A 2px edge at 45%
+       is enough to separate a glyph from bright sky without being seen. */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.45);
     transition: background-color 220ms cubic-bezier(.2,.8,.2,1),
                 color            220ms cubic-bezier(.2,.8,.2,1);
 }
