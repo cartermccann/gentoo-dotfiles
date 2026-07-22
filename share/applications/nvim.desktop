@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Neovim
+Exec=nvim
+Terminal=true
+NoDisplay=true

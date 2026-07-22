@@ -89,15 +89,32 @@ EOF
   } > "$C/ghostty/theme.conf"
 
   # ── rofi ──
+  # The -glass variants carry their alpha in the colour itself. rasi has no
+  # alpha()/rgba-mix function, so a translucent surface cannot be composed in
+  # the stylesheet the way waybar's GTK CSS does it -- it has to be emitted
+  # here, per theme.
+  #
+  # The alpha values are deliberately moderate (a8 = 66%, b3 = 70%). mango
+  # runs scenefx blur behind these, and the readable result comes from a high
+  # blur radius at moderate opacity, not from a low opacity at low radius --
+  # which is the correction Apple spent the whole iOS 26 beta cycle making
+  # after Liquid Glass menus turned illegible over bright backgrounds.
   mkdir -p "$C/rofi"
   cat > "$C/rofi/theme.rasi" <<EOF
 * {
-    bg:     #$BASE;
-    bg-alt: #$SURFACE;
-    fg:     #$TEXT;
-    fg-alt: #$SUBTEXT;
-    accent: #$ACCENT;
-    urgent: #$T1;
+    bg:       #$BASE;
+    bg-alt:   #$SURFACE;
+    fg:       #$TEXT;
+    fg-alt:   #$SUBTEXT;
+    accent:   #$ACCENT;
+    urgent:   #$T1;
+
+    /* glass surfaces */
+    bg-glass:   #${BASE}a8;
+    bar-glass:  #${SURFACE}b3;
+    sel-glass:  #${ACCENT}3d;
+    hair:       #ffffff1a;
+    hair-lit:   #ffffff33;
 }
 EOF
 

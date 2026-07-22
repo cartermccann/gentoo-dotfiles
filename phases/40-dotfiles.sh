@@ -11,6 +11,24 @@ for dir in "$REPO_DIR"/config/*/; do
     backup_and_link "${dir%/}" "$HOME/.config/$name"
 done
 
+# ── Hide junk entries from the launcher ────────────────────────
+# NoDisplay stubs that shadow a system .desktop of the same name. XDG scans
+# XDG_DATA_DIRS in order and ~/.local/share comes first, so these win without
+# editing /usr -- a package update cannot revert them.
+#
+# Linked FILE BY FILE, deliberately. Symlinking the whole directory would make
+# ~/.local/share/applications repo-owned, and anything installed later (a
+# flatpak, an npm-shipped .desktop) would land in a directory the installer
+# thinks it controls.
+step "launcher: hide terminal apps and duplicates"
+run mkdir -p "$HOME/.local/share/applications"
+for f in "$REPO_DIR"/share/applications/*.desktop; do
+    [ -e "$f" ] || continue
+    backup_and_link "$f" "$HOME/.local/share/applications/$(basename "$f")"
+done
+run update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+ok "$(ls "$REPO_DIR"/share/applications/*.desktop 2>/dev/null | wc -l) entries hidden"
+
 # ── Make mango scripts executable ──────────────────────────────
 step "executable bits"
 run chmod +x "$REPO_DIR"/config/mango/autostart.sh "$REPO_DIR"/config/mango/scripts/*.sh 2>/dev/null

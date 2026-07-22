@@ -1,0 +1,149 @@
+<style>
+  :root{
+    --base:#0f1218; --surface:#171b23; --surface2:#212734;
+    --text:#e7ebf2; --subtext:#8b93a4; --accent:#3b6bff; --crit:#f87171;
+    --border:rgba(255,255,255,.08);
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:40px 28px 64px;
+    background:
+      radial-gradient(900px 500px at 18% -10%, #16203a 0%, transparent 60%),
+      radial-gradient(700px 400px at 88% 8%, #101a2e 0%, transparent 55%),
+      #0a0c11;
+    color:var(--text);
+    font:14px/1.55 "JetBrainsMono Nerd Font","JetBrains Mono",ui-monospace,monospace;
+    min-height:100vh;
+  }
+  h1{font-size:19px;font-weight:600;letter-spacing:.02em;margin:0 0 6px}
+  .sub{color:var(--subtext);font-size:12.5px;margin:0 0 34px;max-width:78ch}
+  .grid{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+  .col{flex:1 1 330px;min-width:300px;max-width:420px}
+  .cap{display:flex;align-items:center;gap:9px;margin:0 0 4px;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase}
+  .dot{width:7px;height:7px;border-radius:50%}
+  .bad{background:var(--crit)} .good{background:var(--accent)}
+  .note{color:var(--subtext);font-size:11.5px;margin:0 0 14px;min-height:48px}
+
+  /* ---- shared rofi geometry ---- */
+  .rofi{padding:12px;width:100%}
+  .bar{display:flex;align-items:center;gap:10px;padding:11px 15px;background:var(--surface);border-radius:11px}
+  .prompt{color:var(--accent)}
+  .caret{color:var(--subtext)}
+  .list{padding-top:12px;display:flex;flex-direction:column;gap:4px}
+  .row{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;transition:background .22s var(--ease),color .22s var(--ease)}
+  .ico{width:18px;text-align:center;flex:0 0 18px}
+  .tabs{display:flex;gap:6px;padding-top:10px}
+  .tab{background:var(--surface);color:var(--subtext);border-radius:9px;padding:7px 12px;font-size:12px}
+
+  /* ---- A: current ---- */
+  .cur{background:var(--base);border:2px solid var(--accent);border-radius:14px}
+  .cur .row.sel{background:var(--accent);color:var(--base)}
+  .cur .tab.sel{background:var(--accent);color:var(--base)}
+  .cur .ico.c1{color:#e8a33d}.cur .ico.c2{color:#4fc3f7}
+  .cur .ico.c3{color:#66bb6a}.cur .ico.c4{color:#ef5350}.cur .ico.c5{color:#ab47bc}
+
+  /* ---- B: glass ---- */
+  .glass{background:rgba(15,18,24,.72);border:1px solid var(--border);border-radius:12px;backdrop-filter:blur(22px) saturate(120%)}
+  .glass .bar{background:rgba(23,27,35,.7)}
+  .glass .row{color:var(--subtext)}
+  .glass .row.sel{background:rgba(59,107,255,.16);color:var(--text)}
+  .glass .tab{background:rgba(23,27,35,.7)}
+  .glass .tab.sel{background:rgba(59,107,255,.16);color:var(--text)}
+  .glass .ico{color:var(--subtext)}
+  .glass .row.sel .ico{color:var(--accent)}
+
+  /* ---- C: rail ---- */
+  .rail{background:rgba(15,18,24,.72);border:1px solid var(--border);border-radius:12px;backdrop-filter:blur(22px) saturate(120%)}
+  .rail .bar{background:rgba(23,27,35,.7)}
+  .rail .row{color:var(--subtext);border-left:2px solid transparent;border-radius:0 9px 9px 0}
+  .rail .row.sel{background:rgba(255,255,255,.05);color:var(--text);border-left-color:var(--accent)}
+  .rail .tab{background:rgba(23,27,35,.7)}
+  .rail .tab.sel{background:rgba(59,107,255,.16);color:var(--text)}
+  .rail .ico{color:var(--subtext)}
+  .rail .row.sel .ico{color:var(--accent)}
+
+  .legend{margin-top:44px;border-top:1px solid var(--border);padding-top:22px;max-width:100ch}
+  table{border-collapse:collapse;font-size:12.5px;width:100%}
+  th,td{text-align:left;padding:7px 14px 7px 0;vertical-align:top}
+  th{color:var(--subtext);font-weight:500;border-bottom:1px solid var(--border)}
+  td:first-child{color:var(--subtext);white-space:nowrap}
+  code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px;font-size:11.5px}
+  @media (max-width:760px){.grid{gap:26px}}
+</style>
+
+<h1>rofi · cobalt alignment</h1>
+<p class="sub">
+  The launcher is the one surface that never adopted the language the bar and greeter share.
+  Below: what runs today, and two ways to bring it in line. Same geometry in all three, only
+  the material and the selection treatment change.
+</p>
+
+<div class="grid">
+
+  <div class="col">
+    <div class="cap"><span class="dot bad"></span>A · current</div>
+    <p class="note">Opaque slab, 2px accent outline, solid accent fill on selection, full-colour Papirus icons.</p>
+    <div class="rofi cur">
+      <div class="bar"><span class="prompt"></span><span class="caret">Search…</span></div>
+      <div class="list">
+        <div class="row"><span class="ico c1">󰈹</span><span>Firefox</span></div>
+        <div class="row sel"><span class="ico c2">󰓅</span><span>Ghostty</span></div>
+        <div class="row"><span class="ico c3">󰉋</span><span>Files</span></div>
+        <div class="row"><span class="ico c4">󰝚</span><span>Spotify</span></div>
+        <div class="row"><span class="ico c5">󰘐</span><span>Neovim</span></div>
+      </div>
+      <div class="tabs"><span class="tab sel">  Apps</span><span class="tab">  Run</span><span class="tab">  Windows</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><span class="dot good"></span>B · glass</div>
+    <p class="note">Same translucency and 1px hairline as the bar. Selection is an accent <em>tint</em>, matching chip hover. Icons monochrome.</p>
+    <div class="rofi glass">
+      <div class="bar"><span class="prompt"></span><span class="caret">Search…</span></div>
+      <div class="list">
+        <div class="row"><span class="ico">󰈹</span><span>Firefox</span></div>
+        <div class="row sel"><span class="ico">󰓅</span><span>Ghostty</span></div>
+        <div class="row"><span class="ico">󰉋</span><span>Files</span></div>
+        <div class="row"><span class="ico">󰝚</span><span>Spotify</span></div>
+        <div class="row"><span class="ico">󰘐</span><span>Neovim</span></div>
+      </div>
+      <div class="tabs"><span class="tab sel">  Apps</span><span class="tab">  Run</span><span class="tab">  Windows</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cap"><span class="dot good"></span>C · rail</div>
+    <p class="note">Same glass, but selection is a left accent rail over a near-neutral wash. Quietest option; the accent marks position rather than filling area.</p>
+    <div class="rofi rail">
+      <div class="bar"><span class="prompt"></span><span class="caret">Search…</span></div>
+      <div class="list">
+        <div class="row"><span class="ico">󰈹</span><span>Firefox</span></div>
+        <div class="row sel"><span class="ico">󰓅</span><span>Ghostty</span></div>
+        <div class="row"><span class="ico">󰉋</span><span>Files</span></div>
+        <div class="row"><span class="ico">󰝚</span><span>Spotify</span></div>
+        <div class="row"><span class="ico">󰘐</span><span>Neovim</span></div>
+      </div>
+      <div class="tabs"><span class="tab sel">  Apps</span><span class="tab">  Run</span><span class="tab">  Windows</span></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <table>
+    <tr><th>What</th><th>waybar / ly</th><th>rofi today</th><th>proposed</th></tr>
+    <tr><td>surface</td><td><code>alpha(base,.72)</code> glass</td><td><code>@bg</code> opaque</td><td>match the bar</td></tr>
+    <tr><td>border</td><td><code>1px</code> <code>rgba(255,255,255,.08)</code></td><td><code>2px</code> solid accent</td><td>1px hairline</td></tr>
+    <tr><td>selection</td><td>hover = accent <em>tint</em></td><td>solid accent fill</td><td>tint (B) or rail (C)</td></tr>
+    <tr><td>icons</td><td>monochrome, one accent</td><td>full-colour Papirus</td><td>monochrome or off</td></tr>
+    <tr><td>radius</td><td><code>12px</code> container</td><td><code>14px</code></td><td>12px</td></tr>
+    <tr><td>motion</td><td><code>220ms cubic-bezier(.2,.8,.2,1)</code></td><td>none</td><td>same curve</td></tr>
+  </table>
+  <p class="sub" style="margin-top:18px">
+    The icon question is the same call you already made on blueman-applet: a full-colour pixmap
+    was the one saturated thing in a monochrome bar, so it went. Papirus in the launcher is that
+    again, at larger scale.
+  </p>
+</div>

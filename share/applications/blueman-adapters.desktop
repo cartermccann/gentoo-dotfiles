@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Bluetooth Adapters
+Exec=blueman-adapters
+Terminal=false
+NoDisplay=true

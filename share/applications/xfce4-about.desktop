@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=About Xfce
+Exec=xfce4-about
+Terminal=false
+NoDisplay=true

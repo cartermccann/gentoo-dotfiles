@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Panel
+Exec=xfce4-panel -p
+Terminal=false
+NoDisplay=true

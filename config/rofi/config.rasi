@@ -1,4 +1,20 @@
-/* rofi — launcher. Colors come from the active theme (atlas-theme). */
+/* rofi — launcher. Colors come from the active theme (atlas-theme).
+ *
+ * This surface is GLASS. mango runs scenefx blur with blur_layer=1, so every
+ * layer-shell surface -- waybar, swaync and this -- already has real gaussian
+ * blur behind it. rofi used to paint an opaque background, which threw all of
+ * that away and made the launcher the one thing on screen that read as a
+ * sticker sitting on the desktop instead of part of it.
+ *
+ * The alpha lives in the colour (bg-glass, bar-glass), because rasi has no
+ * alpha() function to compose one here. See bin/atlas-theme.
+ *
+ * Legibility note, since this is the failure mode of the whole idea: what
+ * keeps text readable is a LARGE BLUR RADIUS at moderate opacity, not high
+ * transparency. At radius 26 the backdrop becomes light and colour rather than
+ * legible detail. If this ever looks washed out, raise blur_params_radius in
+ * config/mango/config.conf before reaching for more opacity.
+ */
 @import "theme.rasi"
 
 configuration {
@@ -7,19 +23,24 @@ configuration {
     icon-theme: "Papirus";
     font: "JetBrainsMono Nerd Font 12";
     drun-display-format: "{name}";
-    display-drun: "  Apps";
-    display-run: "  Run";
-    display-window: "  Windows";
+    display-drun: "Apps";
+    display-run: "Run";
+    display-window: "Windows";
+
+    /* Terminal apps and self-references are hidden via NoDisplay stubs in
+       share/applications/ rather than a match rule here, so every launcher
+       on the system agrees on what is an app. */
+    drun-show-actions: false;
 }
 
 * { background-color: transparent; text-color: @fg; }
 
 window {
     transparency: "real";
-    background-color: @bg;
-    border: 2px;
-    border-color: @accent;
-    border-radius: 14px;
+    background-color: @bg-glass;
+    border: 1px;
+    border-color: @hair-lit;   /* one hairline, lit — reads as a glass edge */
+    border-radius: 12px;
     width: 620px;
     padding: 0;
 }
@@ -27,7 +48,9 @@ window {
 mainbox { padding: 12px; }
 
 inputbar {
-    background-color: @bg-alt;
+    background-color: @bar-glass;
+    border: 1px;
+    border-color: @hair;
     border-radius: 11px;
     padding: 11px 15px;
     spacing: 10px;
@@ -42,29 +65,31 @@ element { padding: 9px 12px; border-radius: 9px; spacing: 11px; }
 /* Every state needs an explicit background. Anything left unstyled falls back
    to rofi's built-in theme, which is light -- that is what made the entries
    and the mode tabs render white on the dark window. */
-element normal.normal   { background-color: transparent; text-color: @fg;     }
-element alternate.normal{ background-color: transparent; text-color: @fg;     }
+element normal.normal   { background-color: transparent; text-color: @fg-alt; }
+element alternate.normal{ background-color: transparent; text-color: @fg-alt; }
 element normal.urgent   { background-color: transparent; text-color: @urgent; }
 element normal.active   { background-color: transparent; text-color: @accent; }
-element selected.normal { background-color: @accent;     text-color: @bg;     }
-element selected.urgent { background-color: @urgent;     text-color: @bg;     }
-element selected.active { background-color: @accent;     text-color: @bg;     }
-element-icon { size: 1.2em; vertical-align: 0.5; background-color: transparent; }
+/* Selection is a TINT, not a fill. A solid accent bar was the loudest thing on
+   screen and matched nothing else; waybar's chip hover is a tint, so this is. */
+element selected.normal { background-color: @sel-glass; text-color: @fg;     }
+element selected.urgent { background-color: @urgent;    text-color: @bg;     }
+element selected.active { background-color: @sel-glass; text-color: @accent; }
+element-icon { size: 1.15em; vertical-align: 0.5; background-color: transparent; }
 element-text { vertical-align: 0.5; background-color: transparent; text-color: inherit; }
 
 /* Mode switcher = the "Apps / Run / Windows" tabs. Unstyled `button` is where
    the white came from. */
 mode-switcher { spacing: 6px; padding: 10px 0 0 0; }
 button {
-    background-color: @bg-alt;
+    background-color: @bar-glass;
     text-color: @fg-alt;
     border-radius: 9px;
     padding: 7px 12px;
 }
-button selected { background-color: @accent; text-color: @bg; }
+button selected { background-color: @sel-glass; text-color: @fg; }
 
 /* Misc surfaces that also default to light if left alone. */
-message  { background-color: @bg-alt; border-radius: 9px; padding: 8px 12px; }
+message  { background-color: @bar-glass; border-radius: 9px; padding: 8px 12px; }
 textbox  { background-color: transparent; text-color: @fg; }
-scrollbar{ background-color: @bg-alt; handle-color: @accent; }
-error-message { background-color: @bg; text-color: @urgent; }
+scrollbar{ background-color: @bar-glass; handle-color: @accent; }
+error-message { background-color: @bg-glass; text-color: @urgent; }
