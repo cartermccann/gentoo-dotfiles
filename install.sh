@@ -18,9 +18,10 @@ declare -A PHASE_FILES=(
     [flatpaks]="20-flatpaks.sh"
     [ai]="30-ai-tools.sh"
     [dotfiles]="40-dotfiles.sh"
+    [fonts]="45-fonts.sh"
     [theme]="50-theme.sh"
 )
-ORDER=(packages flatpaks ai dotfiles theme)
+ORDER=(packages flatpaks ai dotfiles fonts theme)
 
 usage() {
     cat <<EOF
@@ -118,7 +119,7 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;
-        packages|flatpaks|ai|dotfiles|theme) SELECTED+=("$arg") ;;
+        packages|flatpaks|ai|dotfiles|fonts|theme) SELECTED+=("$arg") ;;
         *) err "unknown argument: $arg"; usage; exit 1 ;;
     esac
 done
