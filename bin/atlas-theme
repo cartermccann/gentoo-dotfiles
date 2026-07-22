@@ -50,7 +50,7 @@ render() {
     mat_thin="rgba(255,255,255,0.88)"; mat_popover="rgba(255,255,255,0.94)"
     mat_tint="rgba(0,0,0,0.055)";      mat_tint_hi="rgba(0,0,0,0.11)"
   else
-    mat_thin="rgba(15,18,24,0.55)";    mat_popover="rgba(15,18,24,0.78)"
+    mat_thin="rgba(15,18,24,0.40)";    mat_popover="rgba(15,18,24,0.62)"
     mat_tint="rgba(255,255,255,0.07)"; mat_tint_hi="rgba(255,255,255,0.14)"
   fi
 
@@ -152,7 +152,7 @@ EOF
     bg_a=e6; bar_a=f2; sel_a=2e; hair="#0000001a"; hair_lit="#00000026"
     bar_tint="#00000012"
   else
-    bg_a=a8; bar_a=b3; sel_a=3d; hair="#ffffff1a"; hair_lit="#ffffff33"
+    bg_a=73; bar_a=8c; sel_a=4d; hair="#ffffff1a"; hair_lit="#ffffff33"
     bar_tint="#ffffff14"
   fi
 
