@@ -8,7 +8,9 @@
 @import "theme.css";
 
 * {
-    font-family: "JetBrainsMono Nerd Font";
+    /* Geist for text, Nerd Font kept in the stack for module icons --
+       drop it and every glyph in the bar becomes a tofu box. */
+    font-family: "Geist", "JetBrainsMono Nerd Font";
     font-size: 13px;
     min-height: 0;
 }
@@ -21,7 +23,7 @@ window#waybar {
 .modules-left,
 .modules-center,
 .modules-right {
-    background: alpha(@base, 0.72);
+    background: alpha(@base, 0.55);
     border: 1px solid @border;
     border-radius: 12px;
     padding: 0 6px;
@@ -35,7 +37,7 @@ window#waybar {
     padding: 2px 12px;
     margin: 4px 2px;
     border-radius: 8px;
-    background: alpha(@surface, 0.7);
+    background: alpha(@text, 0.07);
     color: @subtext;
     transition: background-color 220ms cubic-bezier(.2,.8,.2,1),
                 color            220ms cubic-bezier(.2,.8,.2,1);
@@ -46,7 +48,7 @@ window#waybar {
 #cpu:hover, #memory:hover, #temperature:hover, #disk:hover,
 #bluetooth:hover, #network:hover, #pulseaudio:hover,
 #backlight:hover, #battery:hover, #custom-swaync:hover {
-    background: alpha(@surface2, 0.9);
+    background: alpha(@text, 0.14);
     color: @text;
 }
 

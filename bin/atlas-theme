@@ -111,11 +111,21 @@ EOF
   # hairlines. This mirrors how macOS handles it: light materials are far more
   # opaque than dark ones and separate themselves with a subtle dark divider
   # rather than a lit edge, because a white specular edge is invisible on white.
-  local bg_a bar_a sel_a hair hair_lit
+  #
+  # bar_tint is the other half of this. An element INSIDE a translucent panel
+  # must not carry its own alpha over the wallpaper -- the two layers multiply
+  # and the inner one turns murky and darker than either. Apple is explicit
+  # that stacking materials looks wrong. So inner surfaces are a TINT: a wash
+  # of white (dark mode) or black (light mode) that lightens or darkens the
+  # material already there, compositing against the panel rather than the
+  # desktop behind it.
+  local bg_a bar_a sel_a hair hair_lit bar_tint
   if [ "${MODE:-dark}" = "light" ]; then
     bg_a=e6; bar_a=f2; sel_a=2e; hair="#0000001a"; hair_lit="#00000026"
+    bar_tint="#00000012"
   else
     bg_a=a8; bar_a=b3; sel_a=3d; hair="#ffffff1a"; hair_lit="#ffffff33"
+    bar_tint="#ffffff14"
   fi
 
   mkdir -p "$C/rofi"
@@ -132,6 +142,7 @@ EOF
     bg-glass:   #${BASE}${bg_a};
     bar-glass:  #${SURFACE}${bar_a};
     sel-glass:  #${ACCENT}${sel_a};
+    bar-tint:   ${bar_tint};
     hair:       ${hair};
     hair-lit:   ${hair_lit};
 }

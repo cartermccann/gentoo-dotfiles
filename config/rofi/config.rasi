@@ -21,7 +21,7 @@ configuration {
     modi: "drun,run,window";
     show-icons: true;
     icon-theme: "Papirus";
-    font: "JetBrainsMono Nerd Font 12";
+    font: "Geist 12";   /* pango falls back per-glyph for Nerd icons */
     drun-display-format: "{name}";
     display-drun: "Apps";
     display-run: "Run";
@@ -48,7 +48,7 @@ window {
 mainbox { padding: 12px; }
 
 inputbar {
-    background-color: @bar-glass;
+    background-color: @bar-tint;
     border: 1px;
     border-color: @hair;
     border-radius: 11px;
@@ -97,7 +97,7 @@ element-text { vertical-align: 0.5; background-color: transparent; text-color: i
    the white came from. */
 mode-switcher { spacing: 6px; padding: 10px 0 0 0; }
 button {
-    background-color: @bar-glass;
+    background-color: @bar-tint;
     text-color: @fg-alt;
     border-radius: 9px;
     padding: 7px 12px;
@@ -105,7 +105,7 @@ button {
 button selected { background-color: @sel-glass; text-color: @fg; }
 
 /* Misc surfaces that also default to light if left alone. */
-message  { background-color: @bar-glass; border-radius: 9px; padding: 8px 12px; }
+message  { background-color: @bar-tint; border-radius: 9px; padding: 8px 12px; }
 textbox  { background-color: transparent; text-color: @fg; }
-scrollbar{ background-color: @bar-glass; handle-color: @accent; }
+scrollbar{ background-color: @bar-tint; handle-color: @accent; }
 error-message { background-color: @bg-glass; text-color: @urgent; }
