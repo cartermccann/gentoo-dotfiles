@@ -122,7 +122,13 @@
         "format": "󰐥",
         "tooltip": true,
         "tooltip-format": "Session\nlock \u00b7 logout \u00b7 suspend \u00b7 reboot \u00b7 shutdown",
-        "on-click": "~/.config/mango/scripts/powermenu.sh"
+        // NOTE the `sh -c` wrapper, and keep it on any on-click starting with ~.
+        // waybar launches these with Glib::spawn_command_line_async, which splits
+        // the string into argv itself and never runs a shell -- so a leading ~ is
+        // passed through literally, the path does not exist, and the click does
+        // nothing at all. Every other on-click here names a bare command, which
+        // is why this and the volume mute binding were the only two that were dead.
+        "on-click": "sh -c ~/.config/mango/scripts/powermenu.sh"
     },
 
     "custom/swaync": {
@@ -168,7 +174,8 @@
         "format-icons": { "headphone": "󰋋", "headset": "󰋎", "default": ["󰕿", "󰖀", "󰕾"] },
         "scroll-step": 5,
         "on-click": "pavucontrol",
-        "on-click-right": "~/.config/mango/scripts/volume.sh mute"
+        // sh -c for the same reason as custom/power above: no shell, no ~ expansion.
+        "on-click-right": "sh -c '~/.config/mango/scripts/volume.sh mute'"
     },
 
     "network": {
