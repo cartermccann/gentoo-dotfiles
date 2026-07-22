@@ -99,6 +99,25 @@ EOF
   # blur radius at moderate opacity, not from a low opacity at low radius --
   # which is the correction Apple spent the whole iOS 26 beta cycle making
   # after Liquid Glass menus turned illegible over bright backgrounds.
+  # Glass has to be mode-aware, and this is not cosmetic.
+  #
+  # A dark surface at 66% over a bright wallpaper still reads dark, because the
+  # dark base wins the blend. A LIGHT surface at 66% over that same wallpaper
+  # does not -- it turns into a bright wash with near-white text on it, which
+  # is illegible. Emitting one alpha for both modes made cobalt-light unusable
+  # the moment the launcher went translucent.
+  #
+  # So light themes get a much higher opacity (e6/f2 vs a8/b3) and DARK
+  # hairlines. This mirrors how macOS handles it: light materials are far more
+  # opaque than dark ones and separate themselves with a subtle dark divider
+  # rather than a lit edge, because a white specular edge is invisible on white.
+  local bg_a bar_a sel_a hair hair_lit
+  if [ "${MODE:-dark}" = "light" ]; then
+    bg_a=e6; bar_a=f2; sel_a=2e; hair="#0000001a"; hair_lit="#00000026"
+  else
+    bg_a=a8; bar_a=b3; sel_a=3d; hair="#ffffff1a"; hair_lit="#ffffff33"
+  fi
+
   mkdir -p "$C/rofi"
   cat > "$C/rofi/theme.rasi" <<EOF
 * {
@@ -109,12 +128,12 @@ EOF
     accent:   #$ACCENT;
     urgent:   #$T1;
 
-    /* glass surfaces */
-    bg-glass:   #${BASE}a8;
-    bar-glass:  #${SURFACE}b3;
-    sel-glass:  #${ACCENT}3d;
-    hair:       #ffffff1a;
-    hair-lit:   #ffffff33;
+    /* glass surfaces — alpha differs by mode, see bin/atlas-theme */
+    bg-glass:   #${BASE}${bg_a};
+    bar-glass:  #${SURFACE}${bar_a};
+    sel-glass:  #${ACCENT}${sel_a};
+    hair:       ${hair};
+    hair-lit:   ${hair_lit};
 }
 EOF
 
