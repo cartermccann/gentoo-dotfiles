@@ -113,6 +113,16 @@ MAP
     if [ ! -d "$scan" ]; then
         info "n/a      no scan directory — './install.sh services' has not run"
     else
+        # Whether a supervisor is alive has to be established FIRST, because
+        # s6's control fifo outlives the supervisor that made it. Testing only
+        # for the fifo reports "supervised" for a service that has not been
+        # running since the last time a tree happened to be started — which is
+        # exactly the silent failure this check exists to catch.
+        local sup_up=0
+        pgrep -u "$USER" -x s6-svscan >/dev/null 2>&1 && sup_up=1
+        if [ "$sup_up" = "0" ]; then
+            info "supervisor not running — it starts with the graphical session"
+        fi
         for d in "$REPO_DIR"/services/*/; do
             [ -f "$d/run" ] || continue      # README.md is not a service
             local n dst; n=$(basename "${d%/}"); dst="$scan/$n"
@@ -120,13 +130,14 @@ MAP
                 err "MISSING  $n (not linked into the scan directory)"; drift=1
             elif [ "$(readlink -f "$dst")" != "$(readlink -f "${d%/}")" ]; then
                 warn "DRIFTED  $n (links somewhere other than the repo)"; drift=1
-            elif [ -p "$dst/supervise/control" ]; then
-                ok "supervised  $n"
+            elif [ "$sup_up" = "0" ]; then
+                # Correct on disk, nothing supervising it. Not drift: outside a
+                # session this is the expected state.
+                info "linked   $n (defined, not running)"
+            elif s6-svstat "$dst" 2>/dev/null | grep -q '^up'; then
+                ok "up       $n  ($(s6-svstat "$dst" 2>/dev/null))"
             else
-                # Linked but no control fifo: correct on disk, just not running.
-                # Only worth flagging inside a session, where it means the
-                # supervisor missed it rather than simply not existing yet.
-                info "linked   $n (not supervised — no session, or needs: atlas-svc reload)"
+                warn "DOWN     $n  ($(s6-svstat "$dst" 2>&1 | head -1))"; drift=1
             fi
         done
     fi

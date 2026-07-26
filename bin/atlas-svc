@@ -20,9 +20,12 @@ die() { printf '%s✗%s %s\n' "$RED" "$R" "$*" >&2; exit 1; }
 
 [ -d "$SCAN" ] || die "no scan directory at $SCAN — run ./install.sh services"
 
-# s6-svscan writes a control fifo into each supervised directory; its presence
-# is how we tell "supervised right now" from "merely on disk".
-supervised() { [ -p "$SCAN/$1/supervise/control" ]; }
+# The control fifo OUTLIVES the supervisor that created it, so its presence
+# alone does not mean anything is running — a stale fifo from a tree that was
+# started once and stopped will happily report "supervised" forever. Require a
+# live s6-svscan as well.
+supervisor_up() { pgrep -u "$USER" -x s6-svscan >/dev/null 2>&1; }
+supervised() { supervisor_up && [ -p "$SCAN/$1/supervise/control" ]; }
 
 # -name '[!.]*' excludes .s6-svscan, the supervisor's own control directory.
 # It lives in the scan directory but is not a service, and listing it as one
@@ -38,21 +41,23 @@ need_svc() {
 }
 
 cmd_status() {
-    if ! pgrep -u "$USER" -x s6-svscan >/dev/null 2>&1; then
-        printf '%s!%s supervisor is not running — start a session, or: s6-svscan %s &\n' \
-            "$YEL" "$R" "$SCAN"
-    fi
+    supervisor_up || printf '%s!%s supervisor is not running — it starts with the\n    graphical session, or run: s6-svscan %s &\n' \
+        "$YEL" "$R" "${SCAN/#$HOME/\~}"
     local name stat
     while read -r name; do
         [ -n "$name" ] || continue
         if ! supervised "$name"; then
-            printf '  %s○%s %-18s %s%s%s\n' "$GREY" "$R" "$name" "$GREY" "not supervised" "$R"
+            printf '  %s○%s %-18s %s%s%s\n' "$GREY" "$R" "$name" "$GREY" "not running" "$R"
             continue
         fi
-        stat="$(s6-svstat "$SCAN/$name" 2>/dev/null)"
+        # An empty s6-svstat is not "up" — treat anything that does not clearly
+        # start with "up" as a fault, rather than printing a green bullet with
+        # nothing after it.
+        stat="$(s6-svstat "$SCAN/$name" 2>&1)"
         case "$stat" in
             up*) printf '  %s●%s %-18s %s%s%s\n' "$GREEN" "$R" "$name" "$D" "$stat" "$R" ;;
-            *)   printf '  %s●%s %-18s %s%s%s\n' "$RED"   "$R" "$name" "$D" "$stat" "$R" ;;
+            "")  printf '  %s●%s %-18s %s%s%s\n' "$RED" "$R" "$name" "$D" "no status from s6-svstat" "$R" ;;
+            *)   printf '  %s●%s %-18s %s%s%s\n' "$RED" "$R" "$name" "$D" "$stat" "$R" ;;
         esac
     done < <(services)
 }
