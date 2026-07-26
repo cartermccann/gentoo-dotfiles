@@ -1,0 +1,17 @@
+# Per-package license grants.
+#
+# make.conf sets ACCEPT_LICENSE="-* @FREE @BINARY-REDISTRIBUTABLE", which is
+# the right default: nothing proprietary installs unless it is named here.
+# The alternative — widening make.conf to @EULA or "*" — would silently accept
+# every future proprietary dependency anything ever pulls in, and there would
+# be no record of which ones you had actually agreed to. This file is that
+# record: one line per program, and a `git log` on it is the audit trail.
+#
+# Everything below is a proprietary binary repack installed by the `apps`
+# phase (phases/25-apps.sh). media-video/obs-studio is absent on purpose —
+# it is GPL-2 and needs no grant.
+
+app-office/obsidian Obsidian-EULA
+gui-apps/1password all-rights-reserved
+app-misc/1password-cli all-rights-reserved
+net-im/slack all-rights-reserved

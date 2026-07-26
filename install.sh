@@ -16,12 +16,13 @@ export DRY_RUN=0
 declare -A PHASE_FILES=(
     [packages]="10-packages.sh"
     [flatpaks]="20-flatpaks.sh"
+    [apps]="25-apps.sh"
     [ai]="30-ai-tools.sh"
     [dotfiles]="40-dotfiles.sh"
     [fonts]="45-fonts.sh"
     [theme]="50-theme.sh"
 )
-ORDER=(packages flatpaks ai dotfiles fonts theme)
+ORDER=(packages flatpaks apps ai dotfiles fonts theme)
 
 usage() {
     cat <<EOF
@@ -32,6 +33,7 @@ Usage: ./install.sh [options] [phase ...]
 Phases (run in this order if none given):
   packages   emerge desktop stack, CLI tools, langs, audio, bluetooth (needs doas)
   flatpaks   Zen, Spotify, Blanket via Flatpak (--user scope)
+  apps       Obsidian, 1Password, Slack, OBS from portage (optional, needs doas)
   ai         claude-code, codex, opencode, herdr + bun/deno/uv runtimes
   dotfiles   symlink configs into ~/.config (incl. nvim), deploy shell config
   theme      install the atlas-theme switcher and apply the default (cobalt)
@@ -74,6 +76,7 @@ run_check() {
     done <<'MAP'
 system/portage/package.accept_keywords/atlas /etc/portage/package.accept_keywords/atlas
 system/portage/package.use/atlas /etc/portage/package.use/atlas
+system/portage/package.license/atlas /etc/portage/package.license/atlas
 system/ly/config.ini /etc/ly/config.ini
 system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install
 system/conf.d/consolefont /etc/conf.d/consolefont
@@ -119,7 +122,7 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;
-        packages|flatpaks|ai|dotfiles|fonts|theme) SELECTED+=("$arg") ;;
+        packages|flatpaks|apps|ai|dotfiles|fonts|theme) SELECTED+=("$arg") ;;
         *) err "unknown argument: $arg"; usage; exit 1 ;;
     esac
 done

@@ -18,10 +18,12 @@ Authored to be cloned onto a freshly-installed Gentoo base and run with one scri
 | **Bluetooth** | bluez + blueman |
 | **Langs** | rust · go · zig · node · (bun/deno/uv via installers) · python |
 | **CLI** | ripgrep, fd, eza, bat, zoxide, yazi, lazygit, just, atuin, … |
+| **Multiplexer** | tmux (`config/tmux`) — C-a prefix, Alt-layer nav, wl-copy yanks, no plugin manager |
 | **AI CLIs** | claude-code · codex · opencode · herdr |
 | **Flatpak apps** | Zen · Spotify · Blanket  (Beeper + Helium: AppImage only) |
+| **Portage apps** | Obsidian · 1Password (+`op`) · Slack · OBS  (`./install.sh apps`, all optional) |
 | **Fonts** | **Geist** for UI (waybar/rofi/swaync) · JetBrainsMono Nerd Font for terminals and icons |
-| **Shell** | fish + starship (themed cobalt prompt) + atuin + zoxide |
+| **Shell** | fish + starship (themed cobalt prompt) + atuin + zoxide + direnv + fzf |
 | **Editor** | neovim + LazyVim (`config/nvim`) with the theme-aware `atlas` colourscheme |
 | **Dictation** | Parakeet TDT 0.6B via sherpa-onnx -> wtype  (`Super+Alt+L`) |
 
@@ -49,13 +51,16 @@ Phases (`./install.sh --list`):
 
 1. **packages** – emerge the desktop stack, CLI tools, langs, audio, bluetooth; enable GURU; write keyword/USE overrides; enable services (needs `doas`)
 2. **flatpaks** – Zen, Spotify, Blanket (`--user` scope)
-3. **ai** – claude-code, codex, opencode, herdr + bun/deno/uv
-4. **dotfiles** – symlink `config/*` into `~/.config` (nvim included), set fish as shell;
+3. **apps** – Obsidian, 1Password + `op`, Slack, OBS from portage. Entirely
+   optional: nothing else in the repo depends on it, and skipping it leaves a
+   complete desktop. Split out from `packages` for exactly that reason
+4. **ai** – claude-code, codex, opencode, herdr + bun/deno/uv
+5. **dotfiles** – symlink `config/*` into `~/.config` (nvim and tmux included), set fish as shell;
    link the `NoDisplay` stubs in `share/applications` that hide terminal apps and
    duplicates from the launcher
-5. **fonts** – fetch **Geist** (the UI typeface) from upstream into
+6. **fonts** – fetch **Geist** (the UI typeface) from upstream into
    `~/.local/share/fonts`; it is not in the Gentoo tree
-6. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
+7. **theme** – install the `atlas-theme` switcher and apply the default (cobalt)
 
 Then install the login manager and (optionally) the bootloader — both separate,
 deliberate steps:
@@ -273,7 +278,7 @@ flat, dark image there is nothing to show and the effect looks like paint.
 gentoo-dotfiles/
 ├── install.sh            # orchestrator  (--dry-run, --check, --list)
 ├── lib/common.sh         # logging/TUI, doas, symlink + deploy helpers
-├── phases/               # 10-packages · 20-flatpaks · 30-ai-tools · 40-dotfiles · 45-fonts · 50-theme
+├── phases/               # 10-packages · 20-flatpaks · 25-apps · 30-ai-tools · 40-dotfiles · 45-fonts · 50-theme
 ├── config/               # -> symlinked into ~/.config  (user-owned)
 ├── system/               # -> copied into /etc          (root-owned, see below)
 │   ├── portage/package.{use,accept_keywords}/atlas
@@ -286,6 +291,8 @@ gentoo-dotfiles/
 ├── config/nvim/          # LazyVim + the theme-aware `atlas` colourscheme
 │   ├── colors/atlas.lua  #   tracked: roles -> ~300 highlight groups
 │   └── lua/atlas/        #   roles.lua (derivation) · fallback.lua · lualine.lua
+├── config/tmux/tmux.conf # colours are palette NAMES, so it rides the ghostty theme
+├── config/fish/functions/ # autoloaded: dev · t (tmux) · gwa · gwr (worktrees)
 ├── dictation/            # Parakeet setup + transcribe + toggle
 └── design/               # shell + nvim mockups (design contracts)
 ```

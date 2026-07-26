@@ -53,6 +53,26 @@ media-libs/mesa wayland
 # ── dist-kernel ────────────────────────────────────────────────
 sys-kernel/installkernel dracut
 
+# ── OBS ────────────────────────────────────────────────────────
+# The base profile builds obs-studio with USE="alsa" and nothing else, which
+# on this machine means a capture tool that cannot capture. wlroots exposes
+# no X11 screen to grab and offers no compositor-specific capture API to OBS;
+# the only route is the xdg-desktop-portal ScreenCast interface, and OBS only
+# builds that path under USE=pipewire. Without it you get an OBS whose only
+# working source is a webcam.
+#   wayland    — native Wayland client (else it runs through XWayland)
+#   pipewire   — portal screen capture AND PipeWire audio, the one that matters
+#   pulseaudio — pipewire-pulse is what's running, so this is the audio path
+#   v4l        — the Surface's built-in camera as a video source
+# Deliberately NOT enabled: browser (pulls a ~200 MB prebuilt CEF for browser
+# sources, which is a streaming-overlay feature, not a recording one).
+media-video/obs-studio wayland pipewire pulseaudio v4l
+# OBS hard-depends on ffmpeg[opus,x264] — that pair IS the recording output
+# (H.264 video + Opus audio), not an optional codec nicety, so obs-studio
+# simply will not resolve without them. The base profile ships ffmpeg with
+# both off, so this is a rebuild of ffmpeg, not a flag flip on a fresh one.
+media-video/ffmpeg opus x264
+
 # ── fonts ──────────────────────────────────────────────────────
 # nerdfonts defaults to symbols-only. Every config in this repo asks for
 # "JetBrainsMono Nerd Font" by name, so it has to be enabled explicitly or

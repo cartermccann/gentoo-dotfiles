@@ -22,3 +22,14 @@ sys-boot/limine ~amd64
 # (app-misc/tmux is NOT listed: 3.5a is stable amd64 in ::gentoo.)
 app-shells/direnv ~amd64
 app-misc/television ~amd64
+
+# ── apps ───────────────────────────────────────────────────────
+# slack and 1password-cli carry KEYWORDS="-* ~amd64" — upstream binary
+# repacks with no source build and no other arch. The -* means portage
+# refuses them outright until ~amd64 is accepted here; this is not an
+# "unstable version" opt-in, it is the only way to install them at all.
+net-im/slack ~amd64
+app-office/obsidian ~amd64
+gui-apps/1password ~amd64
+app-misc/1password-cli ~amd64
+media-video/obs-studio ~amd64
