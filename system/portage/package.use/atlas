@@ -78,3 +78,17 @@ media-video/ffmpeg opus x264
 # "JetBrainsMono Nerd Font" by name, so it has to be enabled explicitly or
 # waybar/ghostty/foot/rofi all silently fall back to a default face.
 media-fonts/nerdfonts jetbrainsmono
+
+# ── Qt (for OBS) ───────────────────────────────────────────────
+# obs-studio 32.x's frontend reaches for QNativeInterface::QWaylandApplication
+# to talk to the compositor directly. That symbol only exists in a qtbase built
+# with USE=wayland; without it the build dies in OBSApp.cpp with
+# "'QWaylandApplication' is not a member of 'QNativeInterface'" — a compile
+# error rather than a dependency resolution failure, which is why portage
+# happily starts the build and then fails 448 targets in.
+#
+# The base profile ships qtbase with -wayland, so this is a rebuild of qtbase
+# (and it pulls dev-qt/qtwayland), not a flag flip on a fresh package. That is
+# the real cost of OBS on this machine, and it is why the apps phase is
+# optional.
+dev-qt/qtbase wayland
