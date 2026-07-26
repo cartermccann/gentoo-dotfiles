@@ -11,6 +11,11 @@
 
 # ── PATH ───────────────────────────────────────────────────────
 fish_add_path -g ~/.npm-global/bin
+# Vendor CLIs that ship their own installers and live under $HOME
+# (phases/32-devtools.sh). Added here rather than by their install scripts, so
+# the entry exists in exactly one place instead of appended to a shell rc too.
+fish_add_path -g ~/.fly/bin
+fish_add_path -g ~/apps/google-cloud-sdk/bin
 fish_add_path -g ~/.local/bin
 fish_add_path -g ~/.cargo/bin
 fish_add_path -g ~/.bun/bin

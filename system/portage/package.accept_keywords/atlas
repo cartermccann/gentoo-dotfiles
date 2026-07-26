@@ -33,3 +33,8 @@ app-office/obsidian ~amd64
 gui-apps/1password ~amd64
 app-misc/1password-cli ~amd64
 media-video/obs-studio ~amd64
+
+# ── dev CLIs (phases/32-devtools.sh) ───────────────────────────
+# Both from GURU, which stabilises nothing.
+dev-util/stripe-cli ~amd64
+dev-util/bruno-bin ~amd64
