@@ -5,8 +5,9 @@ set -uo pipefail
 source "$REPO_DIR/lib/common.sh"
 
 # ── Portage config: keywords + USE ─────────────────────────────
-step "portage config (keywords + USE)"
-run_root mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use
+step "portage config (keywords + USE + licenses)"
+run_root mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use \
+                  /etc/portage/package.license
 
 # Source of truth is system/portage/ in this repo — real files you can read,
 # diff and edit. deploy_system_file copies and reports drift rather than
@@ -27,6 +28,8 @@ deploy_system_file "$REPO_DIR/system/portage/package.accept_keywords/atlas" \
                    /etc/portage/package.accept_keywords/atlas
 deploy_system_file "$REPO_DIR/system/portage/package.use/atlas" \
                    /etc/portage/package.use/atlas
+deploy_system_file "$REPO_DIR/system/portage/package.license/atlas" \
+                   /etc/portage/package.license/atlas
 
 # ── GURU overlay ───────────────────────────────────────────────
 step "GURU overlay"
@@ -111,6 +114,9 @@ TOOLS=(
     app-text/sd sys-process/procs sys-apps/dust sys-fs/duf sys-apps/broot
     app-misc/tealdeer app-misc/glow app-arch/ouch net-misc/yt-dlp
     media-sound/cava app-misc/cmatrix games-misc/cbonsai
+    # terminal workflow — config/tmux and the fish functions depend on these:
+    # `dev` and `t` are tmux wrappers, and config.fish hooks direnv if present.
+    app-misc/tmux app-shells/direnv app-misc/television
 )
 missed=(); _ti=0; _tn=${#TOOLS[@]}
 for pkg in "${TOOLS[@]}"; do

@@ -15,3 +15,10 @@ sys-boot/limine ~amd64
 =app-misc/brightnessctl-0.5.1 ~amd64
 =gui-apps/wtype-0.4 ~amd64
 =gui-apps/wlsunset-0.4.0 ~amd64
+
+# ── dev tooling ────────────────────────────────────────────────
+# GURU keeps everything at ~amd64 as a matter of policy — nothing in the
+# overlay is ever stabilised, so any package from it needs a line here.
+# (app-misc/tmux is NOT listed: 3.5a is stable amd64 in ::gentoo.)
+app-shells/direnv ~amd64
+app-misc/television ~amd64
