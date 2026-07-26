@@ -130,6 +130,12 @@ TOOLS=(
     # terminal workflow — config/tmux and the fish functions depend on these:
     # `dev` and `t` are tmux wrappers, and config.fish hooks direnv if present.
     app-misc/tmux app-shells/direnv app-misc/television
+    # portage maintenance. Not optional in practice: eclean-dist is the only
+    # supported way to prune /var/cache/distfiles (3.7 GB and growing),
+    # revdep-rebuild finds binaries left linking against removed libraries
+    # after a depclean, and equery answers "what pulled this in" — all three
+    # were wanted during the 2026-07-26 audit and none were present.
+    app-portage/gentoolkit
 )
 missed=(); _ti=0; _tn=${#TOOLS[@]}
 for pkg in "${TOOLS[@]}"; do
