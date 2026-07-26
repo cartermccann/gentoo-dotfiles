@@ -15,7 +15,11 @@ run flatpak remote-add --user --if-not-exists flathub \
 
 # Verified present on Flathub (checked against `flatpak remote-info`).
 FLATPAKS=(
-    app.zen_browser.zen          # Zen browser
+    # Zen is NOT here: it is installed from portage as www-client/zen-bin
+    # (-> /opt/zen), which is what /usr/bin/zen runs and where the profile
+    # lives. The flatpak was a second, unused copy of the same browser —
+    # 761 MB of app data nothing ever launched. Removed 2026-07-26; the
+    # keyword for the portage build is in package.accept_keywords/atlas.
     com.spotify.Client           # Spotify
     com.rafaelmardojai.Blanket   # Blanket (ambient sound)
 )

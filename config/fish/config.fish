@@ -47,6 +47,11 @@ if status is-interactive
     set -U fish_color_autosuggestion 90909a
 
     # ── Modern replacements ────────────────────────────────────
+    # vi/vim -> nvim, matching kronos. Neither command exists on this machine
+    # otherwise: app-editors/vim is not installed, only neovim, so muscle
+    # memory hits "command not found" rather than falling back.
+    command -q nvim; and alias vi 'nvim'; and alias vim 'nvim'
+
     command -q eza; and alias ls 'eza --icons'; and alias ll 'eza -la --icons'
     command -q bat; and alias cat 'bat'
     command -q rg;  and alias grep 'rg'
