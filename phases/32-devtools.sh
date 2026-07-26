@@ -131,6 +131,61 @@ else
     rm -rf "$tmp"
 fi
 
+# ── monday-api-mcp, on its own node 22 ─────────────────────────
+# This one cannot run on the system node, and no flag fixes it.
+#
+# monday-api-mcp depends on isolated-vm, whose 5.0.4 source uses V8 APIs that
+# node 24 removed: v8::CopyablePersistentTraits is gone, and Allocator's
+# Reallocate is no longer virtual, so it fails to compile against node 24's
+# headers. (Forcing -std=c++20 gets past v8config.h's "C++20 or later
+# required" and straight into those errors — the C++ standard was a second,
+# separate problem, not the cause.)
+#
+# Copying a prebuilt isolated_vm.node from another machine does not work
+# either: it is ABI-tagged, and one built for a different node major refuses
+# to load. So the server gets a private node 22, whose V8 still has the APIs
+# isolated-vm expects, while the system node stays at 24 for everything else.
+step "monday-api-mcp (private node 22)"
+NODE22_DIR="$HOME/apps/node-22"
+MONDAY_DIR="$HOME/apps/vendor/monday-api-mcp"
+MONDAY_ENTRY="$MONDAY_DIR/node_modules/@mondaydotcomorg/monday-api-mcp/dist/index.js"
+
+if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] fetch node 22 -> ~/apps/node-22; npm install monday-api-mcp under it"
+elif [ -f "$MONDAY_ENTRY" ] && [ -x "$NODE22_DIR/bin/node" ]; then
+    ok "monday-api-mcp ($("$NODE22_DIR/bin/node" --version))"
+else
+    if [ ! -x "$NODE22_DIR/bin/node" ]; then
+        tarball=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/ \
+                  | grep -oE 'node-v22\.[0-9.]+-linux-x64\.tar\.xz' | head -1)
+        if [ -n "$tarball" ]; then
+            num=${tarball#node-}; num=${num%-linux-x64.tar.xz}
+            tmp=$(mktemp -d)
+            if curl -fsSL "https://nodejs.org/dist/latest-v22.x/$tarball" -o "$tmp/n22.tar.xz" >>"$LOG" 2>&1; then
+                mkdir -p "$HOME/apps"
+                tar -xJf "$tmp/n22.tar.xz" -C "$HOME/apps" >>"$LOG" 2>&1
+                rm -rf "$NODE22_DIR" && mv "$HOME/apps/node-$num-linux-x64" "$NODE22_DIR"
+                ok "node 22 -> ~/apps/node-22 ($("$NODE22_DIR/bin/node" --version))"
+            else warn "node 22 download failed (see $LOG)"; fi
+            rm -rf "$tmp"
+        else warn "could not resolve a node 22 release"; fi
+    fi
+    if [ -x "$NODE22_DIR/bin/npm" ]; then
+        mkdir -p "$MONDAY_DIR"
+        # Installed with node 22's own npm, so isolated-vm's prebuild lookup
+        # and any fallback build both target the right ABI.
+        if PATH="$NODE22_DIR/bin:$PATH" "$NODE22_DIR/bin/npm" install \
+             --prefix "$MONDAY_DIR" @mondaydotcomorg/monday-api-mcp >>"$LOG" 2>&1; then
+            if "$NODE22_DIR/bin/node" -e "require('$MONDAY_DIR/node_modules/isolated-vm')" 2>>"$LOG"; then
+                ok "monday-api-mcp (isolated-vm loads)"
+            else warn "monday-api-mcp installed but isolated-vm will not load (see $LOG)"; fi
+        else warn "monday-api-mcp install failed (see $LOG)"; fi
+    fi
+fi
+info "MCP registration is not done here — it lives in ~/.claude.json:"
+info "  claude mcp add monday-api-mcp -s user -e MONDAY_TOKEN=... -- \\"
+info "    ~/apps/node-22/bin/node <the dist/index.js above>"
+
 # ── summary ────────────────────────────────────────────────────
 # Checks the install locations, not just $PATH. This phase runs under bash,
 # while the PATH entries for the $HOME-installed CLIs are set in
@@ -148,5 +203,6 @@ check_cli aws        "/usr/bin/aws"
 check_cli lazydocker "$(go env GOPATH 2>/dev/null || echo "$HOME/go")/bin/lazydocker"
 check_cli flyctl     "$HOME/.fly/bin/flyctl"
 check_cli gcloud     "$GCLOUD_DIR/bin/gcloud"
+check_cli node22     "$NODE22_DIR/bin/node"
 
 ok "devtools phase complete"
