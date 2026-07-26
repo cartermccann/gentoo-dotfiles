@@ -91,4 +91,9 @@ media-fonts/nerdfonts jetbrainsmono
 # (and it pulls dev-qt/qtwayland), not a flag flip on a fresh package. That is
 # the real cost of OBS on this machine, and it is why the apps phase is
 # optional.
-dev-qt/qtbase wayland
+#
+# opengl is not optional alongside it: qtbase declares REQUIRED_USE
+# "wayland? ( opengl )", so wayland on its own fails dependency resolution
+# outright rather than building something degraded. The base profile has
+# -opengl, so both flags are needed together.
+dev-qt/qtbase wayland opengl
