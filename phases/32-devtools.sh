@@ -54,17 +54,27 @@ else
 fi
 
 # ── uv tools ───────────────────────────────────────────────────
-# headroom-ai must be pinned to python 3.13: 3.14 has no wheel, so uv falls
-# back to a Rust source build that segfaults the linker on this machine.
+# headroom-ai needs two things right or it installs and then does not run:
+#   --python 3.13  — 3.14 has no wheel, so uv falls back to a Rust source
+#                    build that segfaults the linker on this machine
+#   [all]          — the bare package omits fastapi/uvicorn, so every entry
+#                    point dies at import on "from fastapi import Request".
+#                    Not just the proxy: the CLI imports the proxy module, so
+#                    even `headroom --version` tracebacks. This is what kronos
+#                    installed (uv-receipt.toml: extras = ["all"]).
 step "uv tools"
 if ! have uv; then
     warn "uv missing — run ./install.sh ai"
 else
     if [ "$DRY_RUN" = "1" ]; then
-        info "[dry-run] uv tool install headroom-ai --python 3.13; uv tool install posting"
+        info "[dry-run] uv tool install headroom-ai[all] --python 3.13; uv tool install posting"
     else
-        have headroom || uv tool install --python 3.13 headroom-ai >>"$LOG" 2>&1 \
-            && ok "headroom-ai" || warn "headroom-ai failed (see $LOG)"
+        # `have headroom` is not a sufficient check: a broken install still
+        # leaves the shim on PATH. Verify it actually executes.
+        if headroom --version >/dev/null 2>&1; then ok "headroom-ai (already)"
+        elif uv tool install --force --python 3.13 "headroom-ai[all]" >>"$LOG" 2>&1; then
+            ok "headroom-ai[all]"
+        else warn "headroom-ai failed (see $LOG)"; fi
         have posting || uv tool install posting >>"$LOG" 2>&1 \
             && ok "posting" || warn "posting failed (see $LOG)"
     fi
