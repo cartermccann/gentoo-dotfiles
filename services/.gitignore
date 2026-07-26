@@ -1,0 +1,9 @@
+# s6 creates these inside each service directory at supervision time: the
+# control fifo, the pid/status files, and the same again for the logger.
+# Service definitions are symlinked into the scan directory rather than copied,
+# which is what puts s6's runtime state inside the checkout.
+#
+# It is state, not configuration, so it is ignored rather than committed — see
+# docs/LAYOUT.md. Do not "clean" these while the tree is running; s6 owns them.
+supervise/
+*/supervise/
