@@ -41,3 +41,9 @@ dev-util/bruno-bin ~amd64
 # awscli-bin has no stable keyword at any version — the binary repack tracks
 # upstream's own release cadence, so ~amd64 is the only way to install it.
 app-admin/awscli-bin ~amd64
+
+# ── absorbed from /etc/portage/package.accept_keywords/zen-bin ─
+# Zen is installed from portage (www-client/zen-bin -> /opt/zen), not flatpak,
+# and the binary repack is ~amd64 only. This was undeclared, so a rebuild would
+# not have installed the browser at all.
+www-client/zen-bin ~amd64

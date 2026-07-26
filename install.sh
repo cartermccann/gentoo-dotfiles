@@ -143,6 +143,31 @@ MAP
         done
     fi
 
+    step "undeclared portage config"
+    # The file-by-file comparison above only sees files this repo already knows
+    # about, so anything ELSE under /etc/portage/package.* is invisible to it —
+    # including what portage's own --autounmask-write drops there mid-emerge.
+    # Four such files were found on 2026-07-26 (zz-autounmask, system,
+    # webkit-gtk, zen-bin), all load-bearing, none reproducible from a clean
+    # checkout. Listing strays is how that stops being a once-a-year discovery.
+    local stray=0 f
+    while read -r f; do
+        [ -n "$f" ] || continue
+        case "$(basename "$f")" in
+            atlas) continue ;;          # the repo's own, checked above
+        esac
+        case "$(basename "$f")" in
+            zz-autounmask|*autounmask*)
+                warn "AUTOUNMASK  $f — portage wrote this during an emerge"
+                info "      fold the entries into system/portage/ and delete it" ;;
+            *)  warn "UNDECLARED  $f (not owned by the repo)" ;;
+        esac
+        stray=1; drift=1
+    done < <(find /etc/portage/package.use /etc/portage/package.accept_keywords \
+                  /etc/portage/package.license /etc/portage/package.mask \
+                  -maxdepth 1 -type f 2>/dev/null | sort)
+    [ "$stray" = "0" ] && ok "every /etc/portage/package.* file is repo-owned"
+
     step "pending portage config"
     local cfgs; cfgs=$(find /etc/portage -name '._cfg*' 2>/dev/null | head)
     if [ -n "$cfgs" ]; then

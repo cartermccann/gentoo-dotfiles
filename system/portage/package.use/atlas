@@ -51,7 +51,11 @@ gui-libs/gtk wayland
 media-libs/mesa wayland
 
 # ── dist-kernel ────────────────────────────────────────────────
-sys-kernel/installkernel dracut
+# `grub` was live in an undeclared /etc/portage/package.use/system. Kept
+# because sys-boot/grub is still installed alongside the limine hook in
+# system/kernel/postinst.d, and dropping the flag would stop grub's config
+# being regenerated on a kernel update while grub is still what boots.
+sys-kernel/installkernel dracut grub
 
 # ── OBS ────────────────────────────────────────────────────────
 # The base profile builds obs-studio with USE="alsa" and nothing else, which
@@ -97,3 +101,18 @@ media-fonts/nerdfonts jetbrainsmono
 # outright rather than building something degraded. The base profile has
 # -opengl, so both flags are needed together.
 dev-qt/qtbase wayland opengl
+
+# ── absorbed from undeclared /etc/portage files (2026-07-26) ───
+# These were live on the machine but in files this repo did not own, so a
+# rebuild from a clean checkout would have silently dropped them. Two came from
+# portage's own `--autounmask-write` (package.use/zz-autounmask), the rest from
+# earlier hand setup (package.use/{system,webkit-gtk}).
+#
+# Everything portage's autounmask wrote for the swaync/gtk4 chain was already
+# declared above (gtk4-layer-shell verbatim, and gui-libs/gtk + mesa
+# unversioned, which is broader than the versioned copies it generated) — so
+# nothing from that file is repeated here.
+# webkit-gtk without wayland runs its web views through XWayland; the
+# gst-plugins-base flag is what webkit's media pipeline needs to resolve.
+net-libs/webkit-gtk wayland
+>=media-libs/gst-plugins-base-1.26.11 opengl
