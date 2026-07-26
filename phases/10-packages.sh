@@ -7,7 +7,7 @@ source "$REPO_DIR/lib/common.sh"
 # ── Portage config: keywords + USE ─────────────────────────────
 step "portage config (keywords + USE + licenses)"
 run_root mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use \
-                  /etc/portage/package.license
+                  /etc/portage/package.license /etc/portage/package.mask
 
 # Source of truth is system/portage/ in this repo — real files you can read,
 # diff and edit. deploy_system_file copies and reports drift rather than
@@ -30,6 +30,8 @@ deploy_system_file "$REPO_DIR/system/portage/package.use/atlas" \
                    /etc/portage/package.use/atlas
 deploy_system_file "$REPO_DIR/system/portage/package.license/atlas" \
                    /etc/portage/package.license/atlas
+deploy_system_file "$REPO_DIR/system/portage/package.mask/atlas" \
+                   /etc/portage/package.mask/atlas
 
 # ── GURU overlay ───────────────────────────────────────────────
 step "GURU overlay"

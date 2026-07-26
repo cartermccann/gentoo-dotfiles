@@ -1,0 +1,24 @@
+# ── node stays on the 24 series, for now ───────────────────────
+# net-libs/nodejs is NOT slotted in Gentoo, so `emerge --update nodejs` and any
+# `emerge -uDN @world` resolve to the newest stable — currently 26.3.0. This
+# mask exists so that jump is a decision rather than a side effect of routine
+# maintenance. Updating WITHIN the 24 series is unaffected.
+#
+# Why it matters here: monday-api-mcp depends (via @mondaydotcomorg/atp-server)
+# on isolated-vm, which is raw V8 API rather than N-API and is therefore locked
+# to a node major:
+#
+#     isolated-vm 5.0.4   node <= 22     (what atp-server 0.19.x asks for)
+#     isolated-vm 6.1.2   node >= 22, pre-26   <- what we run, forced by an
+#                                                 npm override in ~/apps/vendor
+#     isolated-vm 7.0.0   node >= 26
+#
+# So node 26 is not a dead end — it needs the override moved to 7.0.0 — but
+# atp-server 0.19.x was written against 5.0.4's API, and whether it survives a
+# two-major jump is untested. Everything else native on this machine is N-API
+# (node-hid and @serialport/bindings-cpp behind the Codex Micro, @rollup in the
+# marketing MCP) and crosses node majors without a rebuild.
+#
+# To lift this: set the override to isolated-vm 7.0.0, emerge node 26, and
+# verify with a real MCP initialize handshake — not just that the module loads.
+>=net-libs/nodejs-25
