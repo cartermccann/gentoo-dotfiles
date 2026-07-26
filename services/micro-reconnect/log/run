@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# s6-log: 20 rotated files, 1 MB each, every line timestamped (T).
+#
+# Worth keeping generous: mh-reconnect logs every connect/disconnect
+# transition, and correlating a drop against its timestamp is the only way to
+# tell a rotating-address reconnect from a real Bluetooth fault.
+exec s6-log -b n20 s1000000 T "$HOME/.local/state/s6/log/micro-reconnect"

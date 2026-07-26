@@ -84,3 +84,21 @@ run /usr/libexec/polkit-gnome-authentication-agent-1
 
 # ── XDG desktop portal (screenshare / file pickers) ────────────
 run /usr/libexec/xdg-desktop-portal-wlr
+
+# ── User services (s6 supervision tree) ────────────────────────
+# Everything above is fire-and-forget: if it dies, the session is slightly
+# worse until the next login. That is the wrong contract for daemons whose job
+# is recovering from failure, so those live in a supervised tree instead.
+# Definitions are in the repo under services/; see services/README.md.
+#
+# One supervisor per session. `-d` is not a thing for s6-svscan, so guard on an
+# existing one rather than relying on it to refuse: a second svscan over the
+# same scan directory fights the first for the control fifos.
+S6_SCAN="$HOME/.local/state/s6/scan"
+if command -v s6-svscan >/dev/null 2>&1 && [ -d "$S6_SCAN" ]; then
+    if pgrep -u "$USER" -x s6-svscan >/dev/null 2>&1; then
+        s6-svscanctl -a "$S6_SCAN" 2>/dev/null
+    else
+        s6-svscan "$S6_SCAN" &
+    fi
+fi

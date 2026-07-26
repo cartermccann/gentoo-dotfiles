@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# micro-herdr — Codex Micro (Work Louder macropad) -> herdr bridge.
+#
+# Reads BLE-HID vendor notifies from the Micro and runs the shell command bound
+# to each key in bindings.json, and drives the key LEDs from herdr agent state.
+exec 2>&1
+
+# The Work Louder device kit is proprietary and is not redistributed by the
+# micro-herdr repo, so it is vendored into ~/apps rather than living beside the
+# source. See apps/README.md for why vendored binaries are not in ~/projects.
+export MICRO_HERDR_KIT="$HOME/apps/vendor/wl-device-kit/dist/index.js"
+
+# bin/mh (the herdr helper the default bindings call) is resolved relative to
+# the working directory, so this has to be the checkout, not the service dir.
+cd "$HOME/projects/micro-herdr" || exit 1
+
+# PATH matters: bindings shell out to herdr, jq and wpctl. s6-svscan inherits
+# the session environment, but be explicit about the user-local bin dirs that
+# fish adds and a plain exec would not.
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$HOME/.npm-global/bin:$PATH"
+
+exec node micro-herdrd.mjs

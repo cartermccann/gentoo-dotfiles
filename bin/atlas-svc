@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# atlas-svc — control the session's s6 user services.
+#
+# s6's own tools are fine but terse and take a full path to a service
+# directory. This supplies the scan directory, formats the status the way the
+# rest of atlas formats things, and keeps the verb set small.
+set -uo pipefail
+
+SCAN="${ATLAS_S6_SCAN:-$HOME/.local/state/s6/scan}"
+LOGS="${ATLAS_S6_LOGS:-$HOME/.local/state/s6/log}"
+
+if [ -t 1 ]; then
+    R=$'\e[0m'; B=$'\e[1m'; D=$'\e[2m'
+    GREEN=$'\e[92m'; RED=$'\e[91m'; YEL=$'\e[93m'; GREY=$'\e[90m'
+else
+    R=; B=; D=; GREEN=; RED=; YEL=; GREY=
+fi
+
+die() { printf '%s✗%s %s\n' "$RED" "$R" "$*" >&2; exit 1; }
+
+[ -d "$SCAN" ] || die "no scan directory at $SCAN — run ./install.sh services"
+
+# s6-svscan writes a control fifo into each supervised directory; its presence
+# is how we tell "supervised right now" from "merely on disk".
+supervised() { [ -p "$SCAN/$1/supervise/control" ]; }
+
+services() { find "$SCAN" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -printf '%f\n' | sort; }
+
+need_svc() {
+    [ -n "${1:-}" ] || die "which service? (see: atlas-svc)"
+    [ -e "$SCAN/$1" ] || die "no such service: $1"
+}
+
+cmd_status() {
+    if ! pgrep -u "$USER" -x s6-svscan >/dev/null 2>&1; then
+        printf '%s!%s supervisor is not running — start a session, or: s6-svscan %s &\n' \
+            "$YEL" "$R" "$SCAN"
+    fi
+    local name stat
+    while read -r name; do
+        [ -n "$name" ] || continue
+        if ! supervised "$name"; then
+            printf '  %s○%s %-18s %s%s%s\n' "$GREY" "$R" "$name" "$GREY" "not supervised" "$R"
+            continue
+        fi
+        stat="$(s6-svstat "$SCAN/$name" 2>/dev/null)"
+        case "$stat" in
+            up*) printf '  %s●%s %-18s %s%s%s\n' "$GREEN" "$R" "$name" "$D" "$stat" "$R" ;;
+            *)   printf '  %s●%s %-18s %s%s%s\n' "$RED"   "$R" "$name" "$D" "$stat" "$R" ;;
+        esac
+    done < <(services)
+}
+
+case "${1:-status}" in
+    status|"")  cmd_status ;;
+    list)       services ;;
+    start)      need_svc "${2:-}"; s6-svc -u "$SCAN/$2" && printf '  %s✓%s started %s\n' "$GREEN" "$R" "$2" ;;
+    stop)       need_svc "${2:-}"; s6-svc -d "$SCAN/$2" && printf '  %s✓%s stopped %s\n' "$GREEN" "$R" "$2" ;;
+    restart)    need_svc "${2:-}"; s6-svc -r "$SCAN/$2" && printf '  %s✓%s restarted %s\n' "$GREEN" "$R" "$2" ;;
+    # -wD waits for the service to actually be down before returning, so a
+    # scripted stop-then-do-something does not race the shutdown.
+    down)       need_svc "${2:-}"; s6-svc -wD -d "$SCAN/$2" ;;
+    log)        need_svc "${2:-}"; exec tail -f "$LOGS/$2/current" ;;
+    cat)        need_svc "${2:-}"; exec cat "$LOGS/$2/current" ;;
+    reload)     s6-svscanctl -a "$SCAN" && printf '  %s✓%s rescanned %s\n' "$GREEN" "$R" "$SCAN" ;;
+    -h|--help|help)
+        cat <<EOF
+${B}atlas-svc${R} — session service control  ${D}(s6, scan dir: ${SCAN/#$HOME/\~})${R}
+
+  atlas-svc                 status of every service
+  atlas-svc list            service names only
+  atlas-svc start|stop|restart <name>
+  atlas-svc down <name>     stop and wait for it to be down
+  atlas-svc log <name>      follow its log
+  atlas-svc cat <name>      dump its log
+  atlas-svc reload          rescan after adding a service
+
+Services are defined in the repo under services/ and symlinked into the scan
+directory by ./install.sh services.
+EOF
+        ;;
+    *) die "unknown command: $1  (try: atlas-svc --help)" ;;
+esac

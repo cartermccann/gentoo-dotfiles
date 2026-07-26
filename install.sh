@@ -18,11 +18,12 @@ declare -A PHASE_FILES=(
     [flatpaks]="20-flatpaks.sh"
     [apps]="25-apps.sh"
     [ai]="30-ai-tools.sh"
+    [services]="35-services.sh"
     [dotfiles]="40-dotfiles.sh"
     [fonts]="45-fonts.sh"
     [theme]="50-theme.sh"
 )
-ORDER=(packages flatpaks apps ai dotfiles fonts theme)
+ORDER=(packages flatpaks apps ai services dotfiles fonts theme)
 
 usage() {
     cat <<EOF
@@ -35,6 +36,7 @@ Phases (run in this order if none given):
   flatpaks   Zen, Spotify, Blanket via Flatpak (--user scope)
   apps       Obsidian, 1Password, Slack, OBS from portage (optional, needs doas)
   ai         claude-code, codex, opencode, herdr + bun/deno/uv runtimes
+  services   s6 user supervision tree for session daemons
   dotfiles   symlink configs into ~/.config (incl. nvim), deploy shell config
   theme      install the atlas-theme switcher and apply the default (cobalt)
 
@@ -102,6 +104,29 @@ MAP
         else warn "NOT ENABLED  $svc ($lvl)"; drift=1; fi
     done < "$REPO_DIR/system/services.conf"
 
+    step "user services (s6)"
+    local scan="$HOME/.local/state/s6/scan"
+    if [ ! -d "$scan" ]; then
+        info "n/a      no scan directory — './install.sh services' has not run"
+    else
+        for d in "$REPO_DIR"/services/*/; do
+            [ -f "$d/run" ] || continue      # README.md is not a service
+            local n dst; n=$(basename "${d%/}"); dst="$scan/$n"
+            if [ ! -L "$dst" ]; then
+                err "MISSING  $n (not linked into the scan directory)"; drift=1
+            elif [ "$(readlink -f "$dst")" != "$(readlink -f "${d%/}")" ]; then
+                warn "DRIFTED  $n (links somewhere other than the repo)"; drift=1
+            elif [ -p "$dst/supervise/control" ]; then
+                ok "supervised  $n"
+            else
+                # Linked but no control fifo: correct on disk, just not running.
+                # Only worth flagging inside a session, where it means the
+                # supervisor missed it rather than simply not existing yet.
+                info "linked   $n (not supervised — no session, or needs: atlas-svc reload)"
+            fi
+        done
+    fi
+
     step "pending portage config"
     local cfgs; cfgs=$(find /etc/portage -name '._cfg*' 2>/dev/null | head)
     if [ -n "$cfgs" ]; then
@@ -122,7 +147,7 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;
-        packages|flatpaks|apps|ai|dotfiles|fonts|theme) SELECTED+=("$arg") ;;
+        packages|flatpaks|apps|ai|services|dotfiles|fonts|theme) SELECTED+=("$arg") ;;
         *) err "unknown argument: $arg"; usage; exit 1 ;;
     esac
 done

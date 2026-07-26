@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# micro-reconnect — hold the Codex Micro's Bluetooth link up.
+#
+# The Micro re-advertises under a rotating non-resolvable random address that
+# BlueZ will not auto-reconnect to, so something has to watch for it under
+# whatever address it is using now and pair+connect it. This is the service
+# that most needs supervision: it is the recovery path, and a recovery path
+# that stays dead after its first crash is worse than none.
+exec 2>&1
+
+exec "$HOME/projects/micro-herdr/mh-reconnect.sh"
