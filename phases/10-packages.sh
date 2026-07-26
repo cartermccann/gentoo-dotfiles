@@ -77,6 +77,14 @@ CORE=(
     # session supervision — s6 runs the user services in services/. Not
     # optional: config/mango/autostart.sh starts a tree over them at login.
     sys-apps/s6 sys-apps/s6-rc
+    # runtime for the vendored Electron bundles in ~/apps (phases/27-vendored).
+    # Chromium dlopen()s libcups even with printing unused, and the Codex
+    # Micro's HID path goes through libusb. Both are the difference between an
+    # app that starts and one that dies with a bare "not found".
+    net-print/cups dev-libs/libusb
+    # remote access — the LAN address changes, tailscale does not. `tailscale
+    # up` still has to be run by hand once; nothing here authenticates.
+    net-vpn/tailscale
 )
 LOG="$HOME/.cache/atlas-emerge.log"; mkdir -p "$(dirname "$LOG")"; : > "$LOG"
 

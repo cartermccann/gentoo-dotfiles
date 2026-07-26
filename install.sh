@@ -17,13 +17,14 @@ declare -A PHASE_FILES=(
     [packages]="10-packages.sh"
     [flatpaks]="20-flatpaks.sh"
     [apps]="25-apps.sh"
+    [vendored]="27-vendored.sh"
     [ai]="30-ai-tools.sh"
     [services]="35-services.sh"
     [dotfiles]="40-dotfiles.sh"
     [fonts]="45-fonts.sh"
     [theme]="50-theme.sh"
 )
-ORDER=(packages flatpaks apps ai services dotfiles fonts theme)
+ORDER=(packages flatpaks apps vendored ai services dotfiles fonts theme)
 
 usage() {
     cat <<EOF
@@ -35,6 +36,7 @@ Phases (run in this order if none given):
   packages   emerge desktop stack, CLI tools, langs, audio, bluetooth (needs doas)
   flatpaks   Zen, Spotify, Blanket via Flatpak (--user scope)
   apps       Obsidian, 1Password, Slack, OBS from portage (optional, needs doas)
+  vendored   prebuilt apps nobody packages (Codex desktop) -> ~/apps
   ai         claude-code, codex, opencode, herdr + bun/deno/uv runtimes
   services   s6 user supervision tree for session daemons
   dotfiles   symlink configs into ~/.config (incl. nvim), deploy shell config
@@ -147,7 +149,7 @@ for arg in "$@"; do
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;
-        packages|flatpaks|apps|ai|services|dotfiles|fonts|theme) SELECTED+=("$arg") ;;
+        packages|flatpaks|apps|vendored|ai|services|dotfiles|fonts|theme) SELECTED+=("$arg") ;;
         *) err "unknown argument: $arg"; usage; exit 1 ;;
     esac
 done

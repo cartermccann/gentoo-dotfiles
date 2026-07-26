@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=ChatGPT / Codex
+GenericName=AI coding assistant
+Comment=Chat with ChatGPT and work with Codex
+Exec=@APPDIR@/start.sh %U
+Icon=@APPDIR@/content/webview/assets/app-D0g8sCle.png
+Terminal=false
+Categories=Development;Utility;
+Keywords=ChatGPT;Codex;OpenAI;AI;Code;
+StartupNotify=true
+StartupWMClass=codex-desktop
+MimeType=x-scheme-handler/codex;x-scheme-handler/codex-browser-sidebar;
