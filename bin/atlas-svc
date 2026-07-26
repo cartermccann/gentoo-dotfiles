@@ -24,7 +24,13 @@ die() { printf '%s✗%s %s\n' "$RED" "$R" "$*" >&2; exit 1; }
 # is how we tell "supervised right now" from "merely on disk".
 supervised() { [ -p "$SCAN/$1/supervise/control" ]; }
 
-services() { find "$SCAN" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -printf '%f\n' | sort; }
+# -name '[!.]*' excludes .s6-svscan, the supervisor's own control directory.
+# It lives in the scan directory but is not a service, and listing it as one
+# ("○ .s6-svscan  not supervised") reads like something is broken.
+services() {
+    find "$SCAN" -mindepth 1 -maxdepth 1 -name '[!.]*' \
+        \( -type d -o -type l \) -printf '%f\n' | sort
+}
 
 need_svc() {
     [ -n "${1:-}" ] || die "which service? (see: atlas-svc)"

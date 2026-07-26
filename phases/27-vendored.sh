@@ -119,17 +119,50 @@ fi
 # bundling it. It lives under ~/apps/vendor for the same reason the Codex
 # bundle does: it is a binary you obtained, not source you edit (docs/LAYOUT.md).
 #
-# The kit's native pieces (@serialport/bindings-cpp) ship linux-x64 glibc
-# prebuilds, so the copy from another glibc x86-64 machine runs as-is; there is
-# no need to rebuild the Input app on Gentoo.
+# The kit's native pieces ship linux-x64 glibc prebuilds, so a copy from
+# another glibc x86-64 machine runs as-is — there is no need to rebuild the
+# Input app on Gentoo, which is the expensive path the input-linux README
+# describes.
+#
+# What DOES bite: npm hoisted several of the kit's dependencies up to the Input
+# app's top-level node_modules, so copying the kit directory alone yields a
+# package that cannot resolve its own requires. The kit externalises exactly
+# three modules (node-hid, serialport, fs); serialport is nested inside the kit
+# already, and the rest of the closure is KIT_HOISTED_DEPS below. Copy those
+# from the same top-level node_modules alongside the kit.
 step "Work Louder device kit"
-KIT="$APPS/vendor/wl-device-kit/dist/index.js"
-if [ -f "$KIT" ]; then
-    ok "${KIT/#$HOME/\~}"
-else
+KIT_DIR="$APPS/vendor/wl-device-kit"
+KIT="$KIT_DIR/dist/index.js"
+KIT_HOISTED_DEPS=(node-hid pkg-prebuilds @serialport/binding-mock @serialport/bindings-interface)
+
+if [ ! -f "$KIT" ]; then
     warn "missing — the Codex Micro bridge cannot run without it"
     info "copy it from a machine with Work Louder Input installed:"
-    info "  rsync -a <host>:.../node_modules/@worklouder/wl-device-kit/ ~/apps/vendor/wl-device-kit/"
+    info "  NM=<host>:~/projects/input-linux/input-app-<ver>/node_modules"
+    info "  rsync -a \$NM/@worklouder/wl-device-kit/ ~/apps/vendor/wl-device-kit/"
+    info "  rsync -aR \$NM/./{${KIT_HOISTED_DEPS[*]}} ~/apps/vendor/wl-device-kit/node_modules/"
+else
+    ok "${KIT/#$HOME/\~}"
+    kit_missing=()
+    for dep in "${KIT_HOISTED_DEPS[@]}"; do
+        [ -d "$KIT_DIR/node_modules/$dep" ] || kit_missing+=("$dep")
+    done
+    if [ ${#kit_missing[@]} -gt 0 ]; then
+        err "kit is missing hoisted dependencies: ${kit_missing[*]}"
+        info "copy each from the Input app's top-level node_modules into"
+        info "  ~/apps/vendor/wl-device-kit/node_modules/"
+    else
+        # Cheap and worth it: resolution failures here surface as a service
+        # that crash-loops under s6 rather than as an error you see directly.
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            info "[dry-run] verify the kit loads"
+        elif timeout 20 node -e "require('$KIT')" >/dev/null 2>&1; then
+            ok "kit loads (all ${#KIT_HOISTED_DEPS[@]} hoisted deps resolve)"
+        else
+            err "kit is present but fails to load — run for the reason:"
+            info "  node -e \"require('$KIT')\""
+        fi
+    fi
 fi
 
 step "micro-herdr checkout"
