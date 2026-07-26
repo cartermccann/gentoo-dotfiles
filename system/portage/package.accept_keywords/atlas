@@ -38,3 +38,6 @@ media-video/obs-studio ~amd64
 # Both from GURU, which stabilises nothing.
 dev-util/stripe-cli ~amd64
 dev-util/bruno-bin ~amd64
+# awscli-bin has no stable keyword at any version — the binary repack tracks
+# upstream's own release cadence, so ~amd64 is the only way to install it.
+app-admin/awscli-bin ~amd64

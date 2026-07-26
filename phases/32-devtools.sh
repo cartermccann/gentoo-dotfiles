@@ -121,12 +121,22 @@ else
     rm -rf "$tmp"
 fi
 
+# ── summary ────────────────────────────────────────────────────
+# Checks the install locations, not just $PATH. This phase runs under bash,
+# while the PATH entries for the $HOME-installed CLIs are set in
+# config/fish/config.fish — so a PATH-only check reports flyctl and gcloud
+# missing immediately after successfully installing them.
 step "summary"
-for c in vercel wrangler playwright ccusage ccstatusline stripe aws bruno \
-         headroom posting lazydocker flyctl gcloud; do
-    if command -v "$c" >/dev/null 2>&1; then ok "$c"
-    else warn "$c not on PATH"; fi
-done
-info "flyctl and gcloud need PATH entries — see config/fish/config.fish"
+check_cli() {   # name [extra path to try]
+    if command -v "$1" >/dev/null 2>&1; then ok "$1"
+    elif [ -n "${2:-}" ] && [ -x "$2" ]; then ok "$1 (at ${2/#$HOME/\~}, on PATH in fish)"
+    else warn "$1 MISSING"; fi
+}
+for c in vercel wrangler playwright ccusage ccstatusline stripe bruno \
+         headroom posting; do check_cli "$c"; done
+check_cli aws        "/usr/bin/aws"
+check_cli lazydocker "$(go env GOPATH 2>/dev/null || echo "$HOME/go")/bin/lazydocker"
+check_cli flyctl     "$HOME/.fly/bin/flyctl"
+check_cli gcloud     "$GCLOUD_DIR/bin/gcloud"
 
 ok "devtools phase complete"
