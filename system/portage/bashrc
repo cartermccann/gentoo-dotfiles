@@ -55,11 +55,28 @@ if [[ ${EBUILD_PHASE} == preinst ]]; then
 
         # Only the root subvolume. /home is not what an emerge puts at risk, and
         # snapshotting it on every package install would add churn for nothing.
+        # Report to BOTH the terminal and syslog. einfo/ewarn are swallowed by
+        # `emerge --quiet`, which is how most of this machine's merges run, so
+        # relying on them alone means a snapshot that silently did not happen
+        # looks identical to one that did. sysklogd is enabled (see
+        # system/services.conf), so `logger` lands it in the system log whatever
+        # portage's verbosity.
+        #
+        # user.notice, not daemon.info: /etc/syslog.conf routes daemon.* away
+        # from /var/log/messages (`cron,daemon.none`), so a semantically tidier
+        # facility would have put this only in /var/log/syslog -- the one place
+        # nobody thinks to grep. btrbk keeps its own record in
+        # /var/log/btrbk.log; this one records the attempt, including failures
+        # btrbk never got far enough to log.
         if btrbk --quiet run / >/dev/null 2>&1; then
             einfo "atlas: btrfs snapshot taken before merge (btrbk)"
+            logger -t atlas-snapshot -p user.notice \
+                "snapshot ok before merge of ${CATEGORY}/${PF:-unknown}" 2>/dev/null
         else
             ewarn "atlas: btrbk snapshot FAILED — continuing the merge anyway"
             ewarn "atlas: check with 'doas btrbk --config /etc/btrbk/btrbk.conf dryrun'"
+            logger -t atlas-snapshot -p user.err \
+                "snapshot FAILED before merge of ${CATEGORY}/${PF:-unknown}" 2>/dev/null
         fi
         return 0
     }

@@ -234,7 +234,27 @@ run_check() {
                 # session this is the expected state.
                 info "linked   $n (defined, not running)"
             elif s6-svstat "$dst" 2>/dev/null | grep -q '^up'; then
-                ok "up       $n  ($(s6-svstat "$dst" 2>/dev/null))"
+                # s6 measures uptime from the timestamp it recorded when the
+                # service started, so a clock STEP after that point corrupts the
+                # figure. On 2026-07-26 both services reported ~31,768,515
+                # seconds (367 days) on a machine that had been up 18 minutes:
+                # the RTC read 2025-07-24 at boot, s6 stamped against that, then
+                # chronyd stepped the clock forward a year.
+                #
+                # A service cannot have been running longer than the machine has
+                # been up, so /proc/uptime is the ceiling. Reporting "unknown" is
+                # the point of this: the number exists to distinguish "up since
+                # login" from "restarted an hour ago", and a wrong number answers
+                # that question confidently and incorrectly.
+                local svstat sv_secs sys_secs
+                svstat=$(s6-svstat "$dst" 2>/dev/null)
+                sv_secs=$(printf '%s' "$svstat" | grep -oE '[0-9]+ seconds' | grep -oE '^[0-9]+')
+                sys_secs=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)
+                if [ -n "$sv_secs" ] && [ -n "$sys_secs" ] && [ "$sv_secs" -gt "$sys_secs" ]; then
+                    ok "up       $n  (age unknown — start time predates boot, clock stepped after s6 started)"
+                else
+                    ok "up       $n  ($svstat)"
+                fi
             else
                 warn "DOWN     $n  ($(s6-svstat "$dst" 2>&1 | head -1))"; drift=1
             fi
