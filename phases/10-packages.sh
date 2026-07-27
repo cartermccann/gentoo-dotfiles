@@ -19,7 +19,16 @@ deploy_system_file() {   # src dst mode
     if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
         ok "${dst} (unchanged)"
     else
-        [ -f "$dst" ] && as_root cp "$dst" "$dst.bak.$(date +%Y%m%d-%H%M%S)"
+        # Backups go to a directory of their own, NOT beside the target. Writing
+        # "$dst.bak.<stamp>" put files portage does not own into
+        # /etc/portage/package.*, where --check's stray scan then correctly
+        # reported them as UNDECLARED — this function was manufacturing the exact
+        # drift the check exists to find.
+        if [ -f "$dst" ]; then
+            as_root mkdir -p "$CONFIG_BACKUP_DIR"
+            as_root cp "$dst" \
+                "$CONFIG_BACKUP_DIR/$(echo "${dst#/}" | tr / _).$(date +%Y%m%d-%H%M%S)"
+        fi
         as_root install -D -m "$mode" "$src" "$dst" && ok "${dst}"
     fi
 }
@@ -32,6 +41,34 @@ deploy_system_file "$REPO_DIR/system/portage/package.license/atlas" \
                    /etc/portage/package.license/atlas
 deploy_system_file "$REPO_DIR/system/portage/package.mask/atlas" \
                    /etc/portage/package.mask/atlas
+
+# The three files below decide HOW everything above builds, and none of them was
+# tracked until 2026-07-26 — a clean checkout got stage3 defaults (-j1, no
+# binhost, no GURU) and nothing reported it. Order matters: make.conf and the
+# binhost have to be in place before the first emerge, and repos.conf before the
+# GURU step below.
+deploy_system_file "$REPO_DIR/system/portage/make.conf" \
+                   /etc/portage/make.conf
+deploy_system_file "$REPO_DIR/system/portage/repos.conf/eselect-repo.conf" \
+                   /etc/portage/repos.conf/eselect-repo.conf
+deploy_system_file "$REPO_DIR/system/portage/binrepos.conf/gentoo.conf" \
+                   /etc/portage/binrepos.conf/gentoo.conf
+
+# Boot and initramfs inputs. /etc/kernel/cmdline is what 95-limine.install reads
+# to build every Limine entry — see system/kernel/README.md, and note that it
+# must never contain comments. dracut.conf.d/atlas.conf carries no active
+# settings yet; it exists so the file has an owner before encryption needs it.
+deploy_system_file "$REPO_DIR/system/kernel/cmdline" \
+                   /etc/kernel/cmdline
+deploy_system_file "$REPO_DIR/system/dracut.conf.d/atlas.conf" \
+                   /etc/dracut.conf.d/atlas.conf
+
+# consolefont was in --check's file map but NO phase deployed it: it read
+# "in sync" only because it had been placed by hand once. On a clean checkout the
+# ly greeter would have silently fallen back to the 8x16 console font. Found
+# 2026-07-26 by checking the map for entries nothing installs.
+deploy_system_file "$REPO_DIR/system/conf.d/consolefont" \
+                   /etc/conf.d/consolefont
 
 # ── GURU overlay ───────────────────────────────────────────────
 step "GURU overlay"
@@ -47,6 +84,37 @@ run_root emerge --sync guru
 # ── Core desktop + system packages (one transaction) ───────────
 step "core packages (desktop stack, audio, bluetooth, langs)"
 CORE=(
+    # ── The base the handbook install left behind ──────────────
+    # Everything in this block was installed by hand during the original Gentoo
+    # install and then never declared, so `--check`'s @world diff found all of it
+    # missing on 2026-07-26. A clean checkout would have produced a machine with
+    # no kernel, no privilege escalation, no network and no session — while
+    # system/services.conf cheerfully declared dbus, elogind and NetworkManager
+    # as services to *enable*, with nothing to install them.
+    #
+    # The kernel. dist-kernel (see make.conf USE) so updates rebuild the
+    # initramfs and run the hooks in system/kernel/postinst.d.
+    sys-kernel/gentoo-kernel-bin sys-kernel/linux-firmware
+    # doas is what install.sh itself escalates with — lib/common.sh prefers it
+    # over sudo. The installer depended on a package the installer never installed.
+    app-admin/doas
+    # session + device plumbing. seatd and elogind are what let a non-root user
+    # own the seat mango runs on; dbus is required by half the desktop.
+    sys-apps/dbus sys-auth/elogind sys-auth/seatd
+    # network + time + logs. chrony matters more than it looks: a skewed clock
+    # breaks TLS, and therefore breaks emerge against the binhost.
+    net-misc/networkmanager net-misc/chrony app-admin/sysklogd
+    # btrfs is the root filesystem (subvols @, @home, @snapshots) — without the
+    # userspace tools there is no scrub, no snapshot, no resize.
+    sys-fs/btrfs-progs
+    # vulkan loader: mango/scenefx render through it, and usbutils is how the
+    # Codex Micro HID path gets debugged when it stops enumerating.
+    media-libs/vulkan-loader sys-apps/usbutils
+    # Limine is the bootloader (bin/setup-limine installs and configures it).
+    # grub is NOT here: it is installed but unused, second in BootOrder with a
+    # stale config, and Phase 4 of docs/CLEANUP-2026-07-26.md removes it.
+    sys-boot/limine
+
     # compositor + session
     gui-wm/mangowm gui-libs/scenefx
     # login: ly. Not in CORE — it needs the GURU Manifest workaround in
@@ -84,6 +152,15 @@ CORE=(
     # Micro's HID path goes through libusb. Both are the difference between an
     # app that starts and one that dies with a bare "not found".
     net-print/cups dev-libs/libusb
+    # webkit-gtk[wayland] is the same situation one step further out: NOTHING in
+    # portage depends on it (`equery depends` returns empty), so it looks like an
+    # 83 MB orphan that depclean should take. It is not. ~/apps/buzz is a Tauri v2
+    # app, and Tauri renders through wry -> libwebkit2gtk-4.1. Portage cannot see
+    # that dependency because buzz is not a portage package, so the only thing
+    # standing between it and a depclean is this line. The `wayland` USE flag
+    # matters too (see package.use/atlas) — without it the web views go through
+    # XWayland.
+    net-libs/webkit-gtk
     # remote access — the LAN address changes, tailscale does not. `tailscale
     # up` still has to be run by hand once; nothing here authenticates.
     net-vpn/tailscale
@@ -123,10 +200,21 @@ TOOLS=(
     app-shells/zoxide app-shells/atuin app-shells/fzf
     app-misc/yazi app-misc/jq app-misc/yq app-text/tree
     dev-vcs/lazygit dev-vcs/git-lfs dev-util/git-delta dev-util/difftastic
-    dev-util/just dev-util/watchexec dev-util/tokei app-benchmarks/hyperfine
-    app-text/sd sys-process/procs sys-apps/dust sys-fs/duf sys-apps/broot
+    # Five of these were in the wrong category until 2026-07-26 (dev-util/just,
+    # dev-util/watchexec, app-text/sd, sys-apps/dust, sys-apps/broot). They still
+    # installed, because emerge_pkg retries the bare name — the log showed five
+    # `retry bare:` lines every run. That fallback is worth keeping as a safety
+    # net, but relying on it costs a failed resolution pass per atom and hides
+    # real typos, so the categories are now correct. sd and watchexec are GURU.
+    dev-build/just app-misc/watchexec dev-util/tokei app-benchmarks/hyperfine
+    sys-apps/sd sys-process/procs sys-block/dust sys-fs/duf app-misc/broot
     app-misc/tealdeer app-misc/glow app-arch/ouch net-misc/yt-dlp
     media-sound/cava app-misc/cmatrix games-misc/cbonsai
+    # btop is the process viewer config/btop themes, fastfetch is what the
+    # kronos-style greeting would use, and github-cli is not optional: it is the
+    # git credential helper in ~/.gitconfig, so without it every push to GitHub
+    # fails to authenticate on a freshly built machine.
+    sys-process/btop app-misc/fastfetch dev-util/github-cli
     # terminal workflow — config/tmux and the fish functions depend on these:
     # `dev` and `t` are tmux wrappers, and config.fish hooks direnv if present.
     app-misc/tmux app-shells/direnv app-misc/television
