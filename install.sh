@@ -57,6 +57,88 @@ Examples:
 EOF
 }
 
+# ── The system files this repo owns ────────────────────────────
+# One list, two readers: the file-by-file diff below, and the stray scan that
+# reports live files this repo has never heard of. Keeping it in one place is
+# what stops a file being deployed but not checked, or checked but not deployed.
+system_file_map() {
+    cat <<'MAP'
+system/portage/make.conf /etc/portage/make.conf
+system/portage/package.accept_keywords/atlas /etc/portage/package.accept_keywords/atlas
+system/portage/package.use/atlas /etc/portage/package.use/atlas
+system/portage/package.license/atlas /etc/portage/package.license/atlas
+system/portage/package.mask/atlas /etc/portage/package.mask/atlas
+system/portage/repos.conf/eselect-repo.conf /etc/portage/repos.conf/eselect-repo.conf
+system/portage/binrepos.conf/gentoo.conf /etc/portage/binrepos.conf/gentoo.conf
+system/ly/config.ini /etc/ly/config.ini
+system/kernel/cmdline /etc/kernel/cmdline
+system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install
+system/dracut.conf.d/atlas.conf /etc/dracut.conf.d/atlas.conf
+system/conf.d/consolefont /etc/conf.d/consolefont
+MAP
+}
+
+# ── Atoms this repo declares ───────────────────────────────────
+# Read from two places, because the phases install packages two ways: the
+# CORE/TOOLS/APPS arrays, and the handful of bootstrap `emerge` calls that run
+# before those arrays (git and eselect-repository, needed to enable GURU).
+#
+# Only text INSIDE a NAME=( ... ) block counts, with comments stripped. A
+# category/name string in prose is not a declaration — 45-fonts.sh mentions
+# "media-fonts/geist, absent" and 30-ai-tools.sh mentions
+# "dev-lang/zig-bin-0.15.2" in comments, and a naive grep reads both as
+# packages this repo installs.
+declared_atoms() {
+    local f
+    # bin/setup-* counts too: setup-ly and setup-limine emerge x11-misc/ly and
+    # sys-boot/limine, which the phases deliberately do not (ly needs a GURU
+    # Manifest workaround, so it is an explicit auditable step).
+    #
+    # Only setup-*, not all of bin/. The other scripts there are tools, not
+    # installers, and scanning them read package names out of help text: a
+    # cleanup script printing "emerge --noreplace dev-qt/qtbase" as a recovery
+    # hint was enough to make the world diff believe the repo installs qtbase.
+    for f in "$REPO_DIR"/phases/*.sh "$REPO_DIR"/bin/setup-*; do
+        [ -f "$f" ] || continue
+        awk '
+            /^[A-Z][A-Z_]*=\(/ { inarr=1; next }
+            inarr && /^\)/     { inarr=0; next }
+            inarr              { sub(/#.*/, ""); print }
+        ' "$f"
+        # An emerge that REMOVES something is not a declaration. Without this,
+        # `emerge --deselect dev-qt/qtbase` in a cleanup script read as "the repo
+        # installs qtbase" and quietly satisfied the world diff — the opposite of
+        # the truth.
+        grep -E '\bemerge\b' "$f" \
+            | grep -vE -- '--deselect|--unmerge|--depclean|[[:space:]]-C[[:space:]]' \
+            | sed 's/#.*//'
+    done | tr ' \t' '\n\n' \
+        | sed 's/[;&|()"'"'"'`]//g' \
+        | grep -oE '^[<>=~]*[a-z][a-z0-9]*(-[a-z0-9]+)?/[a-zA-Z0-9][a-zA-Z0-9._+-]*$' \
+        | sed 's/^[<>=~]*//' \
+        | sed -E 's/-[0-9][a-zA-Z0-9._-]*$//' \
+        | valid_categories_only \
+        | sort -u
+}
+
+# A path is not an atom. `services/micro-herdr` matches the shape of a package
+# perfectly, so shape alone is not enough — the category has to be a real one.
+# profiles/categories is portage's own authoritative list.
+valid_categories_only() {
+    local cats="/var/db/repos/gentoo/profiles/categories"
+    if [ -r "$cats" ]; then
+        grep -F -f <(sed 's|$|/|' "$cats") -
+    else
+        cat    # no tree to validate against; better to over-report than to hide
+    fi
+}
+
+world_atoms() {
+    # Strip slot (:3.13) and repo (::guru) suffixes, drop @set lines.
+    sed 's/#.*//; s/::.*//; s/:.*//; /^@/d; /^[[:space:]]*$/d' \
+        /var/lib/portage/world | sort -u
+}
+
 # ── --check: is the live system still what the repo says? ──────
 # The Nix-ish property we want: the repo is the source of truth, and any
 # drift is visible rather than silent.
@@ -67,10 +149,15 @@ run_check() {
     step "system files (/etc)"
     while read -r src dst; do
         [ -z "$src" ] && continue
-        if [ ! -d "$(dirname "$dst")" ]; then
+        if [ ! -f "$REPO_DIR/$src" ]; then
+            # The map names a file the repo does not have. Distinct from DRIFTED:
+            # nothing differs, the source of truth is simply absent, and `diff`
+            # would just print "No such file or directory".
+            err "NO REPO FILE  $src (mapped to $dst, but not in the repo)"; drift=1
+        elif [ ! -d "$(dirname "$dst")" ]; then
             # e.g. /etc/ly before bin/setup-ly has been run.
             # Not drift — just not applicable on this machine yet.
-            info "n/a      $dst (package not installed)"
+            info "n/a      $dst (parent directory absent)"
         elif [ ! -f "$dst" ]; then
             err "MISSING  $dst"; drift=1
         elif cmp -s "$REPO_DIR/$src" "$dst"; then
@@ -79,15 +166,24 @@ run_check() {
             warn "DRIFTED  $dst"; drift=1
             diff -u "$dst" "$REPO_DIR/$src" | sed -n '3,12p' | sed 's/^/      /'
         fi
-    done <<'MAP'
-system/portage/package.accept_keywords/atlas /etc/portage/package.accept_keywords/atlas
-system/portage/package.use/atlas /etc/portage/package.use/atlas
-system/portage/package.license/atlas /etc/portage/package.license/atlas
-system/portage/package.mask/atlas /etc/portage/package.mask/atlas
-system/ly/config.ini /etc/ly/config.ini
-system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install
-system/conf.d/consolefont /etc/conf.d/consolefont
-MAP
+    done < <(system_file_map)
+
+    step "system files: is anything deploying them?"
+    # "in sync" only means the live file matches the repo. It does NOT mean any
+    # phase would ever put it there. /etc/conf.d/consolefont sat in the map for
+    # weeks reading "in sync" while no phase deployed it — it had been placed by
+    # hand once, so a clean checkout would have silently dropped it. A mapped
+    # file that nothing installs is a lie the check was telling.
+    local orphan=0
+    while read -r src dst; do
+        [ -z "$src" ] && continue
+        if grep -rqF "$src" "$REPO_DIR"/phases/ "$REPO_DIR"/bin/ 2>/dev/null; then
+            continue
+        fi
+        err "NOT DEPLOYED  $src is checked but no phase or bin/ script installs it"
+        orphan=1; drift=1
+    done < <(system_file_map)
+    [ "$orphan" = "0" ] && ok "every mapped system file has something that deploys it"
 
     step "user configs (~/.config -> repo)"
     for d in "$REPO_DIR"/config/*/; do
@@ -145,28 +241,100 @@ MAP
 
     step "undeclared portage config"
     # The file-by-file comparison above only sees files this repo already knows
-    # about, so anything ELSE under /etc/portage/package.* is invisible to it —
-    # including what portage's own --autounmask-write drops there mid-emerge.
-    # Four such files were found on 2026-07-26 (zz-autounmask, system,
-    # webkit-gtk, zen-bin), all load-bearing, none reproducible from a clean
-    # checkout. Listing strays is how that stops being a once-a-year discovery.
-    local stray=0 f
+    # about, so anything ELSE under /etc/portage is invisible to it — including
+    # what portage's own --autounmask-write drops there mid-emerge.
+    #
+    # Four such files were found under package.* on 2026-07-26 (zz-autounmask,
+    # system, webkit-gtk, zen-bin), all load-bearing. Then three MORE turned up
+    # at the top level, which this scan originally did not reach at all:
+    # make.conf (MAKEOPTS, march, FEATURES=getbinpkg), repos.conf (the GURU
+    # overlay URI, without which swaync and sd do not exist) and binrepos.conf
+    # (the x86-64-v3 binhost — without it this is a from-source machine). A
+    # clean checkout reproduced none of them. Listing strays is how that stops
+    # being a once-a-year discovery.
+    local stray=0 f known
+    known=$(system_file_map | awk '{print $2}')
     while read -r f; do
         [ -n "$f" ] || continue
+        # Files the repo deploys are diffed above, not reported here.
+        printf '%s\n' "$known" | grep -qxF "$f" && continue
         case "$(basename "$f")" in
-            atlas) continue ;;          # the repo's own, checked above
-        esac
-        case "$(basename "$f")" in
-            zz-autounmask|*autounmask*)
+            # The installer's own displaced copies. They live in
+            # CONFIG_BACKUP_DIR now (see lib/common.sh), but old ones linger.
+            *.bak.*)
+                warn "STALE BACKUP  $f — safe to delete"; stray=1; drift=1; continue ;;
+            *autounmask*)
                 warn "AUTOUNMASK  $f — portage wrote this during an emerge"
-                info "      fold the entries into system/portage/ and delete it" ;;
-            *)  warn "UNDECLARED  $f (not owned by the repo)" ;;
+                info "      fold the entries into system/portage/ and delete it"
+                stray=1; drift=1; continue ;;
         esac
+        warn "UNDECLARED  $f (not owned by the repo)"
         stray=1; drift=1
-    done < <(find /etc/portage/package.use /etc/portage/package.accept_keywords \
-                  /etc/portage/package.license /etc/portage/package.mask \
-                  -maxdepth 1 -type f 2>/dev/null | sort)
-    [ "$stray" = "0" ] && ok "every /etc/portage/package.* file is repo-owned"
+    done < <({ find /etc/portage/package.use /etc/portage/package.accept_keywords \
+                    /etc/portage/package.license /etc/portage/package.mask \
+                    -maxdepth 1 -type f 2>/dev/null
+               # Top-level and the directories portage reads wholesale. Excludes
+               # gnupg/ (binpkg keyring, portage's own state) and make.profile
+               # (an eselect-managed symlink, not a config file).
+               find /etc/portage -maxdepth 1 -type f 2>/dev/null
+               find /etc/portage/repos.conf /etc/portage/binrepos.conf \
+                    /etc/portage/env /etc/portage/sets /etc/portage/savedconfig \
+                    -type f 2>/dev/null
+             } | sort -u)
+    [ "$stray" = "0" ] && ok "every /etc/portage file is repo-owned"
+
+    step "packages (@world vs declared)"
+    # `emerge --noreplace` adds to @world, so anything installed by hand at a
+    # shell is indistinguishable from something a phase installed — until you
+    # rebuild on bare metal and it is simply absent. On 2026-07-26 this found 28
+    # such packages, including app-admin/doas (the tool install.sh runs on),
+    # sys-kernel/gentoo-kernel-bin (the kernel), and dev-util/github-cli (the
+    # credential helper in ~/.gitconfig).
+    local undeclared_pkgs missing_pkgs
+    undeclared_pkgs=$(comm -13 <(declared_atoms) <(world_atoms))
+    missing_pkgs=$(comm -23 <(declared_atoms) <(world_atoms))
+    if [ -n "$undeclared_pkgs" ]; then
+        warn "$(printf '%s\n' "$undeclared_pkgs" | wc -l) in @world, declared in no phase:"
+        printf '      %s\n' $undeclared_pkgs; drift=1
+    else
+        ok "every @world package is declared in a phase"
+    fi
+    if [ -n "$missing_pkgs" ]; then
+        # Either a typo'd atom, or a package the repo asks for that never
+        # installed. Both are worth seeing; neither is visible any other way.
+        warn "declared but not in @world (typo, or never installed):"
+        printf '      %s\n' $missing_pkgs; drift=1
+    fi
+
+    step "services (enabled vs declared)"
+    # The loop above asks "is what the repo declares enabled?" — the opposite
+    # question, "is anything else enabled?", went unasked. docker, sshd, chronyd
+    # and sysklogd were all live and undeclared on 2026-07-26.
+    #
+    # BASELINE is the stage3 + profile set: services OpenRC brings up on its own,
+    # which this repo neither enables nor should have to declare. Anything in
+    # boot/default that is neither baseline nor declared is drift.
+    local BASELINE="binfmt bootmisc fsck hostname hwclock keymaps local
+        localmount loopback modules mtab netmount procfs root save-keymaps
+        save-termencoding seedrng swap sysctl systemd-tmpfiles-setup
+        termencoding"
+    local declared_svcs extra_svcs=""
+    declared_svcs=$(sed 's/#.*//' "$REPO_DIR/system/services.conf" | awk '{print $1}')
+    for lvl in boot default; do
+        while read -r svc; do
+            [ -n "$svc" ] || continue
+            printf '%s\n' $BASELINE | grep -qxF "$svc" && continue
+            printf '%s\n' $declared_svcs | grep -qxF "$svc" && continue
+            extra_svcs="$extra_svcs $svc($lvl)"
+        done < <(rc-update show "$lvl" 2>/dev/null | awk '{print $1}')
+    done
+    if [ -n "$extra_svcs" ]; then
+        warn "enabled but declared nowhere:$extra_svcs"
+        info "      add to system/services.conf with the reason, or disable"
+        drift=1
+    else
+        ok "no undeclared services enabled"
+    fi
 
     step "pending portage config"
     local cfgs; cfgs=$(find /etc/portage -name '._cfg*' 2>/dev/null | head)
