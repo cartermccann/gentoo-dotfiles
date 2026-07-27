@@ -21,6 +21,12 @@ APPS=(
     app-misc/1password-cli      # `op` — the CLI is a separate package
     net-im/slack
     media-video/obs-studio      # USE flags matter here, see package.use/atlas
+    # The browser. It IS installed from portage (-> /opt/zen), not flatpak, and
+    # was undeclared until 2026-07-26 — so a clean checkout produced a machine
+    # with no browser at all. Its ~amd64 keyword line was undeclared too, in a
+    # stray /etc/portage/package.accept_keywords/zen-bin that this repo has now
+    # absorbed.
+    www-client/zen-bin
 )
 
 emerge_app() {

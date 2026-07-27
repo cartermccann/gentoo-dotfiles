@@ -21,6 +21,14 @@ PORTAGE_CLIS=(
     dev-util/stripe-cli      # GURU
     app-admin/awscli-bin
     dev-util/bruno-bin       # GURU — API client, the Electron repack
+    # Containers. Undeclared until 2026-07-26 despite docker being enabled in
+    # the default runlevel and $USER being in the docker group — files under
+    # ~/.rustup and ~/.buzz are group-docker, so the group was added by hand too.
+    # docker-cli is a separate package from the daemon; docker-compose is the v2
+    # plugin, not the old python script.
+    app-containers/docker
+    app-containers/docker-cli
+    app-containers/docker-compose
 )
 for pkg in "${PORTAGE_CLIS[@]}"; do
     if [ "$DRY_RUN" = "1" ]; then info "[dry-run] emerge $pkg"; continue; fi
