@@ -49,6 +49,15 @@ err()  { printf '  %s✗%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# ── Where displaced files go ───────────────────────────────────
+# Backups are never written beside the file they replace. Doing that put
+# untracked *.bak.<stamp> files inside /etc/portage/package.* and ~/.config/,
+# both of which --check scans for strays, so the installer's own backups were
+# reported as drift. One directory per side keeps them out of the way and makes
+# them easy to prune.
+CONFIG_BACKUP_DIR="${CONFIG_BACKUP_DIR:-/var/lib/atlas/config-backups}"
+USER_BACKUP_DIR="${USER_BACKUP_DIR:-$HOME/.local/state/atlas/config-backups}"
+
 # ── Privilege escalation (doas preferred, sudo fallback) ───────
 if have doas; then SUDO=doas
 elif have sudo; then SUDO=sudo
@@ -85,8 +94,11 @@ backup_and_link() {
         return
     fi
     if [ -e "$dst" ] || [ -L "$dst" ]; then
-        run mv "$dst" "$dst.bak.$(date +%Y%m%d-%H%M%S)"
-        warn "backed up existing ${dst/#$HOME/\~}"
+        # Out of the way, not beside it — see CONFIG_BACKUP_DIR above.
+        run mkdir -p "$USER_BACKUP_DIR"
+        run mv "$dst" \
+            "$USER_BACKUP_DIR/$(basename "$dst").$(date +%Y%m%d-%H%M%S)"
+        warn "backed up existing ${dst/#$HOME/\~} -> ${USER_BACKUP_DIR/#$HOME/\~}"
     fi
     run mkdir -p "$(dirname "$dst")"
     run ln -sfn "$src" "$dst"
