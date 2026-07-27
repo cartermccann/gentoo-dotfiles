@@ -51,11 +51,23 @@ gui-libs/gtk wayland
 media-libs/mesa wayland
 
 # ── dist-kernel ────────────────────────────────────────────────
-# `grub` was live in an undeclared /etc/portage/package.use/system. Kept
-# because sys-boot/grub is still installed alongside the limine hook in
-# system/kernel/postinst.d, and dropping the flag would stop grub's config
-# being regenerated on a kernel update while grub is still what boots.
-sys-kernel/installkernel dracut grub
+# `grub` was here on the strength of a comment claiming grub was "still what
+# boots". It was not. efibootmgr:
+#
+#   BootCurrent: 0005
+#   BootOrder:   0005,0008,...
+#   Boot0005* Limine   \EFI\Limine\BOOTX64.EFI
+#   Boot0008* Gentoo   \EFI\Gentoo\grubx64.efi
+#
+# Limine is current and first; grub was second with a grub.cfg last written
+# 2026-07-20 and never regenerated since. The flag was not inert either — it
+# installs /usr/lib/kernel/postinst.d/91-grub-mkconfig.install, which ran on
+# every kernel update to rebuild the config of a bootloader nothing used, and
+# it is what made sys-kernel/installkernel depend on sys-boot/grub at all.
+#
+# dracut stays: it builds the initramfs that 95-limine.install then mirrors to
+# the ESP. See docs/DECISIONS.md.
+sys-kernel/installkernel dracut
 
 # ── OBS ────────────────────────────────────────────────────────
 # The base profile builds obs-studio with USE="alsa" and nothing else, which

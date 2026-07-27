@@ -111,9 +111,16 @@ CORE=(
     # Codex Micro HID path gets debugged when it stops enumerating.
     media-libs/vulkan-loader sys-apps/usbutils
     # Limine is the bootloader (bin/setup-limine installs and configures it).
-    # grub is NOT here: it is installed but unused, second in BootOrder with a
-    # stale config, and Phase 4 of docs/CLEANUP-2026-07-26.md removes it.
-    sys-boot/limine
+    # grub is NOT here: it was installed but unused, second in BootOrder with a
+    # stale config, and Phase 4 of docs/CLEANUP-2026-07-26.md removed it.
+    #
+    # efibootmgr is declared explicitly BECAUSE of that removal. It had only
+    # ever been present as a grub dependency, so depclean listed it for removal
+    # alongside grub — and it is the only tool that can read or repair the NVRAM
+    # entry this machine now depends on for booting. If that entry is ever lost,
+    # recovery is `efibootmgr -c -d /dev/nvme0n1 -p 1 -L Limine -l
+    # '\EFI\Limine\BOOTX64.EFI'`, which is impossible without it installed.
+    sys-boot/limine sys-boot/efibootmgr
 
     # compositor + session
     gui-wm/mangowm gui-libs/scenefx
