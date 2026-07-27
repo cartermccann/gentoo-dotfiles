@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Work Louder Input
+GenericName=Keyboard configurator
+Comment=Configure Work Louder keyboards, macropads and the Codex Micro
+Exec=@APPDIR@/start.sh %U
+Icon=@APPDIR@/input.png
+Terminal=false
+Categories=Utility;Settings;HardwareSettings;
+Keywords=WorkLouder;Input;Keyboard;Macropad;Codex;Micro;Keymap;RGB;
+StartupNotify=true
+StartupWMClass=input

@@ -178,6 +178,100 @@ EOF
     run update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 fi
 
+# ═══ Work Louder Input ═════════════════════════════════════════
+# The configurator GUI. Its upstream (github.com/worklouder/input-linux, cloned
+# at ~/projects/input-linux) offers two paths and the README leads with the
+# wrong one for this machine: rebuilding the app from the Windows installer via
+# input4linux-0.8.2.sh. That script wants python3.11, p7zip and a global asar,
+# none of which are installed here, and it is stale — it still targets 0.8.2
+# while the releases page is on 0.16.0-rc.5.
+#
+# The prebuilt AppImage is the same app, newer, and needs none of that. It is
+# unpacked rather than run as an .AppImage because atlas has fuse3 and no
+# libfuse2, and because ~/apps is where binaries you run live:
+#
+#   curl -fL -o /tmp/input.AppImage \
+#     https://github.com/worklouder/input-linux/releases/download/v0.16.0-rc5-Devbuild2/input-0.16.0-rc.5-Devbuild2.AppImage
+#   chmod +x /tmp/input.AppImage && (cd /tmp && ./input.AppImage --appimage-extract)
+#   mv /tmp/squashfs-root ~/apps/input
+#
+# Unlike the Codex bundle there is nothing Nix-tainted to undo: it is an
+# ordinary glibc build, its ELF interpreter is /lib64/ld-linux-x86-64.so.2, and
+# every library it wants — including the libusb and libudev that node-hid's
+# HID_hidraw prebuild needs — is already on the default linker path.
+step "Work Louder Input"
+INPUT="$APPS/input"
+
+if [ ! -d "$INPUT" ]; then
+    warn "not present at ${INPUT/#$HOME/\~} — skipping"
+    info "unpack the AppImage as described in the comment above this step"
+else
+    # ── 1. Launcher ────────────────────────────────────────────
+    # start.sh is ours, not upstream's — the AppImage has no launcher, only
+    # AppRun and the bare electron binary. It carries the ozone flags, which
+    # are not optional here: there is no Xwayland on this machine, so an X11
+    # default is not a slower window, it is no window at all.
+    if [ -x "$INPUT/start.sh" ]; then
+        ok "start.sh present"
+    else
+        err "start.sh missing or not executable — it is not part of the"
+        info "  AppImage; restore it from this repo's git history"
+    fi
+
+    # ── 2. The show:false patch ────────────────────────────────
+    # Input builds its main window with `show: false` and reveals it from a
+    # `ready-to-show` handler. On Wayland that event never arrives: a hidden
+    # window has no surface, so it never paints, so nothing ever fires the
+    # handler. The app runs perfectly — it loads, finds no device, routes to
+    # the Keymap screen — and simply never becomes visible, which presents as
+    # a silent hang rather than as a bug with a name.
+    #
+    # Upstream hit this too. Its patched main process for 0.8.2
+    # (patch/dist-electron/main/index.js in the input-linux repo) drops both
+    # `show: false` and the ready-to-show handler. This is the same fix for
+    # 0.16.0, applied as a byte patch rather than an asar rebuild: the two
+    # strings are the same length, so the archive's header offsets and — the
+    # part that actually matters — its app.asar.unpacked mapping for the
+    # native .node files are left untouched. Repacking is what breaks that
+    # mapping, and repairing it afterwards is an entire separate tool
+    # (codex-micro-linux's repair-codex-native-modules.py). Not repacking
+    # avoids needing it.
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        info "[dry-run] check the app.asar show:false patch"
+    else
+        python3 - "$INPUT/resources/app.asar" <<'PY'
+import shutil, sys
+asar = sys.argv[1]
+OLD = b'show:!1,width:1266,height:793,minWidth:1266,minHeight:793'
+NEW = b'show:!0,width:1266,height:793,minWidth:1266,minHeight:793'
+data = open(asar, 'rb').read()
+if data.count(NEW) == 1:
+    print('  \033[32m✓\033[0m app.asar: main window shows on Wayland (already patched)')
+elif data.count(OLD) == 1:
+    shutil.copyfile(asar, asar + '.before-wayland-show')
+    open(asar, 'wb').write(data.replace(OLD, NEW))
+    print('  \033[32m✓\033[0m app.asar: patched show:false -> true (backup .before-wayland-show)')
+else:
+    print('  \033[33m!\033[0m app.asar: window-creation call not found in either form '
+          '(%d unpatched, %d patched)' % (data.count(OLD), data.count(NEW)))
+    print('      the app was probably updated — re-derive the patch before trusting it')
+PY
+    fi
+
+    # ── 3. Launcher entry ──────────────────────────────────────
+    step "Work Louder Input / launcher entry"
+    run mkdir -p "$HOME/.local/share/applications"
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        info "[dry-run] render input.desktop"
+    else
+        sed "s|@APPDIR@|$INPUT|g" \
+            "$REPO_DIR/share/vendored/input.desktop.in" \
+            > "$HOME/.local/share/applications/input.desktop"
+        ok "~/.local/share/applications/input.desktop"
+    fi
+    run update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+fi
+
 # ═══ Work Louder device kit ════════════════════════════════════
 # Proprietary, ships inside the Work Louder "Input" app, and is NOT
 # redistributable — which is why micro-herdr asks you to supply it rather than

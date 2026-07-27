@@ -77,6 +77,7 @@ system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.inst
 system/dracut.conf.d/atlas.conf /etc/dracut.conf.d/atlas.conf
 system/btrbk/btrbk.conf /etc/btrbk/btrbk.conf
 system/conf.d/consolefont /etc/conf.d/consolefont
+system/udev/99-worklouder.rules /etc/udev/rules.d/99-worklouder.rules
 MAP
 }
 

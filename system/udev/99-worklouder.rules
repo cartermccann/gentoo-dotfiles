@@ -1,0 +1,54 @@
+# Work Louder / Nomad — device access for the Input configurator (~/apps/input)
+# and for micro-herdr.
+#
+# Upstream ships a generator for this file rather than the file itself:
+# patch/dist-electron/scripts/install-udev-worklouder.sh in the input-linux
+# repo. It is not used here, for two reasons.
+#
+# First, it writes MODE="0666" on every match. A keyboard's hidraw node is a
+# keylogger to anything that can open it, and 0666 hands that to every process
+# on the machine, logged in or not. atlas runs elogind, so TAG+="uaccess" does
+# the intended job properly: the kernel puts an ACL on the node for whoever
+# owns the active seat, and takes it away again at logout.
+#
+# Second, the generator picks its group by grepping /etc/os-release for
+# fedora|arch|debian|… and falls through to "plugdev" for everything else,
+# then `groupadd`s it if missing. On Gentoo that fallback happens to be
+# right — plugdev exists and cjm is in it — but by accident, not by decision.
+#
+# GROUP/MODE 0660 stays as the fallback for nodes that never get a seat
+# assignment. uaccess only fires for devices udev has tagged to a seat, and
+# BLE HID children do not always arrive with one.
+#
+# On the vendor IDs: 303a is Espressif's, not Work Louder's — the boards are
+# ESP32-S3 based, so these rules also match unrelated ESP32 hardware. That is
+# what upstream matches and what @worklouder/wl-device-kit probes for, so
+# narrowing it would break device discovery rather than tighten it.
+# 574c is the legacy Nomad ID.
+
+# ── USB-attached devices ───────────────────────────────────────
+# ATTRS{} walks up the parent chain to the USB device node, so these match a
+# board plugged in over USB and nothing else.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="303a", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="574c", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="usb", ATTR{idVendor}=="303a", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="usb", ATTR{idVendor}=="574c", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# Serial — the ESP32-S3 USB-CDC interface, used for firmware flashing and DFU.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="574c", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
+# ── Bluetooth-attached devices ─────────────────────────────────
+# The rules above cannot match a Codex Micro paired over BLE: a Bluetooth HID
+# device has no USB parent, so ATTRS{idVendor} never resolves and every
+# idVendor rule silently misses. The vendor is instead carried in the HID
+# modalias, uppercase and zero-padded to eight digits:
+#
+#   hid:b0005g0001v0000303Ap00008360
+#       ^bus 0005 = Bluetooth   ^vendor   ^product 8360 = Codex Micro
+#       (bus 0003 = USB)
+#
+# Matching the modalias with the bus left open covers both transports, which
+# is why this line is the one that matters for the Micro.
+SUBSYSTEM=="hidraw", ATTRS{modalias}=="hid:b*v0000303A*", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="hidraw", ATTRS{modalias}=="hid:b*v0000574C*", TAG+="uaccess", GROUP="plugdev", MODE="0660"

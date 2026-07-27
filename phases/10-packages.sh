@@ -79,6 +79,16 @@ deploy_system_file "$REPO_DIR/system/portage/bashrc" \
 deploy_system_file "$REPO_DIR/system/conf.d/consolefont" \
                    /etc/conf.d/consolefont
 
+# Device access for the Work Louder boards — the Input configurator in
+# ~/apps/input and the micro-herdr service both need it. Written here rather
+# than by upstream's generator script, which hands every match MODE="0666";
+# the file itself explains the rest. Rules are read live, so this needs
+#   doas udevadm control --reload && doas udevadm trigger
+# to take effect on already-attached devices, and a BLE device must be
+# reconnected rather than merely re-triggered.
+deploy_system_file "$REPO_DIR/system/udev/99-worklouder.rules" \
+                   /etc/udev/rules.d/99-worklouder.rules
+
 # ── GURU overlay ───────────────────────────────────────────────
 step "GURU overlay"
 if have git; then :; else run_root emerge --noreplace --quiet dev-vcs/git; fi
