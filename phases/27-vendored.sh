@@ -56,7 +56,60 @@ else
         ok "LD_LIBRARY_PATH already portable"
     fi
 
-    # ── 3. Node runtime ────────────────────────────────────────
+    # ── 3. ELF interpreter and RPATH ───────────────────────────
+    # The deepest Nix assumption in the bundle, and the one that actually kept
+    # the app from starting at all until 2026-07-27. Every compiled binary here
+    # names an absolute /nix/store loader in its ELF INTERP header. That path
+    # does not exist on Gentoo, so the kernel refuses the exec and bash reports
+    #
+    #     .../electron: cannot execute: required file not found
+    #
+    # which reads like a missing *file* but means a missing *loader* — the file
+    # named in the error is right there and executable.
+    #
+    # RPATHs are the same story one level down: they name store directories for
+    # glibc, gcc, and the GTK/X stack, every one of which Gentoo already has on
+    # the default linker path. $ORIGIN replaces them, so a binary keeps finding
+    # the libraries shipped beside it (electron's own libffmpeg.so and friends)
+    # and finds everything else the normal way.
+    #
+    # Note that ldd cannot diagnose any of this — it runs the binary's own
+    # interpreter, so a missing loader makes it fail wholesale instead of
+    # naming a library. That is why step 6 checks INTERP before it checks libs.
+    LOADER=/lib64/ld-linux-x86-64.so.2
+    if ! command -v patchelf >/dev/null 2>&1; then
+        err "patchelf missing — it is in phases/10-packages.sh; run ./install.sh packages"
+    elif [ ! -e "$LOADER" ]; then
+        err "system ELF loader not found at $LOADER"
+    else
+        # Candidates: anything executable, plus shared objects and Node native
+        # addons (which have no exec bit but do carry RPATHs). The *.before-*
+        # files are the bundle's own pre-patch backups — never touch them.
+        interp_n=0 rpath_n=0
+        while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            case "$f" in *.before-*) continue;; esac
+
+            # INTERP: only executables have one; patchelf errors out otherwise.
+            if patchelf --print-interpreter "$f" 2>/dev/null | grep -q '/nix/store'; then
+                run patchelf --set-interpreter "$LOADER" "$f" && interp_n=$((interp_n + 1))
+            fi
+            # RPATH: applies to executables and libraries alike.
+            if patchelf --print-rpath "$f" 2>/dev/null | grep -q '/nix/store'; then
+                run patchelf --set-rpath '$ORIGIN' "$f" && rpath_n=$((rpath_n + 1))
+            fi
+        done <<EOF
+$(find "$CODEX" \( -type f -executable -o -name '*.so' -o -name '*.so.*' -o -name '*.node' \) 2>/dev/null)
+EOF
+
+        if [ "$interp_n" -gt 0 ] || [ "$rpath_n" -gt 0 ]; then
+            ok "de-Nixed ELF headers: $interp_n interpreter(s), $rpath_n rpath(s) → \$ORIGIN"
+        else
+            ok "ELF interpreters and rpaths already portable"
+        fi
+    fi
+
+    # ── 4. Node runtime ────────────────────────────────────────
     # resources/node-runtime is a symlink to a nodejs derivation, used as a
     # PREFIX (the app reaches for $node-runtime/bin/node). On Gentoo that
     # prefix is /usr.
@@ -68,7 +121,7 @@ else
         ok "node-runtime already portable"
     fi
 
-    # ── 4. Bundled plugin scripts ──────────────────────────────
+    # ── 5. Bundled plugin scripts ──────────────────────────────
     # The bundled 'sites' plugin ships shell scripts whose shebangs were also
     # rewritten to the store. They only run when you use that plugin, which is
     # exactly why they would otherwise fail confusingly and much later.
@@ -83,21 +136,33 @@ else
         ok "bundled plugin scripts already portable"
     fi
 
-    # ── 5. Can it actually link? ───────────────────────────────
+    # ── 6. Can it actually link? ───────────────────────────────
     # Empirical, not assumed. Anything still missing here is a package to add
     # to phases/10-packages.sh, not something to paper over at runtime.
+    #
+    # Check the interpreter FIRST. ldd works by invoking the binary's own
+    # loader, so when INTERP is dangling it fails as a whole and prints no
+    # "not found" line at all — and a grep for "not found" over no output
+    # matches nothing, which this step used to report as success. That false
+    # pass is exactly how a completely unlaunchable app showed six green ticks.
     step "Codex desktop / library check"
-    missing=$(cd "$CODEX" && LD_LIBRARY_PATH="$CODEX" ldd ./electron 2>/dev/null \
-              | grep 'not found' | awk '{print $1}' | sort -u)
-    if [ -n "$missing" ]; then
-        err "electron is missing shared libraries:"
-        printf '      %s\n' $missing
-        warn "add the providing package to phases/10-packages.sh, then re-run packages"
+    interp=$(patchelf --print-interpreter "$CODEX/electron" 2>/dev/null || true)
+    if [ ! -e "${interp:-/nonexistent}" ]; then
+        err "electron's ELF interpreter is missing: ${interp:-<none>}"
+        warn "step 3 should have rewritten it — check that patchelf is installed"
     else
-        ok "electron resolves every shared library"
+        missing=$(cd "$CODEX" && LD_LIBRARY_PATH="$CODEX" ldd ./electron 2>/dev/null \
+                  | grep 'not found' | awk '{print $1}' | sort -u)
+        if [ -n "$missing" ]; then
+            err "electron is missing shared libraries:"
+            printf '      %s\n' $missing
+            warn "add the providing package to phases/10-packages.sh, then re-run packages"
+        else
+            ok "electron links: interpreter $interp, all libraries resolve"
+        fi
     fi
 
-    # ── 6. Launcher entry ──────────────────────────────────────
+    # ── 7. Launcher entry ──────────────────────────────────────
     # Rendered from share/vendored/*.in rather than tracked verbatim, because
     # the Exec/Icon lines need an absolute path that depends on $HOME.
     step "Codex desktop / launcher entry"

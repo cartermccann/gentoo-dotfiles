@@ -243,6 +243,11 @@ TOOLS=(
     # after a depclean, and equery answers "what pulled this in" — all three
     # were wanted during the 2026-07-26 audit and none were present.
     app-portage/gentoolkit
+    # patchelf rewrites ELF INTERP and RPATH headers, which is the only way to
+    # run a prebuilt binary that was linked on NixOS. phases/27-vendored.sh
+    # depends on it for the Codex bundle; without it that app cannot start at
+    # all. It was installed by hand and undeclared until 2026-07-27.
+    dev-util/patchelf
 )
 missed=(); _ti=0; _tn=${#TOOLS[@]}
 for pkg in "${TOOLS[@]}"; do
