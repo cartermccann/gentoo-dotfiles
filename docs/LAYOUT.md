@@ -20,6 +20,16 @@ The Codex desktop bundle was originally unpacked inside
 That made an 800 MB blob look like a project. It is at `~/apps/codex-desktop`
 now.
 
+There is no third directory. `~/Tools/` existed for a while holding exactly one
+git checkout (`comcreate-brain-mcp`), which is a project by this table's own
+definition — source you edit. It moved to `~/projects/comcreate-brain-mcp` on
+2026-07-26 and `~/Tools` is gone. If a path does not answer "edit or run?", it
+does not get its own directory; it goes in whichever of the two it actually is.
+
+Moving a checkout is not free: something usually points at the old path. In that
+case it was one MCP server entry in `~/.claude.json`, which had to be updated in
+the same change or the server would have failed to start with no obvious cause.
+
 **Who decides what it is — you, or a package manager?**
 
 Everything installed on this machine arrives through exactly one of six
