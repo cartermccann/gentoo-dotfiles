@@ -70,6 +70,7 @@ system/portage/package.license/atlas /etc/portage/package.license/atlas
 system/portage/package.mask/atlas /etc/portage/package.mask/atlas
 system/portage/repos.conf/eselect-repo.conf /etc/portage/repos.conf/eselect-repo.conf
 system/portage/binrepos.conf/gentoo.conf /etc/portage/binrepos.conf/gentoo.conf
+system/portage/bashrc /etc/portage/bashrc
 system/ly/config.ini /etc/ly/config.ini
 system/kernel/cmdline /etc/kernel/cmdline
 system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install

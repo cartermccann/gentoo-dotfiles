@@ -64,9 +64,13 @@ deploy_system_file "$REPO_DIR/system/dracut.conf.d/atlas.conf" \
                    /etc/dracut.conf.d/atlas.conf
 
 # Snapshot policy. /.snapshots has been mounted since the install with nothing
-# writing to it; this is what finally uses it.
+# writing to it; this is what finally uses it. bashrc is the trigger: it
+# snapshots before portage installs anything, which is the whole scheduling
+# story here — btrbk's own timer is a systemd unit and this machine is OpenRC.
 deploy_system_file "$REPO_DIR/system/btrbk/btrbk.conf" \
                    /etc/btrbk/btrbk.conf
+deploy_system_file "$REPO_DIR/system/portage/bashrc" \
+                   /etc/portage/bashrc
 
 # consolefont was in --check's file map but NO phase deployed it: it read
 # "in sync" only because it had been placed by hand once. On a clean checkout the

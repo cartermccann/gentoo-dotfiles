@@ -95,7 +95,26 @@ lever, not shortening retention.
 
 ## Scheduling
 
-Nothing schedules this yet. btrbk ships `btrbk.timer` and `btrbk.service`, both
-systemd units, and this machine is OpenRC — they are inert. There is no cron
-daemon installed either. Until that is decided, snapshots are manual:
-`doas btrbk run` before anything risky.
+Snapshots are taken automatically **before portage installs anything**, by the
+`preinst` hook in `system/portage/bashrc`. There is no timer and no daemon:
+btrbk ships `btrbk.timer` and `btrbk.service`, both systemd units on an OpenRC
+machine, and no cron daemon is installed. Tying the snapshot to the event it
+protects against beats tying it to a clock, and it cannot be missed because the
+laptop was asleep.
+
+`emerge --pretend` and `--fetchonly` never reach `preinst`, so previewing an
+update does not litter snapshots. Binary merges do reach it, which matters on a
+`getbinpkg` machine where most installs never build anything.
+
+A 15-minute interval guard sits in front of it. `install.sh packages` runs a
+separate `emerge` per atom -- 38 for TOOLS alone -- so a hook keyed to the
+emerge invocation would produce 38 snapshots for one logical operation. The
+tradeoff: two genuinely distinct emerges less than 15 minutes apart share one
+snapshot, taken before the first, so rolling back undoes both. The stamp lives
+in `/run` (tmpfs), so the first emerge after any boot always snapshots.
+
+Only `/` is snapshotted by the hook. `/home` is not what an emerge puts at risk.
+To snapshot both, run `doas btrbk run` by hand.
+
+Verified 2026-07-26: a merge with the stamp cleared produced exactly one root
+snapshot, and a second merge one minute later produced none.
