@@ -116,14 +116,15 @@ CORE=(
     # btrfs is the root filesystem (subvols @, @home, @snapshots) — without the
     # userspace tools there is no scrub, no snapshot, no resize. btrbk drives
     # the snapshots: /.snapshots had been mounted since the install with nothing
-    # ever writing to it (docs/DECISIONS.md). Config in system/btrbk/.
+    # ever writing to it. Config and rollback notes in system/btrbk/.
     sys-fs/btrfs-progs app-backup/btrbk
     # vulkan loader: mango/scenefx render through it, and usbutils is how the
     # Codex Micro HID path gets debugged when it stops enumerating.
     media-libs/vulkan-loader sys-apps/usbutils
     # Limine is the bootloader (bin/setup-limine installs and configures it).
     # grub is NOT here: it was installed but unused, second in BootOrder with a
-    # stale config, and Phase 4 of docs/CLEANUP-2026-07-26.md removed it.
+    # stale config, and it was removed on 2026-07-26. efibootmgr below is
+    # what remains of that: keep it.
     #
     # efibootmgr is declared explicitly BECAUSE of that removal. It had only
     # ever been present as a grub dependency, so depclean listed it for removal

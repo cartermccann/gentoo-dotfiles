@@ -36,3 +36,13 @@ __pycache__/
 .DS_Store
 *.swp
 result
+
+# ── Planning artifacts, deliberately untracked ─────────────────
+# This repo is an installer: it should say what to install and why a setting is
+# the way it is, next to that setting. Audit reports, decision logs and one-time
+# cleanup scripts are notes about a particular day, not instructions for the
+# next machine. They live in ~/projects/wargames/atlas-cleanup/ instead.
+docs/DECISIONS.md
+docs/CLEANUP-*.md
+docs/AUDIT-*.md
+bin/cleanup-*

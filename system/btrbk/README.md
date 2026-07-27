@@ -15,8 +15,13 @@ and are read-only.
 
 Every snapshot is on `/dev/nvme0n1p3`, the same disk as the data. They cover a
 bad emerge, a botched config, an `rm` you regret. They cover nothing that
-happens to the disk. There is no `target` in the config because this machine has
-no second disk to send to (blocker B1 in `~/projects/wargames/LEDGER.md`).
+happens to the disk itself.
+
+There is deliberately no `target` in the config. Everything under `~/projects`
+is a git checkout with a remote, so the data that exists in exactly one place
+here is on the order of a megabyte, which a replication pipeline does not earn
+its keep on. What snapshots buy is the thing Gentoo has no other answer for:
+NixOS gives you a generation to roll back to, and portage gives you nothing.
 
 ## Restoring one file
 
