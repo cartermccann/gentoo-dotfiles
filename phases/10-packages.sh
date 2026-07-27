@@ -63,6 +63,11 @@ deploy_system_file "$REPO_DIR/system/kernel/cmdline" \
 deploy_system_file "$REPO_DIR/system/dracut.conf.d/atlas.conf" \
                    /etc/dracut.conf.d/atlas.conf
 
+# Snapshot policy. /.snapshots has been mounted since the install with nothing
+# writing to it; this is what finally uses it.
+deploy_system_file "$REPO_DIR/system/btrbk/btrbk.conf" \
+                   /etc/btrbk/btrbk.conf
+
 # consolefont was in --check's file map but NO phase deployed it: it read
 # "in sync" only because it had been placed by hand once. On a clean checkout the
 # ly greeter would have silently fallen back to the 8x16 console font. Found
@@ -105,8 +110,10 @@ CORE=(
     # breaks TLS, and therefore breaks emerge against the binhost.
     net-misc/networkmanager net-misc/chrony app-admin/sysklogd
     # btrfs is the root filesystem (subvols @, @home, @snapshots) — without the
-    # userspace tools there is no scrub, no snapshot, no resize.
-    sys-fs/btrfs-progs
+    # userspace tools there is no scrub, no snapshot, no resize. btrbk drives
+    # the snapshots: /.snapshots had been mounted since the install with nothing
+    # ever writing to it (docs/DECISIONS.md). Config in system/btrbk/.
+    sys-fs/btrfs-progs app-backup/btrbk
     # vulkan loader: mango/scenefx render through it, and usbutils is how the
     # Codex Micro HID path gets debugged when it stops enumerating.
     media-libs/vulkan-loader sys-apps/usbutils

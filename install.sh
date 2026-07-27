@@ -74,6 +74,7 @@ system/ly/config.ini /etc/ly/config.ini
 system/kernel/cmdline /etc/kernel/cmdline
 system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install
 system/dracut.conf.d/atlas.conf /etc/dracut.conf.d/atlas.conf
+system/btrbk/btrbk.conf /etc/btrbk/btrbk.conf
 system/conf.d/consolefont /etc/conf.d/consolefont
 MAP
 }
