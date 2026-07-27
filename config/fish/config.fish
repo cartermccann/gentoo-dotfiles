@@ -19,7 +19,9 @@ fish_add_path -g ~/apps/google-cloud-sdk/bin
 fish_add_path -g ~/.local/bin
 fish_add_path -g ~/.cargo/bin
 fish_add_path -g ~/.bun/bin
-fish_add_path -g ~/.deno/bin
+# ~/.deno/bin is deliberately absent: deno comes from portage (dev-lang/deno-bin,
+# pulled in by yt-dlp) at /usr/bin/deno. This entry used to shadow it with a
+# second copy from the upstream installer — see phases/30-ai-tools.sh.
 fish_add_path -g ~/go/bin        # `go install` target (gum lives here)
 fish_add_path -g ~/.opencode/bin
 

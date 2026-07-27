@@ -34,7 +34,13 @@ curl_sh opencode "https://opencode.ai/install"
 
 step "JS / Python runtimes"
 curl_sh bun "https://bun.sh/install"
-curl_sh deno "https://deno.land/install.sh" sh
+# deno is NOT installed here. It arrives from portage as dev-lang/deno-bin, a
+# hard dependency of net-misc/yt-dlp (declared in 10-packages.sh TOOLS), so it is
+# always present and cannot be removed. Running the upstream installer as well
+# put a second deno in ~/.deno and, because config.fish put ~/.deno/bin ahead of
+# /usr/bin, that copy won — the same shadowing class as the vite-plus/node
+# problem on kronos. One owner is worth more than a point release: portage's
+# 2.8.3 replaces the installer's 2.9.3.
 curl_sh uv "https://astral.sh/uv/install.sh" sh
 if have corepack; then run_root corepack enable || npm_g pnpm; else npm_g pnpm; fi
 
