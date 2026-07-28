@@ -39,16 +39,22 @@ format = "[](fg:accent)[](fg:surface2)[ $symbol$branch ]($style)"
 [git_status]
 style = "bg:surface2 fg:accent_ink"
 format = "[$all_status$ahead_behind]($style)[](fg:surface2)"
+# Glyphs here MUST come from the Nerd Font PUA, not the Unicode
+# Arrows/Dingbats blocks. Nerd Font patching ADDS the PUA ranges; it does
+# not backfill blocks upstream JetBrains Mono never shipped. U+21E1/21E3/
+# 21D5/271A/2718 are matched by ZERO installed fonts (`fc-list
+# ':charset=21E1'` returns nothing), so they render as tofu instead of
+# falling back. Verify any new glyph with fc-list before using it.
 conflicted = "= "
-ahead = "⇡${count} "
-behind = "⇣${count} "
-diverged = "⇕ "
+ahead = "${count} "
+behind = "${count} "
+diverged = " "
 untracked = "? "
-stashed = " "
-modified = "✚ "
+stashed = " "          # nf-fa-archive
+modified = " "
 staged = "● "
 renamed = "» "
-deleted = "✘ "
+deleted = " "
 
 # Language versions: each is its own rounded pill on the surface colour.
 [nodejs]

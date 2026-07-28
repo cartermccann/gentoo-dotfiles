@@ -57,7 +57,7 @@ inputbar {
     children: [ prompt, entry ];
 }
 prompt { text-color: @accent; }
-entry  { placeholder: "Search…"; placeholder-color: @fg-alt; }
+entry  { text-color: @fg; placeholder: "Search…"; placeholder-color: @fg-alt; }
 
 /* border: 0 is load-bearing. rofi's BUILT-IN theme sets
  *   listview { border: 2px dash 0px 0px; }

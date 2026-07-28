@@ -181,15 +181,6 @@ CORE=(
     # Micro's HID path goes through libusb. Both are the difference between an
     # app that starts and one that dies with a bare "not found".
     net-print/cups dev-libs/libusb
-    # webkit-gtk[wayland] is the same situation one step further out: NOTHING in
-    # portage depends on it (`equery depends` returns empty), so it looks like an
-    # 83 MB orphan that depclean should take. It is not. ~/apps/buzz is a Tauri v2
-    # app, and Tauri renders through wry -> libwebkit2gtk-4.1. Portage cannot see
-    # that dependency because buzz is not a portage package, so the only thing
-    # standing between it and a depclean is this line. The `wayland` USE flag
-    # matters too (see package.use/atlas) — without it the web views go through
-    # XWayland.
-    net-libs/webkit-gtk
     # remote access — the LAN address changes, tailscale does not. `tailscale
     # up` still has to be run by hand once; nothing here authenticates.
     net-vpn/tailscale
