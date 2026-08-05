@@ -85,6 +85,9 @@ system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.inst
 system/dracut.conf.d/atlas.conf /etc/dracut.conf.d/atlas.conf
 system/btrbk/btrbk.conf /etc/btrbk/btrbk.conf
 system/conf.d/consolefont /etc/conf.d/consolefont
+system/wayland-sessions/mango.desktop /usr/share/wayland-sessions/mango.desktop
+system/portage/env/no-session-desktop.conf /etc/portage/env/no-session-desktop.conf
+system/portage/package.env/atlas /etc/portage/package.env/atlas
 system/udev/99-worklouder.rules /etc/udev/rules.d/99-worklouder.rules
 MAP
 }
@@ -632,6 +635,11 @@ run_check() {
     echo
     if [ "$drift" = "0" ]; then ok "system matches the repo"
     else warn "drift found — './install.sh packages' redeploys system files"; fi
+    # Return it, do not just print it. Until 2026-08-05 --check exited 0
+    # unconditionally, so `./install.sh --check && deploy` ran the deploy on a
+    # drifted machine and every "exit 0" ever quoted as proof of cleanliness
+    # proved only that the script had finished.
+    return "$drift"
     # Say what was NOT checked. Every step above inspects the RUNNING system,
     # and on 2026-08-05 all of them passed on a machine the repo could not have
     # rebuilt: fourteen keyword/USE lines were undeclared, and the packages were
@@ -705,7 +713,7 @@ run_check_rebuild() {
 SELECTED=()
 for arg in "$@"; do
     case "$arg" in
-        --check) run_check; exit 0 ;;
+        --check) run_check; exit $? ;;
         --check-rebuild) run_check_rebuild; exit 0 ;;
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;

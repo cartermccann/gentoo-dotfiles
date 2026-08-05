@@ -1,0 +1,8 @@
+# Per-package environment overrides. Each line: <atom> <file in /etc/portage/env>
+#
+# gui-wm/mangowm ships /usr/share/wayland-sessions/mango.desktop with
+# `Exec=mango`, which loses the mango-session wrapper this machine's session
+# depends on. See system/portage/env/no-session-desktop.conf for the full
+# story; the short version is that without the wrapper there is no D-Bus
+# session bus and half the session silently does not start.
+gui-wm/mangowm no-session-desktop.conf

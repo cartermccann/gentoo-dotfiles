@@ -1,0 +1,9 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Mango
+Comment=dwl-based Wayland compositor
+DesktopNames=mango;wlroots
+# See system/bin/mango-session — it supplies both the D-Bus session bus and
+# XCURSOR_THEME/SIZE, neither of which mango can set for itself.
+Exec=/usr/local/bin/mango-session
+Type=Application
