@@ -37,16 +37,30 @@ channels, and each one is declared in exactly one place:
 
 | channel | declared in | for |
 |---|---|---|
-| portage (system) | `phases/10-packages.sh` → `CORE`, `TOOLS` | the desktop, CLI, languages |
-| portage (apps) | `phases/25-apps.sh` → `APPS` | GUI software Gentoo packages |
+| portage (system) | `system/portage/sets/atlas-core`, `atlas-tools` | the desktop, CLI, languages |
+| portage (apps) | `system/portage/sets/atlas-apps` | GUI software Gentoo packages |
+| portage (dev CLIs) | `system/portage/sets/atlas-devtools` | cloud/API/container CLIs with ebuilds |
+| portage (bootstrap) | `system/portage/sets/atlas-bootstrap` | git, flatpak, ly, eselect-repository |
 | flatpak | `phases/20-flatpaks.sh` | GUI software Gentoo does not package |
 | vendored | `phases/27-vendored.sh` | prebuilt bundles nobody packages |
-| language runtimes | `phases/30-ai-tools.sh` | npm/cargo/go/uv installs |
+| language runtimes | `phases/30-ai-tools.sh`, `phases/32-devtools.sh` | npm/cargo/go/uv installs |
 | fonts | `phases/45-fonts.sh` | typefaces not in the tree |
 
+Everything portage installs is declared in a **package set**, not in a bash
+array inside a phase. The set files are real `/etc/portage/sets/` files: portage
+reads the same list the repo does, and registering them in `world_sets` makes
+`emerge --depclean` the removal step. That is what lets deleting a line
+*uninstall* something, which an array could never express.
+
+Each set file explains its own contents; the decision log and the one-time
+migration steps are in `~/projects/wargames/atlas-cleanup/DECISIONS.md`, per
+the rule in `.gitignore` that keeps notes-about-a-particular-day out of an
+installer.
+
 If you install something and it is not in one of those lists, the next machine
-will not have it and `./install.sh --check` will not miss it. That is the whole
-contract.
+will not have it — and `./install.sh --check` now catches it from both
+directions: declared-but-absent, and installed-but-undeclared. That is the
+whole contract.
 
 ## What is deployed, and how
 

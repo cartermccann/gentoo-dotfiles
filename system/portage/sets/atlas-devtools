@@ -1,0 +1,26 @@
+# atlas-devtools — developer CLIs that DO have an ebuild.
+#
+# Source of truth for the portage section of phases/32-devtools.sh. That phase
+# installs from four different places (portage, npm, uv, upstream installers);
+# only what is listed here comes from portage, and only this part can be a
+# depclean root. The npm/uv/curl tools are unmanaged by portage and unaffected
+# by the package-sets model.
+#
+# Both GURU packages need a keyword line (GURU never stabilises anything);
+# awscli-bin over awscli deliberately — the source build drags in a large
+# python dependency set to produce the same binary.
+
+dev-util/stripe-cli
+app-admin/awscli-bin
+
+# GURU — API client, the Electron repack
+dev-util/bruno-bin
+
+# Containers. Undeclared until 2026-07-26 despite docker being enabled in
+# the default runlevel and $USER being in the docker group — files under
+# ~/.rustup and ~/.buzz are group-docker, so the group was added by hand too.
+# docker-cli is a separate package from the daemon; docker-compose is the v2
+# plugin, not the old python script.
+app-containers/docker
+app-containers/docker-cli
+app-containers/docker-compose

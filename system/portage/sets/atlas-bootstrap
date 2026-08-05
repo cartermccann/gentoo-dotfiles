@@ -1,0 +1,32 @@
+# atlas-bootstrap — packages emerged inline, outside any phase array.
+#
+# This set exists entirely because of the package-sets model. Under the old bash-array model
+# these four were installed by a bare `emerge --noreplace` in the middle of a
+# phase and registered themselves in the world file, so nothing ever noticed
+# they were undeclared. Once the world file is emptied and the sets become the
+# only depclean roots, an undeclared package is a package `emerge --depclean`
+# removes — and every one of these is load-bearing.
+#
+# Found 2026-08-05 by diffing world against the real array members. An earlier
+# pass that grepped all of phases/ missed three of them, because a package
+# named only in a *comment* counted as declared. If you add another inline
+# emerge anywhere, it belongs here too.
+
+# phases/10-packages.sh:94 — bootstrapped before the GURU overlay is enabled,
+# because eselect-repository needs git to sync. Also the repo's own VCS.
+dev-vcs/git
+
+# phases/10-packages.sh:98 — enables the GURU overlay, which is where
+# nerdfonts, sd, watchexec and mangowm come from. Remove this and roughly a
+# dozen atoms in atlas-core stop resolving.
+app-eselect/eselect-repository
+
+# phases/20-flatpaks.sh:9 — the flatpak runtime itself. The flatpak phase
+# installs applications *through* it, so it can never be one of them.
+sys-apps/flatpak
+
+# bin/setup-ly:59 — the display manager. NOT in atlas-core: the GURU ebuild
+# needs a Manifest workaround, so installing it must stay an explicit,
+# auditable step (see README). But it must be a depclean root regardless, or
+# the first converged run removes the only way to log in graphically.
+x11-misc/ly

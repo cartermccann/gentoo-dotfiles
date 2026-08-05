@@ -13,30 +13,34 @@ source "$REPO_DIR/lib/common.sh"
 LOG="$HOME/.cache/atlas-devtools.log"; mkdir -p "$(dirname "$LOG")"
 
 # ── portage ────────────────────────────────────────────────────
-# Both GURU packages need a keyword line (GURU never stabilises anything);
-# awscli-bin over awscli deliberately — the source build drags in a large
-# python dependency set to produce the same binary.
+# Atom list: system/portage/sets/atlas-devtools (see docs/LAYOUT.md ("Who decides what it is")).
+# Only this section is portage-managed; the npm, uv and curl installs below are
+# invisible to depclean and unaffected.
+#
+# This set was very nearly missed during the migration to package sets: the first pass
+# only looked at 10-packages and 25-apps, and a parity check against the world
+# file is what caught six packages — docker included — that a converged run
+# would have uninstalled.
 step "portage CLIs"
-PORTAGE_CLIS=(
-    dev-util/stripe-cli      # GURU
-    app-admin/awscli-bin
-    dev-util/bruno-bin       # GURU — API client, the Electron repack
-    # Containers. Undeclared until 2026-07-26 despite docker being enabled in
-    # the default runlevel and $USER being in the docker group — files under
-    # ~/.rustup and ~/.buzz are group-docker, so the group was added by hand too.
-    # docker-cli is a separate package from the daemon; docker-compose is the v2
-    # plugin, not the old python script.
-    app-containers/docker
-    app-containers/docker-cli
-    app-containers/docker-compose
-)
-for pkg in "${PORTAGE_CLIS[@]}"; do
-    if [ "$DRY_RUN" = "1" ]; then info "[dry-run] emerge $pkg"; continue; fi
-    if qlist -I "$pkg" >/dev/null 2>&1; then ok "$pkg (already)"; continue; fi
-    echo "### $pkg" >> "$LOG"
-    if as_root emerge --noreplace --quiet "$pkg" >>"$LOG" 2>&1; then ok "$pkg"
-    else warn "$pkg failed (see $LOG)"; fi
-done
+deploy_set atlas-devtools
+mapfile -t PORTAGE_CLIS < <(read_set atlas-devtools)
+
+if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] emerge @atlas-devtools (${#PORTAGE_CLIS[@]} packages)"
+elif as_root emerge --noreplace --quiet @atlas-devtools >>"$LOG" 2>&1; then
+    ok "@atlas-devtools registered (${#PORTAGE_CLIS[@]} packages)"
+else
+    # --oneshot in the fallback: the set emerge above is what registers the set
+    # in world_sets, and individual atoms must not become depclean roots.
+    warn "devtools set had issues — installing individually"
+    for pkg in "${PORTAGE_CLIS[@]}"; do
+        if qlist -I "$pkg" >/dev/null 2>&1; then ok "$pkg (already)"; continue; fi
+        echo "### $pkg" >> "$LOG"
+        if as_root emerge --oneshot --quiet "$pkg" >>"$LOG" 2>&1; then ok "$pkg"
+        else warn "$pkg failed (see $LOG)"; fi
+    done
+    warn "@atlas-devtools is NOT registered while any atom fails to resolve"
+fi
 
 # ── npm globals ────────────────────────────────────────────────
 # Pinned to the versions kronos runs. Unpinned installs are how two machines

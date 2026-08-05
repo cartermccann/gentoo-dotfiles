@@ -1,0 +1,147 @@
+# atlas-core — the desktop stack, audio, bluetooth, languages.
+#
+# Deployed to /etc/portage/sets/atlas-core, where portage's [usersets] class
+# turns every file in that directory into a set named after the file. Install
+# with `emerge @atlas-core`; that also registers @atlas-core in world_sets,
+# which makes every atom below a depclean root.
+#
+# THIS FILE IS THE SOURCE OF TRUTH. phases/10-packages.sh reads it; it does not
+# carry its own list. Deleting a line here and re-running the phase does NOT
+# uninstall — `emerge --depclean` does, after `./install.sh --check` reports the
+# drift. See docs/LAYOUT.md.
+#
+# One atom per line. `#` comments and blank lines are stripped by portage.
+
+# ── The base the handbook install left behind ──────────────────
+# Everything in this block was installed by hand during the original Gentoo
+# install and then never declared, so `--check`'s @world diff found all of it
+# missing on 2026-07-26. A clean checkout would have produced a machine with
+# no kernel, no privilege escalation, no network and no session — while
+# system/services.conf cheerfully declared dbus, elogind and NetworkManager
+# as services to *enable*, with nothing to install them.
+
+# The kernel. dist-kernel (see make.conf USE) so updates rebuild the
+# initramfs and run the hooks in system/kernel/postinst.d.
+sys-kernel/gentoo-kernel-bin
+sys-kernel/linux-firmware
+
+# doas is what install.sh itself escalates with — lib/common.sh prefers it
+# over sudo. The installer depended on a package the installer never installed.
+app-admin/doas
+
+# session + device plumbing. seatd and elogind are what let a non-root user
+# own the seat mango runs on; dbus is required by half the desktop.
+sys-apps/dbus
+sys-auth/elogind
+sys-auth/seatd
+
+# network + time + logs. chrony matters more than it looks: a skewed clock
+# breaks TLS, and therefore breaks emerge against the binhost.
+net-misc/networkmanager
+net-misc/chrony
+app-admin/sysklogd
+
+# btrfs is the root filesystem (subvols @, @home, @snapshots) — without the
+# userspace tools there is no scrub, no snapshot, no resize. btrbk drives
+# the snapshots: /.snapshots had been mounted since the install with nothing
+# ever writing to it. Config and rollback notes in system/btrbk/.
+sys-fs/btrfs-progs
+app-backup/btrbk
+
+# vulkan loader: mango/scenefx render through it, and usbutils is how the
+# Codex Micro HID path gets debugged when it stops enumerating.
+media-libs/vulkan-loader
+sys-apps/usbutils
+
+# Limine is the bootloader (bin/setup-limine installs and configures it).
+# grub is NOT here: it was installed but unused, second in BootOrder with a
+# stale config, and it was removed on 2026-07-26. efibootmgr below is
+# what remains of that: keep it.
+#
+# efibootmgr is declared explicitly BECAUSE of that removal. It had only
+# ever been present as a grub dependency, so depclean listed it for removal
+# alongside grub — and it is the only tool that can read or repair the NVRAM
+# entry this machine now depends on for booting. If that entry is ever lost,
+# recovery is `efibootmgr -c -d /dev/nvme0n1 -p 1 -L Limine -l
+# '\EFI\Limine\BOOTX64.EFI'`, which is impossible without it installed.
+sys-boot/limine
+sys-boot/efibootmgr
+
+# ── compositor + session ───────────────────────────────────────
+gui-wm/mangowm
+gui-libs/scenefx
+# login: ly is NOT here — it needs the GURU Manifest workaround in
+# bin/setup-ly, which must be an explicit, auditable step. It is declared in
+# atlas-bootstrap so depclean does not remove the display manager.
+
+# ── wayland desktop tools ──────────────────────────────────────
+gui-apps/waybar
+gui-apps/swaync
+gui-apps/swaybg
+x11-misc/rofi
+gui-apps/wl-clipboard
+app-misc/cliphist
+gui-apps/grim
+gui-apps/slurp
+gui-apps/swaylock
+gui-apps/wlsunset
+gui-apps/swayidle
+gui-apps/wtype
+x11-libs/libnotify
+media-sound/playerctl
+app-misc/brightnessctl
+gui-libs/xdg-desktop-portal-wlr
+
+# ── terminals + file manager + editor ──────────────────────────
+x11-terms/ghostty
+x11-terms/alacritty
+xfce-base/thunar
+app-editors/neovim
+
+# ── audio ──────────────────────────────────────────────────────
+media-video/pipewire
+media-video/wireplumber
+media-sound/pavucontrol
+
+# ── bluetooth ──────────────────────────────────────────────────
+net-wireless/bluez
+net-wireless/blueman
+gnome-extra/nm-applet
+
+# ── languages / toolchains ─────────────────────────────────────
+dev-lang/rust-bin
+dev-lang/go
+dev-lang/zig
+net-libs/nodejs
+
+# ── shell ──────────────────────────────────────────────────────
+app-shells/fish
+app-shells/starship
+
+# ── cursor theme (matches kronos) ──────────────────────────────
+x11-themes/bibata-xcursors
+
+# ── fonts (atom is nerdfonts, no hyphen — and it lives in GURU) ─
+media-fonts/nerdfonts
+media-fonts/noto-emoji
+
+# console font for the ly greeter — see system/conf.d/consolefont.
+# Load-bearing, not cosmetic: consolefont names ter-u24b, and if the
+# package is absent the service falls back to the tiny 8x16 default.
+media-fonts/terminus-font
+
+# session supervision — s6 runs the user services in services/. Not
+# optional: config/mango/autostart.sh starts a tree over them at login.
+sys-apps/s6
+sys-apps/s6-rc
+
+# runtime for the vendored Electron bundles in ~/apps (phases/27-vendored).
+# Chromium dlopen()s libcups even with printing unused, and the Codex
+# Micro's HID path goes through libusb. Both are the difference between an
+# app that starts and one that dies with a bare "not found".
+net-print/cups
+dev-libs/libusb
+
+# remote access — the LAN address changes, tailscale does not. `tailscale
+# up` still has to be run by hand once; nothing here authenticates.
+net-vpn/tailscale

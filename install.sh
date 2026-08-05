@@ -71,6 +71,11 @@ system/portage/package.mask/atlas /etc/portage/package.mask/atlas
 system/portage/repos.conf/eselect-repo.conf /etc/portage/repos.conf/eselect-repo.conf
 system/portage/binrepos.conf/gentoo.conf /etc/portage/binrepos.conf/gentoo.conf
 system/portage/bashrc /etc/portage/bashrc
+system/portage/sets/atlas-bootstrap /etc/portage/sets/atlas-bootstrap
+system/portage/sets/atlas-core /etc/portage/sets/atlas-core
+system/portage/sets/atlas-tools /etc/portage/sets/atlas-tools
+system/portage/sets/atlas-apps /etc/portage/sets/atlas-apps
+system/portage/sets/atlas-devtools /etc/portage/sets/atlas-devtools
 system/ly/config.ini /etc/ly/config.ini
 system/kernel/cmdline /etc/kernel/cmdline
 system/kernel/postinst.d/95-limine.install /etc/kernel/postinst.d/95-limine.install
@@ -82,41 +87,24 @@ MAP
 }
 
 # ── Atoms this repo declares ───────────────────────────────────
-# Read from two places, because the phases install packages two ways: the
-# CORE/TOOLS/APPS arrays, and the handful of bootstrap `emerge` calls that run
-# before those arrays (git and eselect-repository, needed to enable GURU).
-#
-# Only text INSIDE a NAME=( ... ) block counts, with comments stripped. A
-# category/name string in prose is not a declaration — 45-fonts.sh mentions
-# "media-fonts/geist, absent" and 30-ai-tools.sh mentions
-# "dev-lang/zig-bin-0.15.2" in comments, and a naive grep reads both as
-# packages this repo installs.
+# One place: the set files under system/portage/sets/. Portage reads the same
+# files, so "declared" and "what emerge will install" cannot disagree.
 declared_atoms() {
-    local f
-    # bin/setup-* counts too: setup-ly and setup-limine emerge x11-misc/ly and
-    # sys-boot/limine, which the phases deliberately do not (ly needs a GURU
-    # Manifest workaround, so it is an explicit auditable step).
+    # Declared == listed in a set file under system/portage/sets/. Nothing else
+    # counts, and that is the point of the package-sets model.
     #
-    # Only setup-*, not all of bin/. The other scripts there are tools, not
-    # installers, and scanning them read package names out of help text: a
-    # cleanup script printing "emerge --noreplace dev-qt/qtbase" as a recovery
-    # hint was enough to make the world diff believe the repo installs qtbase.
-    for f in "$REPO_DIR"/phases/*.sh "$REPO_DIR"/bin/setup-*; do
-        [ -f "$f" ] || continue
-        awk '
-            /^[A-Z][A-Z_]*=\(/ { inarr=1; next }
-            inarr && /^\)/     { inarr=0; next }
-            inarr              { sub(/#.*/, ""); print }
-        ' "$f"
-        # An emerge that REMOVES something is not a declaration. Without this,
-        # `emerge --deselect dev-qt/qtbase` in a cleanup script read as "the repo
-        # installs qtbase" and quietly satisfied the world diff — the opposite of
-        # the truth.
-        grep -E '\bemerge\b' "$f" \
-            | grep -vE -- '--deselect|--unmerge|--depclean|[[:space:]]-C[[:space:]]' \
-            | sed 's/#.*//'
-    done | tr ' \t' '\n\n' \
-        | sed 's/[;&|()"'"'"'`]//g' \
+    # This used to scrape bash arrays and `emerge` lines out of phases/ and
+    # bin/setup-*, which was a guess dressed as a check. Two ways it lied:
+    # scanning comments made a package "declared" because a comment mentioned
+    # it (three of the four atlas-bootstrap packages hid behind that on
+    # 2026-08-05), and an `emerge --deselect` in a cleanup script had to be
+    # explicitly filtered out because a removal read as a declaration.
+    #
+    # Reading the sets has neither problem: there is exactly one list, portage
+    # reads the same file, and an inline `emerge` somewhere in a phase is now
+    # correctly reported as undeclared rather than silently satisfying the diff.
+    sed 's/#.*//' "$REPO_DIR"/system/portage/sets/* 2>/dev/null \
+        | tr -s '[:space:]' '\n' \
         | grep -oE '^[<>=~]*[a-z][a-z0-9]*(-[a-z0-9]+)?/[a-zA-Z0-9][a-zA-Z0-9._+-]*$' \
         | sed 's/^[<>=~]*//' \
         | sed -E 's/-[0-9][a-zA-Z0-9._-]*$//' \
@@ -317,10 +305,12 @@ run_check() {
     undeclared_pkgs=$(comm -13 <(declared_atoms) <(world_atoms))
     missing_pkgs=$(comm -23 <(declared_atoms) <(world_atoms))
     if [ -n "$undeclared_pkgs" ]; then
-        warn "$(printf '%s\n' "$undeclared_pkgs" | wc -l) in @world, declared in no phase:"
-        printf '      %s\n' $undeclared_pkgs; drift=1
+        warn "$(printf '%s\n' "$undeclared_pkgs" | wc -l) in @world, declared in no set:"
+        printf '      %s\n' $undeclared_pkgs
+        info "      add it to the right file in system/portage/sets/"
+        drift=1
     else
-        ok "every @world package is declared in a phase"
+        ok "every @world package is declared in a set"
     fi
     if [ -n "$missing_pkgs" ]; then
         # Either a typo'd atom, or a package the repo asks for that never
@@ -357,6 +347,40 @@ run_check() {
         drift=1
     else
         ok "no undeclared services enabled"
+    fi
+
+    step "removable packages (--depclean --pretend)"
+    # THE REVERSE DIRECTION. Every other check here asks "is what the repo
+    # declares present?". This asks "is anything present that the repo does not
+    # declare?" — the question that had no answer at all before package sets, because
+    # `emerge --noreplace` only ever adds. Deleting an atom from a bash array
+    # left the package installed forever and nothing noticed.
+    #
+    # Read-only: --pretend never removes anything. Acting on it is deliberate
+    # and manual, by design — a wrong set file plus an automatic
+    # depclean is how you uninstall your own bootloader.
+    if ! have emerge; then
+        info "emerge not available — skipping"
+    elif [ ! -s /var/lib/portage/world_sets ]; then
+        # Until the sets are registered, world still holds ~113 individual
+        # atoms and depclean protects all of them, so a clean result here would
+        # mean nothing. Say that rather than printing a reassuring "0".
+        warn "world_sets is empty — the package-sets migration has not been run"
+        info "      until then the world file, not the sets, is the source of truth"
+        info "      migration steps: ~/projects/wargames/atlas-cleanup/DECISIONS.md"
+    else
+        local removable
+        removable=$(emerge --depclean --pretend --quiet 2>/dev/null \
+            | grep -oE '^[[:space:]]*[a-z0-9-]+/[a-zA-Z0-9._+-]+' | tr -d ' ')
+        if [ -n "$removable" ]; then
+            warn "$(printf '%s\n' "$removable" | wc -l) installed, declared in no set:"
+            printf '      %s\n' $removable
+            info "      declare it in system/portage/sets/, or remove it with:"
+            info "        doas emerge --depclean --ask   (read the list first)"
+            drift=1
+        else
+            ok "nothing installed that the sets do not declare"
+        fi
     fi
 
     step "pending portage config"

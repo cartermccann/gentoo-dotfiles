@@ -1,0 +1,76 @@
+# atlas-tools — the CLI toolset carried over from kronos.
+#
+# Source of truth for phases/10-packages.sh. See atlas-core for the mechanism
+# and docs/LAYOUT.md for why sets replaced the bash arrays.
+#
+# Category-qualified so bare-name ambiguity cannot abort a resolution pass.
+
+sys-apps/ripgrep
+sys-apps/fd
+sys-apps/eza
+sys-apps/bat
+app-shells/zoxide
+app-shells/atuin
+app-shells/fzf
+app-misc/yazi
+app-misc/jq
+app-misc/yq
+app-text/tree
+dev-vcs/lazygit
+dev-vcs/git-lfs
+dev-util/git-delta
+dev-util/difftastic
+
+# Five of these were in the wrong category until 2026-07-26 (dev-util/just,
+# dev-util/watchexec, app-text/sd, sys-apps/dust, sys-apps/broot). They still
+# installed, because the phase's emerge_pkg retries the bare name — the log
+# showed five `retry bare:` lines every run. That fallback is worth keeping as
+# a safety net, but relying on it costs a failed resolution pass per atom and
+# hides real typos, so the categories are now correct. sd and watchexec are GURU.
+dev-build/just
+app-misc/watchexec
+dev-util/tokei
+app-benchmarks/hyperfine
+sys-apps/sd
+sys-process/procs
+sys-block/dust
+sys-fs/duf
+app-misc/broot
+app-misc/tealdeer
+app-misc/glow
+app-arch/ouch
+net-misc/yt-dlp
+media-sound/cava
+app-misc/cmatrix
+games-misc/cbonsai
+
+# btop is the process viewer config/btop themes, fastfetch is what the
+# kronos-style greeting would use, and github-cli is not optional: it is the
+# git credential helper in ~/.gitconfig, so without it every push to GitHub
+# fails to authenticate on a freshly built machine.
+sys-process/btop
+app-misc/fastfetch
+dev-util/github-cli
+
+# terminal workflow — config/tmux and the fish functions depend on these:
+# `dev` and `t` are tmux wrappers, and config.fish hooks direnv if present.
+app-misc/tmux
+app-shells/direnv
+app-misc/television
+
+# portage maintenance. Not optional in practice: eclean-dist is the only
+# supported way to prune /var/cache/distfiles (3.7 GB and growing),
+# revdep-rebuild finds binaries left linking against removed libraries
+# after a depclean, and equery answers "what pulled this in" — all three
+# were wanted during the 2026-07-26 audit and none were present.
+#
+# gentoolkit is now doubly load-bearing: package sets make `emerge --depclean` the
+# removal step, and revdep-rebuild is what repairs the fallout when a depclean
+# takes a library something still links against.
+app-portage/gentoolkit
+
+# patchelf rewrites ELF INTERP and RPATH headers, which is the only way to
+# run a prebuilt binary that was linked on NixOS. phases/27-vendored.sh
+# depends on it for the Codex bundle; without it that app cannot start at
+# all. It was installed by hand and undeclared until 2026-07-27.
+dev-util/patchelf

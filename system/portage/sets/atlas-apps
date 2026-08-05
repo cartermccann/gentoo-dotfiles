@@ -1,0 +1,40 @@
+# atlas-apps — GUI applications that ARE packaged for Gentoo.
+#
+# Source of truth for phases/25-apps.sh. See atlas-core for the mechanism and
+# docs/LAYOUT.md for why sets replaced the bash arrays.
+#
+# Separate from atlas-core (the desktop stack the machine needs to boot into a
+# usable session) and from phases/20-flatpaks.sh (GUI apps Gentoo does NOT
+# package). This is the middle case: desktop software with a real ebuild, all
+# of it optional, none of it load-bearing.
+#
+# Most of these are proprietary binary repacks, which is why they needed a
+# keyword line in package.accept_keywords/atlas. The exceptions are obs-studio
+# and easyeffects: both are stable amd64 and need no keyword, but both are
+# USE-flag sensitive and get a verification step at the end of the phase.
+
+# notes vault
+app-office/obsidian
+
+# 1Password — the CLI is a separate package from the GUI
+gui-apps/1password
+app-misc/1password-cli
+
+net-im/slack
+
+# USE flags matter here, see package.use/atlas
+media-video/obs-studio
+
+# System-wide audio DSP: EQ, mic gate/denoise, per-app effects. A PipeWire
+# client, not part of the daemon stack — see services/easyeffects/run.
+# 7.2.5 is stable amd64; 8.x would need a ~amd64 keyword line. Its RDEPEND
+# pulls lsp-plugins[lv2], and lv2 is IUSE-default-on, so no package.use
+# entry is required. USE="calf mda-lv2 zamaudio" adds optional plugin banks.
+media-sound/easyeffects
+
+# The browser. It IS installed from portage (-> /opt/zen), not flatpak, and
+# was undeclared until 2026-07-26 — so a clean checkout produced a machine
+# with no browser at all. Its ~amd64 keyword line was undeclared too, in a
+# stray /etc/portage/package.accept_keywords/zen-bin that this repo has now
+# absorbed.
+www-client/zen-bin

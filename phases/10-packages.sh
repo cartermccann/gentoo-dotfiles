@@ -10,28 +10,9 @@ run_root mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use 
                   /etc/portage/package.license /etc/portage/package.mask
 
 # Source of truth is system/portage/ in this repo — real files you can read,
-# diff and edit. deploy_system_file copies and reports drift rather than
-# symlinking: /etc/portage decides what root emerges, so pointing it at a
-# user-writable git checkout would be a privilege-escalation path.
-deploy_system_file() {   # src dst mode
-    local src="$1" dst="$2" mode="${3:-0644}"
-    if [ "$DRY_RUN" = "1" ]; then info "[dry-run] install $src -> $dst"; return; fi
-    if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
-        ok "${dst} (unchanged)"
-    else
-        # Backups go to a directory of their own, NOT beside the target. Writing
-        # "$dst.bak.<stamp>" put files portage does not own into
-        # /etc/portage/package.*, where --check's stray scan then correctly
-        # reported them as UNDECLARED — this function was manufacturing the exact
-        # drift the check exists to find.
-        if [ -f "$dst" ]; then
-            as_root mkdir -p "$CONFIG_BACKUP_DIR"
-            as_root cp "$dst" \
-                "$CONFIG_BACKUP_DIR/$(echo "${dst#/}" | tr / _).$(date +%Y%m%d-%H%M%S)"
-        fi
-        as_root install -D -m "$mode" "$src" "$dst" && ok "${dst}"
-    fi
-}
+# diff and edit. deploy_system_file (lib/common.sh) copies and reports drift
+# rather than symlinking: /etc/portage decides what root emerges, so pointing
+# it at a user-writable git checkout would be a privilege-escalation path.
 
 deploy_system_file "$REPO_DIR/system/portage/package.accept_keywords/atlas" \
                    /etc/portage/package.accept_keywords/atlas
@@ -89,6 +70,23 @@ deploy_system_file "$REPO_DIR/system/conf.d/consolefont" \
 deploy_system_file "$REPO_DIR/system/udev/99-worklouder.rules" \
                    /etc/udev/rules.d/99-worklouder.rules
 
+# ── Package sets ───────────────────────────────────────────────
+# These four files are the source of truth for every portage package this repo
+# installs; the phases below read them rather than carrying bash arrays. They
+# must be in /etc/portage/sets BEFORE any `emerge @atlas-*` below, or emerge
+# resolves the set against a stale copy. See docs/LAYOUT.md.
+#
+# atlas-bootstrap is the one that is easy to miss: git, eselect-repository,
+# flatpak and ly are emerged inline (here and in 20-flatpaks / bin/setup-ly),
+# never from an array, so nothing declared them until the move to package sets. Once the world
+# file is emptied they would be the first things `emerge --depclean` removes.
+step "package sets"
+deploy_set atlas-bootstrap
+deploy_set atlas-core
+deploy_set atlas-tools
+deploy_set atlas-apps
+deploy_set atlas-devtools
+
 # ── GURU overlay ───────────────────────────────────────────────
 step "GURU overlay"
 if have git; then :; else run_root emerge --noreplace --quiet dev-vcs/git; fi
@@ -101,168 +99,92 @@ fi
 run_root emerge --sync guru
 
 # ── Core desktop + system packages (one transaction) ───────────
+# The atom list lives in system/portage/sets/atlas-core, NOT here. It used to
+# be an 80-line bash array; the move to package sets took it out so that `emerge --depclean`
+# can treat it as the set of things that are supposed to exist. Deleting a line
+# from the set file is now a removal, which a bash array could never express.
 step "core packages (desktop stack, audio, bluetooth, langs)"
-CORE=(
-    # ── The base the handbook install left behind ──────────────
-    # Everything in this block was installed by hand during the original Gentoo
-    # install and then never declared, so `--check`'s @world diff found all of it
-    # missing on 2026-07-26. A clean checkout would have produced a machine with
-    # no kernel, no privilege escalation, no network and no session — while
-    # system/services.conf cheerfully declared dbus, elogind and NetworkManager
-    # as services to *enable*, with nothing to install them.
-    #
-    # The kernel. dist-kernel (see make.conf USE) so updates rebuild the
-    # initramfs and run the hooks in system/kernel/postinst.d.
-    sys-kernel/gentoo-kernel-bin sys-kernel/linux-firmware
-    # doas is what install.sh itself escalates with — lib/common.sh prefers it
-    # over sudo. The installer depended on a package the installer never installed.
-    app-admin/doas
-    # session + device plumbing. seatd and elogind are what let a non-root user
-    # own the seat mango runs on; dbus is required by half the desktop.
-    sys-apps/dbus sys-auth/elogind sys-auth/seatd
-    # network + time + logs. chrony matters more than it looks: a skewed clock
-    # breaks TLS, and therefore breaks emerge against the binhost.
-    net-misc/networkmanager net-misc/chrony app-admin/sysklogd
-    # btrfs is the root filesystem (subvols @, @home, @snapshots) — without the
-    # userspace tools there is no scrub, no snapshot, no resize. btrbk drives
-    # the snapshots: /.snapshots had been mounted since the install with nothing
-    # ever writing to it. Config and rollback notes in system/btrbk/.
-    sys-fs/btrfs-progs app-backup/btrbk
-    # vulkan loader: mango/scenefx render through it, and usbutils is how the
-    # Codex Micro HID path gets debugged when it stops enumerating.
-    media-libs/vulkan-loader sys-apps/usbutils
-    # Limine is the bootloader (bin/setup-limine installs and configures it).
-    # grub is NOT here: it was installed but unused, second in BootOrder with a
-    # stale config, and it was removed on 2026-07-26. efibootmgr below is
-    # what remains of that: keep it.
-    #
-    # efibootmgr is declared explicitly BECAUSE of that removal. It had only
-    # ever been present as a grub dependency, so depclean listed it for removal
-    # alongside grub — and it is the only tool that can read or repair the NVRAM
-    # entry this machine now depends on for booting. If that entry is ever lost,
-    # recovery is `efibootmgr -c -d /dev/nvme0n1 -p 1 -L Limine -l
-    # '\EFI\Limine\BOOTX64.EFI'`, which is impossible without it installed.
-    sys-boot/limine sys-boot/efibootmgr
-
-    # compositor + session
-    gui-wm/mangowm gui-libs/scenefx
-    # login: ly. Not in CORE — it needs the GURU Manifest workaround in
-    # bin/setup-ly, which must be an explicit, auditable step.
-    # wayland desktop tools
-    gui-apps/waybar gui-apps/swaync gui-apps/swaybg x11-misc/rofi
-    gui-apps/wl-clipboard app-misc/cliphist gui-apps/grim gui-apps/slurp gui-apps/swaylock
-    gui-apps/wlsunset gui-apps/swayidle gui-apps/wtype
-    x11-libs/libnotify media-sound/playerctl
-    app-misc/brightnessctl gui-libs/xdg-desktop-portal-wlr
-    # terminals + file manager + editor
-    x11-terms/ghostty x11-terms/alacritty xfce-base/thunar
-    app-editors/neovim
-    # audio
-    media-video/pipewire media-video/wireplumber media-sound/pavucontrol
-    # bluetooth
-    net-wireless/bluez net-wireless/blueman gnome-extra/nm-applet
-    # languages / toolchains
-    dev-lang/rust-bin dev-lang/go dev-lang/zig net-libs/nodejs
-    # shell
-    app-shells/fish app-shells/starship
-    # cursor theme (matches kronos)
-    x11-themes/bibata-xcursors
-    # fonts  (atom is nerdfonts, no hyphen — and it lives in GURU)
-    media-fonts/nerdfonts media-fonts/noto-emoji
-    # console font for the ly greeter — see system/conf.d/consolefont.
-    # Load-bearing, not cosmetic: consolefont names ter-u24b, and if the
-    # package is absent the service falls back to the tiny 8x16 default.
-    media-fonts/terminus-font
-    # session supervision — s6 runs the user services in services/. Not
-    # optional: config/mango/autostart.sh starts a tree over them at login.
-    sys-apps/s6 sys-apps/s6-rc
-    # runtime for the vendored Electron bundles in ~/apps (phases/27-vendored).
-    # Chromium dlopen()s libcups even with printing unused, and the Codex
-    # Micro's HID path goes through libusb. Both are the difference between an
-    # app that starts and one that dies with a bare "not found".
-    net-print/cups dev-libs/libusb
-    # remote access — the LAN address changes, tailscale does not. `tailscale
-    # up` still has to be run by hand once; nothing here authenticates.
-    net-vpn/tailscale
-)
 LOG="$HOME/.cache/atlas-emerge.log"; mkdir -p "$(dirname "$LOG")"; : > "$LOG"
+
+mapfile -t CORE < <(read_set atlas-core)
+mapfile -t TOOLS < <(read_set atlas-tools)
+[ ${#CORE[@]} -gt 0 ] || { err "atlas-core set is empty — refusing to continue"; exit 1; }
 
 # Try a qualified atom, then fall back to the bare name (covers a wrong
 # category guess); autounmask accepts ~amd64/USE; everything logged.
+#
+# --oneshot, not --noreplace: this is the per-atom FALLBACK path, and the batch
+# emerge below is what registers @atlas-core in world_sets. If this path wrote
+# to the world file too, every atom would become an individual depclean root
+# and the set would stop being the source of truth — which is the exact drift
+# package sets exist to remove.
 emerge_pkg() {
     local atom="$1" bare="${1##*/}"
     [ "$DRY_RUN" = "1" ] && { info "[dry-run] emerge $atom"; return 0; }
     echo "### $atom" >> "$LOG"
-    as_root emerge --noreplace --quiet --autounmask --autounmask-continue "$atom" >>"$LOG" 2>&1 && return 0
+    as_root emerge --oneshot --quiet --autounmask --autounmask-continue "$atom" >>"$LOG" 2>&1 && return 0
     [ "$bare" = "$atom" ] && return 1
     echo "### retry bare: $bare" >> "$LOG"
-    as_root emerge --noreplace --quiet --autounmask --autounmask-continue "$bare" >>"$LOG" 2>&1
+    as_root emerge --oneshot --quiet --autounmask --autounmask-continue "$bare" >>"$LOG" 2>&1
 }
 
-# CORE as one fast transaction; if it fails, install individually so one bad
-# atom can't block the rest of the desktop.
+# @atlas-bootstrap first: git, eselect-repository, flatpak and ly are already
+# installed by the inline emerges above and in other phases, so this installs
+# nothing. What it does is register the set as a depclean root, which is the
+# only thing standing between a converged run and an uninstalled bootloader.
 if [ "$DRY_RUN" = "1" ]; then
-    info "[dry-run] emerge ${#CORE[@]} core packages"
-elif ! as_root emerge --verbose --noreplace --autounmask --autounmask-write --autounmask-continue "${CORE[@]}"; then
+    info "[dry-run] emerge --noreplace @atlas-bootstrap"
+else
+    as_root emerge --noreplace --quiet @atlas-bootstrap >>"$LOG" 2>&1 \
+        && ok "@atlas-bootstrap registered" \
+        || warn "@atlas-bootstrap did not register (see $LOG)"
+fi
+
+# CORE as one set transaction; if it fails, install individually so one bad
+# atom can't block the rest of the desktop. The batch is what registers
+# @atlas-core in world_sets, so it is tried even when everything is present.
+if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] emerge @atlas-core (${#CORE[@]} packages)"
+elif ! as_root emerge --verbose --noreplace --autounmask --autounmask-write --autounmask-continue @atlas-core; then
     warn "core batch had issues — installing core packages individually"
     core_missed=()
     for pkg in "${CORE[@]}"; do
         emerge_pkg "$pkg" && ok "$pkg" || { core_missed+=("$pkg"); warn "skipped '$pkg'"; }
     done
-    [ ${#core_missed[@]} -gt 0 ] && warn "core unresolved: ${core_missed[*]} (see $LOG)"
+    if [ ${#core_missed[@]} -gt 0 ]; then
+        warn "core unresolved: ${core_missed[*]} (see $LOG)"
+        # The batch failed, so the set never registered and its atoms are not
+        # depclean roots. Saying so matters: --check will report them all as
+        # removable and the cause will not be obvious.
+        warn "  @atlas-core is NOT registered — fix the above, then re-run this phase"
+    fi
 fi
 
 # ── CLI tools (resilient: try each, report misses) ─────────────
+# Atom list: system/portage/sets/atlas-tools.
 step "CLI tools (from your kronos toolset)"
-# Category-qualified so bare-name ambiguity can't abort them.
-TOOLS=(
-    sys-apps/ripgrep sys-apps/fd sys-apps/eza sys-apps/bat
-    app-shells/zoxide app-shells/atuin app-shells/fzf
-    app-misc/yazi app-misc/jq app-misc/yq app-text/tree
-    dev-vcs/lazygit dev-vcs/git-lfs dev-util/git-delta dev-util/difftastic
-    # Five of these were in the wrong category until 2026-07-26 (dev-util/just,
-    # dev-util/watchexec, app-text/sd, sys-apps/dust, sys-apps/broot). They still
-    # installed, because emerge_pkg retries the bare name — the log showed five
-    # `retry bare:` lines every run. That fallback is worth keeping as a safety
-    # net, but relying on it costs a failed resolution pass per atom and hides
-    # real typos, so the categories are now correct. sd and watchexec are GURU.
-    dev-build/just app-misc/watchexec dev-util/tokei app-benchmarks/hyperfine
-    sys-apps/sd sys-process/procs sys-block/dust sys-fs/duf app-misc/broot
-    app-misc/tealdeer app-misc/glow app-arch/ouch net-misc/yt-dlp
-    media-sound/cava app-misc/cmatrix games-misc/cbonsai
-    # btop is the process viewer config/btop themes, fastfetch is what the
-    # kronos-style greeting would use, and github-cli is not optional: it is the
-    # git credential helper in ~/.gitconfig, so without it every push to GitHub
-    # fails to authenticate on a freshly built machine.
-    sys-process/btop app-misc/fastfetch dev-util/github-cli
-    # terminal workflow — config/tmux and the fish functions depend on these:
-    # `dev` and `t` are tmux wrappers, and config.fish hooks direnv if present.
-    app-misc/tmux app-shells/direnv app-misc/television
-    # portage maintenance. Not optional in practice: eclean-dist is the only
-    # supported way to prune /var/cache/distfiles (3.7 GB and growing),
-    # revdep-rebuild finds binaries left linking against removed libraries
-    # after a depclean, and equery answers "what pulled this in" — all three
-    # were wanted during the 2026-07-26 audit and none were present.
-    app-portage/gentoolkit
-    # patchelf rewrites ELF INTERP and RPATH headers, which is the only way to
-    # run a prebuilt binary that was linked on NixOS. phases/27-vendored.sh
-    # depends on it for the Codex bundle; without it that app cannot start at
-    # all. It was installed by hand and undeclared until 2026-07-27.
-    dev-util/patchelf
-)
 missed=(); _ti=0; _tn=${#TOOLS[@]}
-for pkg in "${TOOLS[@]}"; do
-    _ti=$((_ti + 1))
-    if [ "$DRY_RUN" = "1" ]; then info "would emerge $pkg"; continue; fi
-    progress "$_ti" "$_tn" "${pkg##*/}"
-    emerge_pkg "$pkg" || missed+=("$pkg")
-done
-[ "$DRY_RUN" = "1" ] || { progress "$_tn" "$_tn" "done"; printf '\n'; }
-ok "$(( _tn - ${#missed[@]} ))/$_tn tools installed"
-if [ ${#missed[@]} -gt 0 ]; then
-    warn "unresolved: ${missed[*]}"
-    warn "  reasons: $LOG   ·   find the right atom with:  emerge -s <name>"
-    warn "  if keyword/USE changes were written: doas dispatch-conf && ./install.sh packages"
+if [ "$DRY_RUN" = "1" ]; then
+    info "[dry-run] emerge @atlas-tools ($_tn packages)"
+elif as_root emerge --noreplace --quiet --autounmask --autounmask-continue @atlas-tools >>"$LOG" 2>&1; then
+    ok "@atlas-tools registered ($_tn packages)"
+else
+    # Same fallback shape as CORE: one unresolvable tool must not cost the
+    # other thirty. Note these land via --oneshot, so a tool installed by this
+    # path is NOT a depclean root until the set emerge above succeeds.
+    warn "tools batch had issues — installing individually"
+    for pkg in "${TOOLS[@]}"; do
+        _ti=$((_ti + 1))
+        progress "$_ti" "$_tn" "${pkg##*/}"
+        emerge_pkg "$pkg" || missed+=("$pkg")
+    done
+    progress "$_tn" "$_tn" "done"; printf '\n'
+    ok "$(( _tn - ${#missed[@]} ))/$_tn tools installed"
+    if [ ${#missed[@]} -gt 0 ]; then
+        warn "unresolved: ${missed[*]}"
+        warn "  reasons: $LOG   ·   find the right atom with:  emerge -s <name>"
+        warn "  if keyword/USE changes were written: doas dispatch-conf && ./install.sh packages"
+    fi
 fi
 
 # ── gum: not packaged in ::gentoo or ::guru — install via go ───

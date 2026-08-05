@@ -86,6 +86,57 @@ run_root() {
     fi
 }
 
+# ── Copy a repo file into /etc, backing up whatever is there ───
+# Copied, not symlinked: /etc decides what root emerges, so pointing it at a
+# user-writable git checkout would be a privilege-escalation path.
+#
+# Lived in phases/10-packages.sh until 2026-08-05. It moved here when the package-sets change
+# gave 25-apps and 32-devtools their own set files to deploy — three phases
+# needing it made "the packages phase happens to define it" an ordering trap:
+# running `./install.sh apps` alone would have emerged against whatever stale
+# set file /etc already had.
+deploy_system_file() {   # src dst [mode]
+    local src="$1" dst="$2" mode="${3:-0644}"
+    if [ "${DRY_RUN:-0}" = "1" ]; then info "[dry-run] install $src -> $dst"; return; fi
+    if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+        ok "${dst} (unchanged)"
+    else
+        # Backups go to a directory of their own, NOT beside the target. Writing
+        # "$dst.bak.<stamp>" put files portage does not own into
+        # /etc/portage/package.*, where --check's stray scan then correctly
+        # reported them as UNDECLARED — this function was manufacturing the exact
+        # drift the check exists to find.
+        if [ -f "$dst" ]; then
+            as_root mkdir -p "$CONFIG_BACKUP_DIR"
+            as_root cp "$dst" \
+                "$CONFIG_BACKUP_DIR/$(echo "${dst#/}" | tr / _).$(date +%Y%m%d-%H%M%S)"
+        fi
+        as_root install -D -m "$mode" "$src" "$dst" && ok "${dst}"
+    fi
+}
+
+# ── Portage package sets (see docs/LAYOUT.md) ──────────────────
+# The set files under system/portage/sets/ are the source of truth for every
+# portage package this repo installs. Phases read them; they do not carry their
+# own arrays.
+#
+# deploy_set puts one in /etc/portage/sets/, where portage's [usersets] class
+# picks it up as a set named after the file. Deploy before emerging @<name> or
+# emerge resolves against a stale copy.
+deploy_set() {   # name
+    run_root mkdir -p /etc/portage/sets
+    deploy_system_file "$REPO_DIR/system/portage/sets/$1" "/etc/portage/sets/$1"
+}
+
+# read_set prints the atoms in a set, one per line, comments and blanks
+# stripped. Reads the REPO copy, not /etc: it is the source of truth, and this
+# has to work under --dry-run before anything has been deployed.
+read_set() {   # name
+    local f="$REPO_DIR/system/portage/sets/$1"
+    [ -f "$f" ] || { err "no such set: $1 ($f)"; return 1; }
+    sed 's/#.*//' "$f" | tr -s '[:space:]' '\n' | grep -E '^[a-z0-9-]+/[a-zA-Z0-9_]'
+}
+
 # ── Symlink a path into place, backing up whatever is there ────
 backup_and_link() {
     local src=$1 dst=$2
