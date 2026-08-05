@@ -193,3 +193,23 @@ media-sound/easyeffects -doc
 # Found 2026-08-05 by dry-running it immediately after declaring it, which is
 # the only reason it was not discovered mid-cleanup on some future kernel bump.
 app-admin/eclean-kernel zstd
+
+# swayidle needs a login-manager backend or it REFUSES TO START, rather than
+# degrading. config/mango/autostart.sh runs it with `before-sleep`, and with
+# neither USE flag set that argument is fatal:
+#
+#   [Line 729] before-sleep not supported: swayidle was compiled with neither
+#              systemd nor elogind support.        -> exit 255
+#
+# So swayidle has been dying at every login since this machine was built, and
+# the 5-minute idle lock has never once fired. Nothing reported it: autostart's
+# `run` helper backgrounds the process and never checks that it survived, so a
+# service that exits immediately looks exactly like one that started.
+#
+# elogind, not systemd: this box is OpenRC, and sys-auth/elogind is already
+# installed and in the boot runlevel.
+#
+# Found 2026-08-05 while checking why swayidle was down after a reboot. It was
+# NOT the D-Bus/session-wrapper bug being chased at the time -- that one was
+# real and separate, and this was hiding behind it.
+gui-apps/swayidle elogind
