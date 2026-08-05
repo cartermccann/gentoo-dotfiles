@@ -503,6 +503,125 @@ run_check() {
         fi
     fi
 
+    # ── /boot and the ESP ──────────────────────────────────────────
+    # The blind spot this closes: every other check here reasons about packages,
+    # /etc, services or s6, and NONE of them can see a boot artifact. That gap
+    # is structural, not an oversight -- installkernel writes /boot in
+    # pkg_postinst, so those files are in no package's CONTENTS and portage
+    # cannot account for them. Checking "is this file owned?" is useless here:
+    # EVERY /boot kernel comes back unowned, including the running one. Staleness
+    # has to be derived from versions instead.
+    #
+    # It matters because the failures are silent and only surface at the next
+    # boot, which may be weeks away. On 2026-08-05 alone: a depclean removed the
+    # kernel package and left /boot and the ESP untouched; and eclean-kernel
+    # cleaned /boot but not the ESP, leaving limine offering a kernel that no
+    # longer existed upstream -- while every path in limine.conf still resolved,
+    # because the ESP kept its own copy. That last one is why the mirror is
+    # checked in BOTH directions rather than just resolving the menu's paths.
+    # ESP/BOOTDIR/MODDIR/RUNNING are overridable for the same reason the
+    # generator's are: a check whose failure branches have never been executed
+    # is a check that has only ever been observed passing. Every failure branch
+    # below was fired against a fake ESP/BOOTDIR tree before this was committed;
+    # the cases are listed in the commit message.
+    step "boot artifacts (/boot + ESP)"
+    local ESPDIR="${ESP:-/efi}" BOOTD="${BOOTDIR:-/boot}" MODD="${MODDIR:-/lib/modules}"
+    local KDIR="$ESPDIR/atlas" LCONF="$ESPDIR/limine.conf"
+    if [ ! -d "$ESPDIR/EFI/Limine" ]; then
+        info "ESP not mounted or limine not installed — skipping"
+    elif [ ! -r "$LCONF" ]; then
+        err "no $LCONF — the bootloader has no config"; drift=1
+    else
+        local missing="" noentry="" espextra="" mismatch=""
+        local running="${RUNNING_KERNEL:-$(uname -r)}"
+
+        # 1. Every path the menu names must exist ON THE ESP. Limine reads FAT
+        #    only (see the hook's header), so /boot existing is not enough.
+        while read -r p; do
+            [ -f "$ESPDIR$p" ] || missing="$missing $p"
+        done < <(grep -oE '(path|module_path): boot\(\):/[^ ]+' "$LCONF" | sed 's|.*boot():||')
+
+        # 2. ...and every kernel in /boot must be offered. A kernel present but
+        #    absent from the menu is one you cannot select when you need it.
+        for k in "$BOOTD"/vmlinuz-*; do
+            [ -e "$k" ] || continue
+            grep -q "path: boot():/atlas/$(basename "$k")\$" "$LCONF" || noentry="$noentry $(basename "$k")"
+        done
+
+        # 3. Mirror, both ways. ESP->/boot catches the eclean-kernel case above;
+        #    content comparison catches a copy that was interrupted or a /boot
+        #    file rebuilt without the hook running.
+        for f in "$KDIR"/*; do
+            [ -f "$f" ] || continue
+            local b; b=$(basename "$f")
+            if [ ! -f "$BOOTD/$b" ]; then espextra="$espextra $b"
+            elif ! cmp -s "$f" "$BOOTD/$b"; then mismatch="$mismatch $b"; fi
+        done
+
+        [ -n "$missing" ] && { err "limine.conf names files that do not exist on the ESP:"
+            printf '      %s\n' $missing
+            info "      the menu offers entries that will not boot"
+            info "      fix: doas /etc/kernel/postinst.d/95-limine.install"; drift=1; }
+        [ -n "$noentry" ] && { warn "in /boot but not in the menu:"
+            printf '      %s\n' $noentry
+            info "      fix: doas /etc/kernel/postinst.d/95-limine.install"; drift=1; }
+        [ -n "$espextra" ] && { warn "on the ESP with no /boot counterpart:"
+            printf '      %s\n' $espextra
+            info "      the hook prunes these, but only when a kernel is INSTALLED"
+            info "      fix: doas /etc/kernel/postinst.d/95-limine.install"; drift=1; }
+        [ -n "$mismatch" ] && { err "ESP copy differs from /boot:"
+            printf '      %s\n' $mismatch
+            info "      you would boot something other than what /boot holds"
+            info "      fix: doas /etc/kernel/postinst.d/95-limine.install"; drift=1; }
+        [ -z "$missing$noentry$espextra$mismatch" ] &&
+            ok "limine.conf and the ESP agree with /boot"
+
+        # 4. The three copies must agree. Limine checks the EFI app path FIRST,
+        #    then the ESP root, so a stale copy at one of them is what actually
+        #    boots while the one you edited looks correct.
+        local hashes; hashes=$(md5sum "$LCONF" "$ESPDIR"/EFI/*/limine.conf 2>/dev/null | awk '{print $1}' | sort -u | wc -l)
+        if [ "$hashes" = "1" ]; then ok "all limine.conf copies identical"
+        else err "limine.conf copies DISAGREE — the one Limine reads may not be the one you edited"; drift=1; fi
+
+        # 5. A menu entry with no root= boots to a kernel panic, and the hook
+        #    refuses to write one, so this catches hand-editing only.
+        local nent nroot
+        nent=$(grep -c '^/Gentoo' "$LCONF"); nroot=$(grep -c 'cmdline:.*root=' "$LCONF")
+        if [ "$nent" = "$nroot" ]; then ok "every entry carries root= ($nent)"
+        else err "$((nent - nroot)) of $nent entries have no root="; drift=1; fi
+
+        # 6. You must be able to get back to what you are running.
+        if grep -q "vmlinuz-$running\$" "$LCONF" && [ -d "$MODD/$running" ]; then
+            ok "running kernel $running: menu entry + module tree"
+        else
+            err "running kernel $running is not fully bootable (no menu entry or no modules)"; drift=1
+        fi
+
+        # 7. Leftovers. Drift by request: this machine is kept clean rather than
+        #    hoarding fallbacks. The RUNNING kernel is never a leftover even when
+        #    its package is gone -- that is the window between a depclean and the
+        #    next reboot, and calling it removable there would be advice that
+        #    bricks the machine.
+        local inst boot_gens leftover=""
+        inst=$(qlist -Iv sys-kernel/gentoo-kernel-bin 2>/dev/null | sed 's|.*gentoo-kernel-bin-||')
+        boot_gens=$(ls -1 "$BOOTD"/vmlinuz-* 2>/dev/null | sed 's|.*/vmlinuz-||; s|\.old$||' | sort -u)
+        for g in $boot_gens; do
+            [ "$g" = "$running" ] && continue
+            printf '%s\n' "$inst" | grep -qxF "${g%-gentoo-dist-bin}" || leftover="$leftover $g"
+        done
+        if [ -n "$leftover" ]; then
+            warn "kernel generations in /boot that no installed package backs:"
+            printf '      %s\n' $leftover
+            info "      doas eclean-kernel --all --no-bootloader-update"
+            info "      doas /etc/kernel/postinst.d/95-limine.install   # prunes the ESP too"
+            drift=1
+        else
+            ok "no leftover kernel generations"
+        fi
+        info "ESP $(df -h --output=used,size,pcent "$ESPDIR" 2>/dev/null | tail -1 \
+            | awk '{printf "%s of %s (%s)", $1, $2, $3}')"
+    fi
+
     step "pending portage config"
     local cfgs; cfgs=$(find /etc/portage -name '._cfg*' 2>/dev/null | head)
     if [ -n "$cfgs" ]; then
