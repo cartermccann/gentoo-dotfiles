@@ -57,10 +57,16 @@ migration steps are in `~/projects/wargames/atlas-cleanup/DECISIONS.md`, per
 the rule in `.gitignore` that keeps notes-about-a-particular-day out of an
 installer.
 
-If you install something and it is not in one of those lists, the next machine
-will not have it — and `./install.sh --check` now catches it from both
-directions: declared-but-absent, and installed-but-undeclared. That is the
-whole contract.
+The sets are the **baseline a fresh machine gets** — not an obligation on this
+one. Installing ad hoc is normal: `doas emerge <pkg>` puts it in the world
+file, depclean respects world, done. Add an atom to a set only when a future
+fresh install should include it. `./install.sh --check` reports the difference
+between baseline and reality so it stays visible, but hand-installed packages
+and hand-enabled services are the owner's business, never an error — the only
+things it treats as drift are the files this repo actually deploys, the boot
+chain, and the clock mitigation. (Settled 2026-08-05: this repo is a bootstrap
+with owned files, not a convergence system. It briefly grew Nix-style
+world-must-be-empty ambitions; they lasted one afternoon.)
 
 ## What is deployed, and how
 

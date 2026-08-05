@@ -150,8 +150,15 @@ installed_atoms() {
 }
 
 # ── --check: is the live system still what the repo says? ──────
-# The Nix-ish property we want: the repo is the source of truth, and any
-# drift is visible rather than silent.
+# Scope, settled 2026-08-05 after the repo briefly grew Nix-convergence
+# ambitions: this repo is a BOOTSTRAP plus the specific things it deploys,
+# not the machine's police. It owns the files it installs (/etc entries in
+# system_file_map, the boot chain, the clock mitigation, the s6 links) and
+# drift in THOSE is an error. Packages and services added by hand beyond the
+# baseline are the owner's business: reported so they are visible, never
+# treated as failure. `emerge whatever` freely -- world is where portage
+# records it, and depclean respects world. Add an atom to a set only when you
+# want the NEXT provisioning of a machine to include it.
 run_check() {
     banner "atlas / config check" "repo vs live system"
     local drift=0
@@ -371,8 +378,8 @@ run_check() {
     if [ -n "$missing_pkgs" ]; then
         warn "$(printf '%s\n' "$missing_pkgs" | wc -l) declared in a set but NOT installed:"
         printf '      %s\n' $missing_pkgs
-        info "      typo in the atom, or the merge failed — check ~/.cache/atlas-emerge.log"
-        drift=1
+        info "      typo in the atom, a failed merge, or you removed it on purpose —"
+        info "      if the last one, prune it from the set or the next provisioning reinstalls it"
     else
         ok "every declared package is installed"
     fi
@@ -407,11 +414,18 @@ run_check() {
         done < <(rc-update show "$lvl" 2>/dev/null | awk '{print $1}')
     done
     if [ -n "$extra_svcs" ]; then
-        warn "enabled but declared nowhere:$extra_svcs"
-        info "      add to system/services.conf with the reason, or disable"
-        drift=1
+        # Enabled-by-hand services are the owner's call, same as hand-emerged
+        # packages: visible, not a failure. ONE exception -- hwclock re-enabled
+        # would silently fight swclock for the boot clock (both `provide
+        # clock`), so that specific return is an error, not a choice.
+        case " $extra_svcs" in *" hwclock("*)
+            err "hwclock is enabled again — it conflicts with swclock (see system/services.conf)"
+            drift=1 ;;
+        esac
+        info "enabled beyond the baseline:$extra_svcs"
+        info "      fine as-is; add to system/services.conf only if a fresh machine needs it"
     else
-        ok "no undeclared services enabled"
+        ok "no services enabled beyond baseline + declared"
     fi
 
     step "removable packages (--depclean --pretend)"
@@ -434,36 +448,20 @@ run_check() {
         info "      until then the world file, not the sets, is the source of truth"
         info "      migration steps: ~/projects/wargames/atlas-cleanup/DECISIONS.md"
     else
-        # The world file must stay EMPTY. Every atom this machine wants is
-        # declared in a set, and the sets are what world_sets registers, so
-        # anything landing in world came from a bare `emerge <atom>` -- portage
-        # adds to world unless told --oneshot. That atom is then a depclean root
-        # in its own right, which quietly defeats the whole model: delete it
-        # from its set file and depclean will still protect it forever.
-        #
-        # Added 2026-08-05 after `emerge --newuse app-admin/eclean-kernel`
-        # (missing --oneshot) recorded it in world, and the check ran green
-        # anyway. It also turned up gui-apps/wl-clipboard, which had been
-        # sitting there since before the migration while declared in
-        # atlas-core:103 -- invisible to every other check here.
-        if [ -s /var/lib/portage/world ]; then
-            local w_declared w_undeclared
-            w_declared=$(comm -12 <(sort -u /var/lib/portage/world) <(declared_atoms))
-            w_undeclared=$(comm -23 <(sort -u /var/lib/portage/world) <(declared_atoms))
-            warn "world file is not empty — every atom belongs in a set, not world"
-            [ -n "$w_declared" ] && {
-                printf '      %s\n' $w_declared
-                info "      ^ already declared in a set; the world entry is redundant:"
-                info "        doas emerge --deselect <atom>"
-            }
-            [ -n "$w_undeclared" ] && {
-                printf '      %s\n' $w_undeclared
-                info "      ^ declared NOWHERE; add to a set file, then --deselect"
-            }
-            info "      installing by hand? use: doas emerge --oneshot <atom>"
-            drift=1
+        # The world file is where portage records what YOU emerged by hand,
+        # and that is exactly what it is for. This used to be an emptiness
+        # invariant ("every atom belongs in a set") -- removed 2026-08-05, same
+        # day it was added, when the owner pointed out that obligation turns
+        # ad-hoc `emerge` into bookkeeping and the repo into nrs-for-Gentoo.
+        # Sets are the BOOTSTRAP baseline; world is this install's own
+        # additions; depclean protects both. Shown here so hand installs stay
+        # visible, judged never.
+        local w_count
+        w_count=$(grep -c . /var/lib/portage/world 2>/dev/null) || w_count=${w_count:-0}
+        if [ "$w_count" -gt 0 ]; then
+            info "$w_count package(s) emerged by hand (world file) — yours, not checked"
         else
-            ok "world file empty — the sets are the only source of truth"
+            info "no hand-emerged packages (world file empty)"
         fi
 
         local removable
@@ -482,16 +480,13 @@ run_check() {
             undeclared_removable=$(comm -23 <(printf '%s\n' $removable | sort -u) <(declared_atoms))
             declared_removable=$(comm -12 <(printf '%s\n' $removable | sort -u) <(declared_atoms))
             if [ -n "$undeclared_removable" ]; then
-                warn "$(printf '%s\n' "$undeclared_removable" | wc -l) installed, declared in no set:"
+                # Nothing in world or the sets wants these: true orphans, the
+                # debris depclean exists for. Not drift -- hand-emerged
+                # packages live in world and never appear here, so this list
+                # is only ever leftovers.
+                warn "$(printf '%s\n' "$undeclared_removable" | wc -l) orphaned (nothing installed wants them):"
                 printf '      %s\n' $undeclared_removable
-                info "      declare it in system/portage/sets/, or remove it with:"
-                info "        doas emerge --depclean --ask   (read the list first)"
-                # Only THIS branch is drift. The superseded-slot branch below
-                # prints "not drift" and used to set this flag anyway, so a
-                # freshly-updated kernel left --check red until the old slot was
-                # depcleaned -- a check contradicting its own output, which
-                # teaches you to stop reading the output.
-                drift=1
+                info "      reclaim with: doas emerge --depclean --ask   (read the list first)"
             fi
             if [ -n "$declared_removable" ]; then
                 warn "$(printf '%s\n' "$declared_removable" | wc -l) superseded version(s) of a DECLARED package:"
