@@ -163,3 +163,18 @@ net-libs/webkit-gtk wayland
 # keywords but never flips a USE flag, so on a clean checkout this surfaces as
 # an instant dependency-resolution failure rather than a build error.
 >=x11-libs/libxkbcommon-1.13.2 X
+
+# ── easyeffects: no bundled manual ─────────────────────────────
+# USE=doc is IUSE-default-ON and pulls gnome-extra/yelp, the GNOME help browser,
+# purely to render EasyEffects' own manual page. yelp in turn pulls
+# net-libs/webkit-gtk, an enormous package that then became the ONLY thing
+# keeping webkit installed -- commit 15e3271 had already removed it once, when
+# Buzz stopped needing it.
+#
+# The cost was not just disk. webkit-gtk requires media-libs/harfbuzz[icu], the
+# binhost ships harfbuzz with -icu, and that conflict was silently skipping the
+# harfbuzz update on every `emerge -uDN @world`. A help browser for one app was
+# pinning a system library.
+#
+# The effects UI is unaffected; only F1 / "Help" stops working.
+media-sound/easyeffects -doc
