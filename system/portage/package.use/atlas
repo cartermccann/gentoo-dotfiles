@@ -149,3 +149,17 @@ dev-libs/libdbusmenu gtk3
 # gst-plugins-base flag is what webkit's media pipeline needs to resolve.
 net-libs/webkit-gtk wayland
 >=media-libs/gst-plugins-base-1.26.11 opengl
+
+# ── found 2026-08-05 by --check-rebuild ────────────────────────
+# The REQUIRED_USE chain this repo already warns about, one link further along:
+#   media-video/obs-studio -> dev-qt/qtsvg -> dev-qt/qtbase[gui] -> libxkbcommon[X]
+#
+# qtbase[gui] requires an X-capable libxkbcommon even on a machine with no X
+# server, because Qt's platform abstraction links it regardless of which
+# platform plugin is used at runtime. Nothing here runs X; this is a build-time
+# dependency of a Qt library that obs-studio pulls in.
+#
+# Like the base-profile REQUIRED_USE traps documented above, autounmask writes
+# keywords but never flips a USE flag, so on a clean checkout this surfaces as
+# an instant dependency-resolution failure rather than a build error.
+>=x11-libs/libxkbcommon-1.13.2 X

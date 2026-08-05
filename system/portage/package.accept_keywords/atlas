@@ -15,6 +15,15 @@ sys-boot/limine ~amd64
 =app-misc/brightnessctl-0.5.1 ~amd64
 =gui-apps/wtype-0.4 ~amd64
 =gui-apps/wlsunset-0.4.0 ~amd64
+# Pulled in by x11-terms/ghostty[wayland], not requested directly, which is why
+# it never appeared in a set and the per-atom visibility check could not see it:
+# that check asks about declared atoms, and this is a dependency of one. Found
+# 2026-08-05 by `--check-rebuild`, which resolves the whole closure instead.
+#
+# Deliberately NOT version-pinned like the five above. Those were pasted from
+# autounmask output and go stale on the next bump; the exact version of a
+# transitive dep is not something this repo has an opinion about.
+gui-libs/gtk4-layer-shell ~amd64
 
 # ── dev tooling ────────────────────────────────────────────────
 # GURU keeps everything at ~amd64 as a matter of policy — nothing in the

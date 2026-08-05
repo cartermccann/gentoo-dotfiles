@@ -46,7 +46,10 @@ Phases (run in this order if none given):
 
 Options:
   --dry-run   print what would happen, change nothing
-  --check     diff the repo against the live system, change nothing
+  --check     diff the repo against the live system, change nothing (~4s)
+  --check-rebuild
+              resolve @world from scratch: could a CLEAN CHECKOUT build this
+              machine? changes nothing (~25s)
   --list      list phases and exit
   -h, --help  this help
 
@@ -422,6 +425,73 @@ run_check() {
     echo
     if [ "$drift" = "0" ]; then ok "system matches the repo"
     else warn "drift found — './install.sh packages' redeploys system files"; fi
+    # Say what was NOT checked. Every step above inspects the RUNNING system,
+    # and on 2026-08-05 all of them passed on a machine the repo could not have
+    # rebuilt: fourteen keyword/USE lines were undeclared, and the packages were
+    # already merged so nothing here could see it. "system matches the repo" is
+    # a narrower claim than it sounds, and saying so is cheaper than letting the
+    # output overclaim for another few months.
+    info "not checked here: whether the repo can REBUILD this machine"
+    info "  that resolves the full dependency closure and takes ~25s:  ./install.sh --check-rebuild"
+    return 0
+}
+
+# ── --check-rebuild: could a clean checkout actually build this? ─
+# The question --check cannot answer. It asks portage to resolve @world from
+# scratch (--emptytree) and report every keyword or USE change that would be
+# needed, without writing any of them (--autounmask-only, and
+# --autounmask-continue=n so it refuses rather than proceeding).
+#
+# Deliberately NOT part of --check: this takes ~25s against --check's ~4s, and
+# a check slow enough to avoid running is worse than one that is honest about
+# its scope. --check now points here instead.
+#
+# Why the whole closure rather than the declared atoms: a per-atom
+# `portageq best_visible` loop over the sets costs the same 25s and misses
+# dependencies. It found twelve undeclared keywords and could not have found
+# gui-libs/gtk4-layer-shell (pulled in by ghostty[wayland]) or the
+# libxkbcommon[X] USE flag that obs-studio needs through qtbase[gui].
+run_check_rebuild() {
+    banner "atlas / rebuild check" "can a clean checkout build this machine?"
+    if ! have emerge; then err "emerge not available"; return 1; fi
+
+    step "resolving @world from scratch"
+    info "this takes ~25 seconds and changes nothing"
+    local out rc=0
+    out=$(emerge --pretend --emptytree --autounmask --autounmask-only \
+                 --autounmask-continue=n @world 2>&1)
+
+    if printf '%s\n' "$out" | grep -q "keyword changes are necessary"; then
+        err "UNDECLARED KEYWORDS — a clean checkout would fail or autounmask these:"
+        printf '%s\n' "$out" | sed -n '/keyword changes are necessary/,/^$/p' \
+            | grep -E '^[<>=~]?[a-z0-9-]+/' | sed 's/^/      /'
+        info "      add them to system/portage/package.accept_keywords/atlas"
+        rc=1
+    fi
+    if printf '%s\n' "$out" | grep -q "USE changes are necessary"; then
+        err "UNDECLARED USE FLAGS — autounmask writes keywords but never USE, so"
+        err "  these fail dependency resolution instantly on a clean checkout:"
+        printf '%s\n' "$out" | sed -n '/USE changes are necessary/,/^$/p' \
+            | grep -E '^[<>=~]?[a-z0-9-]+/' | sed 's/^/      /'
+        info "      add them to system/portage/package.use/atlas"
+        rc=1
+    fi
+    if printf '%s\n' "$out" | grep -q "have been masked"; then
+        err "MASKED PACKAGES in the dependency graph:"
+        printf '%s\n' "$out" | grep -E '^- .*masked by' | sed 's/^/      /'
+        rc=1
+    fi
+
+    if [ "$rc" = "0" ]; then
+        local nbin nsrc
+        nbin=$(printf '%s\n' "$out" | grep -cE '^\[binary')
+        nsrc=$(printf '%s\n' "$out" | grep -cE '^\[ebuild')
+        ok "full closure resolves: $nbin binary + $nsrc source = $((nbin + nsrc)) packages"
+        ok "the repo can rebuild this machine"
+    else
+        echo
+        warn "the repo can NOT rebuild this machine as it stands"
+    fi
     return 0
 }
 
@@ -429,6 +499,7 @@ SELECTED=()
 for arg in "$@"; do
     case "$arg" in
         --check) run_check; exit 0 ;;
+        --check-rebuild) run_check_rebuild; exit 0 ;;
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;
