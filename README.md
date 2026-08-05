@@ -203,15 +203,14 @@ atlas-theme list       # cobalt · cobalt-light · tokyo-night · nord · gruvbo
 ```
 
 Design idiom: cobalt accent on near-black glass, with a ChatGPT-clean light mode as
-the counterweight (see `design/shell-mockup.html`). Switching retints waybar,
+the counterweight. Switching retints waybar,
 ghostty, alacritty, rofi, swaync, swaylock, starship, **neovim** and the Mango
 window borders together.
 
 Neovim is themed the same way starship is: a tracked colourscheme
 (`config/nvim/colors/atlas.lua`) plus a generated palette. Every syntax role is
 derived from the theme's own 16 colours using VS Code Dark+ semantics, so a new
-theme needs no editor work at all -- see `design/nvim-mockup.html` for the mapping
-rendered across all seven. A running nvim watches the generated palette and
+theme needs no editor work at all. A running nvim watches the generated palette and
 re-sources itself, so it recolours mid-session like the bar does.
 
 **Add a theme** — drop a `themes/<name>/colors.sh` defining the palette
@@ -293,8 +292,7 @@ gentoo-dotfiles/
 │   └── lua/atlas/        #   roles.lua (derivation) · fallback.lua · lualine.lua
 ├── config/tmux/tmux.conf # colours are palette NAMES, so it rides the ghostty theme
 ├── config/fish/functions/ # autoloaded: dev · t (tmux) · gwa · gwr (worktrees)
-├── dictation/            # Parakeet setup + transcribe + toggle
-└── design/               # shell + nvim mockups (design contracts)
+└── dictation/            # Parakeet setup + transcribe + toggle
 ```
 
 ### Why `system/` is copied and `config/` is symlinked
