@@ -431,6 +431,38 @@ run_check() {
         info "      until then the world file, not the sets, is the source of truth"
         info "      migration steps: ~/projects/wargames/atlas-cleanup/DECISIONS.md"
     else
+        # The world file must stay EMPTY. Every atom this machine wants is
+        # declared in a set, and the sets are what world_sets registers, so
+        # anything landing in world came from a bare `emerge <atom>` -- portage
+        # adds to world unless told --oneshot. That atom is then a depclean root
+        # in its own right, which quietly defeats the whole model: delete it
+        # from its set file and depclean will still protect it forever.
+        #
+        # Added 2026-08-05 after `emerge --newuse app-admin/eclean-kernel`
+        # (missing --oneshot) recorded it in world, and the check ran green
+        # anyway. It also turned up gui-apps/wl-clipboard, which had been
+        # sitting there since before the migration while declared in
+        # atlas-core:103 -- invisible to every other check here.
+        if [ -s /var/lib/portage/world ]; then
+            local w_declared w_undeclared
+            w_declared=$(comm -12 <(sort -u /var/lib/portage/world) <(declared_atoms))
+            w_undeclared=$(comm -23 <(sort -u /var/lib/portage/world) <(declared_atoms))
+            warn "world file is not empty — every atom belongs in a set, not world"
+            [ -n "$w_declared" ] && {
+                printf '      %s\n' $w_declared
+                info "      ^ already declared in a set; the world entry is redundant:"
+                info "        doas emerge --deselect <atom>"
+            }
+            [ -n "$w_undeclared" ] && {
+                printf '      %s\n' $w_undeclared
+                info "      ^ declared NOWHERE; add to a set file, then --deselect"
+            }
+            info "      installing by hand? use: doas emerge --oneshot <atom>"
+            drift=1
+        else
+            ok "world file empty — the sets are the only source of truth"
+        fi
+
         local removable
         removable=$(emerge --depclean --pretend --quiet 2>/dev/null \
             | grep -oE '^[[:space:]]*[a-z0-9-]+/[a-zA-Z0-9._+-]+' | tr -d ' ')
@@ -451,6 +483,12 @@ run_check() {
                 printf '      %s\n' $undeclared_removable
                 info "      declare it in system/portage/sets/, or remove it with:"
                 info "        doas emerge --depclean --ask   (read the list first)"
+                # Only THIS branch is drift. The superseded-slot branch below
+                # prints "not drift" and used to set this flag anyway, so a
+                # freshly-updated kernel left --check red until the old slot was
+                # depcleaned -- a check contradicting its own output, which
+                # teaches you to stop reading the output.
+                drift=1
             fi
             if [ -n "$declared_removable" ]; then
                 warn "$(printf '%s\n' "$declared_removable" | wc -l) superseded version(s) of a DECLARED package:"
@@ -460,7 +498,6 @@ run_check() {
                 info "        uname -r        # what you are running right now"
                 info "        emerge --depclean --pretend sys-kernel/gentoo-kernel-bin"
             fi
-            drift=1
         else
             ok "nothing installed that the sets do not declare"
         fi

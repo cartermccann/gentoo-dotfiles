@@ -178,3 +178,18 @@ net-libs/webkit-gtk wayland
 #
 # The effects UI is unaffected; only F1 / "Help" stops working.
 media-sound/easyeffects -doc
+
+# eclean-kernel reads each initramfs to identify it, so it needs a decompressor
+# for whatever dracut produced. Ours is zstd:
+#
+#   $ file -b /boot/initramfs-6.18.39-gentoo-dist-bin.img
+#   Zstandard compressed data (v0.8+)
+#
+# The default USE is -zstd, and without it the tool installs cleanly and then
+# fails at the moment you actually use it:
+#
+#   MissingDecompressorError("The Python module 'zstandard' ... is not installed")
+#
+# Found 2026-08-05 by dry-running it immediately after declaring it, which is
+# the only reason it was not discovered mid-cleanup on some future kernel bump.
+app-admin/eclean-kernel zstd

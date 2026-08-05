@@ -25,6 +25,27 @@
 sys-kernel/gentoo-kernel-bin
 sys-kernel/linux-firmware
 
+# Cleaning up after the above, which `emerge --depclean` cannot do. Added
+# 2026-08-05, after depcleaning 6.18.38 removed the package and left every
+# boot artifact behind:
+#
+#   /boot/vmlinuz-6.18.38-gentoo-dist-bin      UNOWNED
+#   /lib/modules/6.18.38-gentoo-dist-bin       UNOWNED
+#
+# That is not a bug. installkernel writes those files in pkg_postinst, so they
+# were never in the package's CONTENTS and portage has nothing to remove --
+# and there is no /etc/kernel/postrm.d to hook, only postinst.d and preinst.d.
+# The result is that /boot and the ESP grow by a generation every kernel bump
+# and nothing here notices, because --check sees packages, /etc, services and
+# s6, but has no view of /boot at all.
+#
+# Doing it by hand is three commands and the third is the one that gets
+# forgotten: rm from /boot, rm the module tree, then re-run
+# 95-limine.install so the ESP copies are pruned and the menu is rewritten.
+# Skip that last step and limine offers entries pointing at deleted files.
+# eclean-kernel knows to leave the running kernel alone.
+app-admin/eclean-kernel
+
 # doas is what install.sh itself escalates with — lib/common.sh prefers it
 # over sudo. The installer depended on a package the installer never installed.
 app-admin/doas
