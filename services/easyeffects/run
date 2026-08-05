@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# easyeffects — system-wide audio DSP (EQ, mic gate/denoise, compressor).
+#
+# EasyEffects is a PipeWire *client*, not part of the daemon stack: it publishes
+# a virtual sink and a virtual source into the graph, hosts an LV2 chain inside
+# them (lsp-plugins), and moves streams onto them. Nothing in the pipewire /
+# wireplumber / pipewire-pulse trio changes; this only adds nodes for
+# WirePlumber to route through, so pavucontrol keeps working and just grows two
+# extra devices.
+#
+# --gapplication-service is what makes it a headless daemon: presets apply with
+# no window open, and launching the GUI later just attaches to this process.
+# It does NOT fork, so exec'ing it gives s6 the real process to supervise.
+exec 2>&1
+
+# ── Do not busy-loop when the package is absent ────────────────
+# Everything under services/ is linked unconditionally by 35-services.sh, but
+# easyeffects lives in the apps phase, which is optional and may not have run.
+# Without this guard s6 would respawn a missing binary as fast as it can fail.
+if ! command -v easyeffects >/dev/null 2>&1; then
+    echo "easyeffects not installed — run ./install.sh apps; idling"
+    exec sleep 3600
+fi
+
+# ── Wait for the graph, do not race it ─────────────────────────
+# autostart.sh backgrounds pipewire and s6-svscan with no ordering between
+# them, so on a cold session this service can win the race. EasyEffects started
+# without a graph does not crash — it comes up connected to nothing and applies
+# no processing, which s6 cannot detect and therefore will never restart. That
+# silent-nothing failure is the one worth blocking on, so poll instead.
+for _ in $(seq 1 60); do
+    pw-cli info 0 >/dev/null 2>&1 && break
+    sleep 1
+done
+if ! pw-cli info 0 >/dev/null 2>&1; then
+    echo "pipewire still unreachable after 60s — exiting so s6 retries"
+    exec sleep 5
+fi
+
+exec easyeffects --gapplication-service

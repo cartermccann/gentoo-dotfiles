@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# s6-log: 20 rotated files, 1 MB each, every line timestamped (T).
+#
+# EasyEffects logs every plugin load and every device autoload-preset switch,
+# which is the only trace of why a chain went quiet after a headset connect.
+exec s6-log -b n20 s1000000 T "$HOME/.local/state/s6/log/easyeffects"
