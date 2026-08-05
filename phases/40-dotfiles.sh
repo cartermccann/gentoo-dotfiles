@@ -40,6 +40,9 @@ run mkdir -p "$HOME/.local/bin"
 run chmod +x "$REPO_DIR"/dictation/*.sh
 backup_and_link "$REPO_DIR/dictation/toggle-dictation.sh" "$HOME/.local/bin/toggle-dictation.sh"
 backup_and_link "$REPO_DIR/dictation/setup-dictation.sh" "$HOME/.local/bin/setup-dictation.sh"
+
+# ── Firmware setup (no boot-menu entry can do this — see the script) ─
+backup_and_link "$REPO_DIR/bin/atlas-firmware-setup" "$HOME/.local/bin/atlas-firmware-setup"
 info "first Super+Alt+L downloads the Parakeet model (~480 MB) into a uv venv"
 
 # ── Neovim ─────────────────────────────────────────────────────

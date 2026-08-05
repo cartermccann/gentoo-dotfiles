@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# atlas-firmware-setup — reboot into the Surface UEFI.
+#
+# Why this exists as a command and not a boot-menu entry: the limine
+# `efi_boot_entry` protocol reboots into a NAMED EFI BOOT ENTRY, and this
+# firmware has no entry for its setup screen (efibootmgr lists Internal
+# Storage / USB / PXE / Limine, nothing else). Asking limine for "Setup"
+# panicked with "failed to find boot firmware" — see 95-limine.install.
+#
+# Firmware setup on this machine is reached the way the UEFI spec actually
+# provides: set EFI_OS_INDICATIONS_BOOT_TO_FW_UI (bit 0) in the OsIndications
+# variable and reset. One-shot -- the firmware clears the bit after honouring
+# it. This is exactly what `systemctl reboot --firmware-setup` does on systemd
+# machines; OpenRC has no equivalent, hence this script.
+#
+# Hardware fallback if the machine will not boot at all: power off, hold
+# Volume-Up, tap Power, keep holding Volume-Up until the UEFI appears.
+set -euo pipefail
+
+GUID=8be4df61-93ca-11d2-aa0d-00e098032b8c
+VAR=/sys/firmware/efi/efivars/OsIndications-$GUID
+SUP=/sys/firmware/efi/efivars/OsIndicationsSupported-$GUID
+
+as_root() { [ "$(id -u)" = 0 ] && "$@" || doas "$@"; }
+
+# Refuse politely on firmware that cannot do this, rather than writing a
+# variable that would be silently ignored. Value layout: 4 attribute bytes,
+# then the 8-byte little-endian value; bit 0 = BOOT_TO_FW_UI.
+[ -r "$SUP" ] || { echo "no OsIndicationsSupported variable — not UEFI, or efivarfs not mounted" >&2; exit 1; }
+sup_byte=$(od -An -tx1 -j4 -N1 "$SUP" | tr -d ' ')
+if ! (( 0x$sup_byte & 1 )); then
+    echo "this firmware does not support OS-requested boot-to-setup" >&2
+    echo "use the hardware chord: power off, hold Vol-Up, tap Power" >&2
+    exit 1
+fi
+
+# efivarfs marks variables immutable between boots; clear that before writing.
+[ -e "$VAR" ] && as_root chattr -i "$VAR" 2>/dev/null || true
+printf '\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00' | as_root tee "$VAR" >/dev/null
+
+echo "armed — the NEXT boot enters firmware setup (one-shot, then cleared)"
+read -rp "reboot now? [y/N] " a
+case "${a,,}" in y|yes) exec as_root reboot ;; *) echo "ok — reboot whenever; the request keeps until then" ;; esac
