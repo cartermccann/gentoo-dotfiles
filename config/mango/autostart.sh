@@ -11,9 +11,52 @@ set +e
 # lingers as a second process per service, showing up as another
 # "bash autostart.sh". Splitting the guard out means `"$@" &` is a simple
 # command, which bash execs directly. One process per service, not two.
+#
+# Each launch is also RECORDED, so that check_started (bottom of this file) can
+# report the ones that did not survive. Fire-and-forget is still the contract --
+# nothing here is restarted, that is what the s6 tree at the bottom is for --
+# but "died instantly" and "started fine" used to look identical, and that is
+# how swayidle managed to exit 255 at every login since this machine was built
+# without anyone noticing the screen had never once auto-locked.
+_launched=()
 run() {
     command -v "$1" >/dev/null 2>&1 || return 0
     "$@" &
+    _launched+=("$!|$*")
+}
+
+# Report anything that did not survive its first few seconds.
+#
+# Runs backgrounded so it never delays the session, and the subshell exits as
+# soon as it has reported -- the one-process-per-service concern above still
+# holds for the steady state.
+#
+# The delay is a compromise, and worth stating rather than tuning blindly: it
+# catches "never started", which is the failure mode actually observed here
+# (bad USE flag, missing bus, aborted on an unsupported argument -- all of which
+# die immediately). It will NOT catch something that dies an hour in. Supervise
+# it in services/ if that matters for a given daemon.
+check_started() {
+    local grace=5 dead=() e pid cmd
+    sleep "$grace"
+    for e in "${_launched[@]}"; do
+        pid=${e%%|*}; cmd=${e#*|}
+        kill -0 "$pid" 2>/dev/null || dead+=("$cmd")
+    done
+    [ ${#dead[@]} -eq 0 ] && return 0
+    # stderr, because mango-session appends it to ~/.cache/mango-session.log --
+    # the one place that survives the session and gets read after the fact.
+    {
+        echo "─── autostart: ${#dead[@]} service(s) died within ${grace}s ───"
+        printf '  %s\n' "${dead[@]}"
+        echo "─── rerun one by hand to see its error ───"
+    } >&2
+    # Best-effort desktop notice. Deliberately not relied on: swaync is itself
+    # one of the things that can be in the dead list.
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u critical "autostart: ${#dead[@]} service(s) failed" \
+            "$(printf '%s\n' "${dead[@]}")" 2>/dev/null
+    fi
 }
 
 # ── D-Bus activation environment ───────────────────────────────
@@ -102,3 +145,8 @@ if command -v s6-svscan >/dev/null 2>&1 && [ -d "$S6_SCAN" ]; then
         s6-svscan "$S6_SCAN" &
     fi
 fi
+
+# ── Did any of the above die immediately? ──────────────────────
+# Last, so every `run` above has been recorded. Backgrounded: this sleeps
+# before reporting and must not hold up the session.
+check_started &

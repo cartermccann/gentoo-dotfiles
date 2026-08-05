@@ -625,6 +625,56 @@ run_check() {
             | awk '{printf "%s of %s (%s)", $1, $2, $3}')"
     fi
 
+    # ── Clock ──────────────────────────────────────────────────────
+    # This machine's RTC hands the kernel a date ~367 days in the past at every
+    # boot, and no amount of Linux-side writing fixes it: the RTC reads
+    # CORRECTLY while the machine is running (chrony's rtcsync keeps it that
+    # way) and the firmware discards that across a power cycle. Measured
+    # 2026-08-05 at 31,767,463 s = 367.678 days, constant across six reboots.
+    #
+    # swclock is the mitigation (system/services.conf has the full story). It
+    # is entirely invisible when it works, which is the problem: if it silently
+    # stopped, the only symptom would be timestamps a year in the past on
+    # anything that runs before chronyd reaches the network -- log files, file
+    # mtimes, TLS notBefore checks -- and the machine would look fine.
+    #
+    # So this asserts the mitigation is intact and PRINTS the offset. The
+    # offset itself is never drift; it is the hardware, and it is not going to
+    # change. What would be drift is the mitigation quietly going away.
+    step "clock (RTC vs swclock mitigation)"
+    local STAMP="${SWCLOCK_STAMP:-/var/lib/misc/openrc-shutdowntime}"
+    local rtc_boot now_s boot_s off
+    rtc_boot=$(grep -ah 'setting system clock' /var/log/kern.log 2>/dev/null \
+               | tail -1 | grep -oE '\([0-9]+\)' | tr -d '()')
+    if [ -n "$rtc_boot" ]; then
+        now_s=$(date +%s); boot_s=$(( now_s - $(awk '{print int($1)}' /proc/uptime) ))
+        off=$(( boot_s - rtc_boot ))
+        if [ "${off#-}" -lt 300 ]; then
+            ok "RTC was accurate at boot (${off}s off) — swclock had nothing to correct"
+        else
+            info "RTC handed the kernel a time $(( off / 86400 )) days off at boot — expected on this machine"
+        fi
+    else
+        info "no RTC line in /var/log/kern.log (rotated?) — offset not measured"
+    fi
+    # The mitigation itself. Both halves matter: swclock supplies the boot
+    # clock, and its stamp is what it reads. With the stamp gone it falls back
+    # to /sbin/openrc-run's mtime, which is the openrc merge date -- silently
+    # putting the boot clock weeks out instead of seconds.
+    if rc-update show boot 2>/dev/null | grep -qw swclock; then
+        if [ -f "$STAMP" ]; then
+            ok "swclock enabled, stamp present ($(date -d "@$(stat -c %Y "$STAMP")" '+%Y-%m-%d %H:%M' 2>/dev/null))"
+        else
+            err "swclock enabled but $STAMP is MISSING — boot clock falls back to openrc's merge date"
+            info "      doas touch $STAMP    (it maintains itself from the next shutdown on)"
+            drift=1
+        fi
+    else
+        err "swclock NOT in the boot runlevel — nothing corrects the RTC, boot clock will be ~a year out"
+        info "      doas rc-update add swclock boot"
+        drift=1
+    fi
+
     step "pending portage config"
     local cfgs; cfgs=$(find /etc/portage -name '._cfg*' 2>/dev/null | head)
     if [ -n "$cfgs" ]; then
