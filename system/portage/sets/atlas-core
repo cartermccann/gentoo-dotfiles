@@ -89,6 +89,36 @@ sys-boot/limine
 sys-boot/efibootmgr
 
 # ── compositor + session ───────────────────────────────────────
+#
+# These two need `emerge --changed-slot` when GURU moves a SLOT, and the
+# reason is worth writing down because the failure is silent in both
+# directions. Hit 2026-08-05 upgrading mangowm 0.15.2 -> 0.15.6:
+#
+# GURU changed scenefx-0.5's SLOT in place, 0 -> 0.5, same version, no
+# revision bump (sync of 2026-08-04). An installed package keeps the SLOT
+# recorded in its vdb at merge time, so the machine still read:
+#
+#   /var/db/pkg/gui-libs/scenefx-0.5/SLOT   ->  0
+#   /var/db/repos/guru/.../scenefx-0.5.ebuild ->  SLOT="0.5"
+#
+# and mangowm-0.15.6 had meanwhile grown an explicit `>=gui-libs/scenefx-0.5:0.5`.
+# So the dependency was genuinely unsatisfiable -- `portageq match /
+# '>=gui-libs/scenefx-0.5:0.5'` returned nothing -- while `emerge -uDN @world`
+# reported no work to do and a plain `emerge mangowm` happily planned the
+# upgrade ALONE, against a scenefx portage itself considered wrong-slotted.
+#
+# There is no error message to grep for. Nothing is broken today, because the
+# library files are identical; it surfaces weeks later when some other package
+# grows a slot dep and the resolver starts refusing to move.
+#
+# --changed-slot is what makes portage act on it, and the result is an
+# ordinary reinstall rather than a second parallel slot, so there is no file
+# collision to fear:
+#
+#   [ebuild R ~] gui-libs/scenefx-0.5:0.5 [0.5:0]     0 KiB
+#
+# If a GURU package here ever looks up to date but its consumers will not
+# resolve, compare vdb SLOT against the ebuild's before assuming anything else.
 gui-wm/mangowm
 gui-libs/scenefx
 # login: ly is NOT here — it needs the GURU Manifest workaround in
