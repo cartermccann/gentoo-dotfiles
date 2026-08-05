@@ -1,12 +1,44 @@
 # User services
 
-OpenRC has no equivalent of `systemd --user`. Its runlevels are system-wide and
-root-owned, which is the wrong shape for things that belong to a graphical
-session: they need the session's D-Bus address, its Wayland socket and its
+Session daemons need the session's D-Bus address, its Wayland socket and its
 PipeWire connection, and they should die with the session rather than outlive
-it.
+it. OpenRC's *system* runlevels are the wrong shape for that: they are
+system-wide and root-owned.
 
 So the session gets its own supervision tree, built on **s6**.
+
+## This is no longer the only option
+
+This file used to open by asserting that "OpenRC has no equivalent of
+`systemd --user`". That stopped being true in **OpenRC 0.62**, which added
+user services with an interface much like the system-wide one. atlas runs
+0.63.1, `pam_openrc.so` is active in `/etc/pam.d/system-login`, and
+`rc_autostart_user` is unset in `/etc/rc.conf` (so it defaults to `YES`).
+Elogind supplies the `XDG_RUNTIME_DIR` they require. **OpenRC user services
+are enabled on this machine right now**, and the s6 tree sits beside them
+rather than in place of something missing.
+
+s6 is still what runs `services/`, for reasons that have nothing to do with
+OpenRC lacking the feature:
+
+- **Restart-on-crash is the whole point of `micro-reconnect`.** Its job is
+  recovering a BLE link that drops; a supervisor that gives up after the first
+  failure is worse than none. Any replacement has to match that, not merely
+  start the thing once.
+- **Per-service log rotation.** Each service gets its own `s6-log` with a
+  bounded on-disk size, which is why `atlas-svc log <name>` is one command.
+- **The scan directory dies with the session**, because `s6-svscan` is a child
+  of `config/mango/autostart.sh`. That is the property the first paragraph is
+  actually about, and it is a consequence of *where* the supervisor is started,
+  not of which supervisor it is.
+
+**What would change it:** OpenRC user services earning the same confidence for
+supervision and logging, or the s6 tree growing a dependency-ordering problem
+that `s6-rc` would have to solve anyway. Neither is true today. Revisit
+deliberately, not because this file once claimed there was no alternative.
+
+See `news 2025-09-04-openrc-user-services` and
+https://wiki.gentoo.org/wiki/OpenRC#User_services.
 
 ```
 services/<name>/run        the service

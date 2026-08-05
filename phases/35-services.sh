@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Phase: services — install the s6 user supervision tree.
 #
-# OpenRC's runlevels are system-wide and root-owned, which is the wrong shape
-# for daemons that belong to a graphical session. This builds a per-user
-# supervision tree instead; see services/README.md for the reasoning.
+# OpenRC's *system* runlevels are system-wide and root-owned, which is the wrong
+# shape for daemons that belong to a graphical session. This builds a per-user
+# supervision tree instead.
+#
+# Note that OpenRC 0.62+ does have user services, and they are enabled on this
+# machine — s6 is a deliberate choice here, not a workaround for a missing
+# feature. services/README.md has the current reasoning and the conditions
+# under which it should be revisited.
 set -uo pipefail
 : "${REPO_DIR:=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 source "$REPO_DIR/lib/common.sh"
