@@ -205,10 +205,20 @@ term_palette_bright: ${T8};${T9};${T10};${T11};${T12};${T13};${T14};${T15}
 term_margin: ${margin}
 term_margin_gradient: ${margin_grad}
 
-${entries}/Reboot to Firmware Setup
-    protocol: efi_boot_entry
-    entry: Setup
+${entries}
 EOF
+# No "Reboot to Firmware Setup" entry. It was tried on 2026-08-05 and Limine
+# panicked with "failed to find boot firmware" -- this Surface's firmware does
+# not expose whatever that protocol needs, and a menu item whose only observed
+# behaviour is a panic is worse than no menu item.
+#
+# Both working routes into Surface UEFI:
+#   from Linux : printf '\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00' \
+#                  > .../efivars/OsIndications-8be4df61-93ca-11d2-aa0d-00e098032b8c
+#                then reboot (one-shot; the firmware clears it). Verified
+#                supported: OsIndicationsSupported has BOOT_TO_FW_UI set.
+#   hardware   : power off, hold Volume-Up, tap Power, keep holding until the
+#                UEFI appears. Works even when nothing boots.
 
 mv -f "$CONF.tmp" "$CONF" || { ewarn "limine: failed to install $CONF"; exit 0; }
 einfo "limine: wrote $CONF"
