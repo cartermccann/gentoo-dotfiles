@@ -212,7 +212,16 @@ EOF
 # not expose whatever that protocol needs, and a menu item whose only observed
 # behaviour is a panic is worse than no menu item.
 #
-# Both working routes into Surface UEFI:
+# Better yet, it turns out Limine has this BUILT IN, and has since 5.20231124
+# (Nov 2023): press S at the boot menu. It sets OsIndications properly, checks
+# OsIndicationsSupported first, and hides itself on firmware that cannot do it
+# -- "Firmware Setup" appears in the menu's help bar when available. Verified
+# present in the installed 12.3.3 (common/menu.c: reboot_to_fw_ui). The
+# efi_boot_entry item this generator used to write was a broken hand-rolled
+# duplicate of that built-in.
+#
+# All working routes into Surface UEFI:
+#   at the menu : press S ("Firmware Setup" in the help bar)
 #   from Linux : printf '\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00' \
 #                  > .../efivars/OsIndications-8be4df61-93ca-11d2-aa0d-00e098032b8c
 #                then reboot (one-shot; the firmware clears it). Verified
