@@ -47,3 +47,48 @@ app-admin/awscli-bin ~amd64
 # and the binary repack is ~amd64 only. This was undeclared, so a rebuild would
 # not have installed the browser at all.
 www-client/zen-bin ~amd64
+
+# ── 12 undeclared keywords, found 2026-08-05 ───────────────────
+# Same shape as the zen-bin case above, twelve times over. Every package below
+# is installed and working, is declared in one of the five sets, and had its
+# keyword line in NEITHER this file nor /etc. They were installed by
+# `--autounmask-continue` runs whose stray keyword files were later cleaned up
+# without these lines being carried across, so nothing recorded why they built.
+#
+# This was invisible to every check that inspects the RUNNING system.
+# `./install.sh --check` was clean, `--depclean --pretend` was empty, all
+# twelve were merged and in use. It only appears when portage is asked to
+# resolve the sets from scratch, which is precisely what a clean checkout does
+# and what this machine never does:
+#
+#   emerge --pretend --emptytree @world
+#
+# Note the resolver stops at the FIRST mask, so fixing one reveals the next.
+# To get the whole list in one pass, ask about visibility per atom instead:
+#
+#   for a in $(cat /etc/portage/sets/atlas-* | sed 's/#.*//' | tr -s '[:space:]' '\n' \
+#                | grep -E '^[a-z0-9-]+/[a-zA-Z0-9_]' | sort -u); do
+#       portageq best_visible / "$a" >/dev/null 2>&1 || echo "NO VISIBLE VERSION  $a"
+#   done
+#
+# Run that after any edit to a set file. It is the only check that answers
+# "would this repo actually rebuild this machine?".
+
+# From GURU, which stabilises nothing (see the block above).
+app-arch/ouch ~amd64
+app-misc/glow ~amd64
+app-misc/tealdeer ~amd64
+app-misc/watchexec ~amd64
+app-misc/yazi ~amd64
+dev-util/tokei ~amd64
+dev-vcs/lazygit ~amd64
+games-misc/cbonsai ~amd64
+sys-apps/sd ~amd64
+
+# These three are from ::gentoo, NOT GURU, so the "GURU stabilises nothing"
+# reasoning does not explain them: they are simply Rust CLI tools the main tree
+# has never stabilised on amd64. Worth keeping separate, because if one of them
+# ever does go stable this line becomes removable and the GURU ones will not.
+app-shells/zoxide ~amd64
+dev-util/difftastic ~amd64
+sys-fs/duf ~amd64
