@@ -1,5 +1,10 @@
 x11-misc/rofi wayland
-media-video/pipewire sound-server pipewire-alsa
+# bluetooth builds the bluez5 SPA plugin (/usr/lib64/spa-0.2/bluez5), which is
+# the ONLY thing that turns a BlueZ-connected headset into a PipeWire sink.
+# Without it BlueZ still pairs and connects happily and `bluetoothctl` looks
+# perfect, but `pactl list sinks` shows only the built-in card and audio
+# silently stays on the speakers. REQUIRED_USE pulls in dbus: bluetooth? ( dbus ).
+media-video/pipewire sound-server pipewire-alsa bluetooth dbus
 dev-lang/rust-bin clippy rustfmt rust-analyzer rust-src
 net-libs/nodejs npm
 
