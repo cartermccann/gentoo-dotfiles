@@ -382,7 +382,14 @@ run_check() {
     # BASELINE is the stage3 + profile set: services OpenRC brings up on its own,
     # which this repo neither enables nor should have to declare. Anything in
     # boot/default that is neither baseline nor declared is drift.
-    local BASELINE="binfmt bootmisc fsck hostname hwclock keymaps local
+    #
+    # hwclock is deliberately NOT in this list even though it is a stock
+    # service. This machine runs swclock instead (system/services.conf has the
+    # RTC story), and the two conflict -- both `provide clock`. Left in
+    # BASELINE, hwclock could be re-enabled and silently restore the
+    # year-behind boot clock while every check here still reported green.
+    # Outside BASELINE, its return is drift and gets reported.
+    local BASELINE="binfmt bootmisc fsck hostname keymaps local
         localmount loopback modules mtab netmount procfs root save-keymaps
         save-termencoding seedrng swap sysctl systemd-tmpfiles-setup
         termencoding"
