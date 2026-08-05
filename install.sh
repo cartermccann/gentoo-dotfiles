@@ -124,10 +124,23 @@ valid_categories_only() {
     fi
 }
 
-world_atoms() {
-    # Strip slot (:3.13) and repo (::guru) suffixes, drop @set lines.
-    sed 's/#.*//; s/::.*//; s/:.*//; /^@/d; /^[[:space:]]*$/d' \
-        /var/lib/portage/world | sort -u
+# Every package actually merged, category/name with the version stripped.
+#
+# This used to read /var/lib/portage/world, which stopped meaning anything the
+# moment the sets became the source of truth: the migration empties the world
+# file on purpose, so a world-file read reported all 114 declared packages as
+# missing. @world still resolves correctly for portage -- it expands through
+# world_sets -- but that expansion is exactly the set files, so diffing the
+# sets against it could only ever compare a list to itself.
+#
+# The package database is the honest answer to "is this actually installed?",
+# which is the question the declared-but-absent check exists to ask. The
+# opposite direction, installed-but-undeclared, is the --depclean --pretend
+# step below and needs nothing from here.
+installed_atoms() {
+    find /var/db/pkg -mindepth 2 -maxdepth 2 -type d -printf '%P\n' 2>/dev/null \
+        | sed -E 's/-[0-9][a-zA-Z0-9._-]*$//' \
+        | sort -u
 }
 
 # ── --check: is the live system still what the repo says? ──────
@@ -165,12 +178,30 @@ run_check() {
     # weeks reading "in sync" while no phase deployed it — it had been placed by
     # hand once, so a clean checkout would have silently dropped it. A mapped
     # file that nothing installs is a lie the check was telling.
-    local orphan=0
+    # Two ways a phase can deploy a file, so two ways to find one.
+    #
+    # The literal path covers deploy_system_file, which is called with the full
+    # "$REPO_DIR/system/..." string. Set files are not: deploy_set takes a bare
+    # name and builds the path inside lib/common.sh, so a path grep cannot see
+    # them. That gap was silent rather than loud -- four of the five sets
+    # matched anyway, purely because their full paths happen to appear in nearby
+    # comments, and only atlas-bootstrap (mentioned nowhere by path) failed. A
+    # check that passes on a comment is not checking anything.
+    local orphan=0 name
     while read -r src dst; do
         [ -z "$src" ] && continue
         if grep -rqF "$src" "$REPO_DIR"/phases/ "$REPO_DIR"/bin/ 2>/dev/null; then
             continue
         fi
+        # A set file is deployed iff some phase calls `deploy_set <its name>`.
+        case "$src" in
+            system/portage/sets/*)
+                name="${src##*/}"
+                if grep -rqE "deploy_set[[:space:]]+${name}([[:space:]]|\$)" \
+                        "$REPO_DIR"/phases/ "$REPO_DIR"/bin/ 2>/dev/null; then
+                    continue
+                fi ;;
+        esac
         err "NOT DEPLOYED  $src is checked but no phase or bin/ script installs it"
         orphan=1; drift=1
     done < <(system_file_map)
@@ -294,29 +325,27 @@ run_check() {
              } | sort -u)
     [ "$stray" = "0" ] && ok "every /etc/portage file is repo-owned"
 
-    step "packages (@world vs declared)"
-    # `emerge --noreplace` adds to @world, so anything installed by hand at a
-    # shell is indistinguishable from something a phase installed — until you
-    # rebuild on bare metal and it is simply absent. On 2026-07-26 this found 28
-    # such packages, including app-admin/doas (the tool install.sh runs on),
-    # sys-kernel/gentoo-kernel-bin (the kernel), and dev-util/github-cli (the
-    # credential helper in ~/.gitconfig).
-    local undeclared_pkgs missing_pkgs
-    undeclared_pkgs=$(comm -13 <(declared_atoms) <(world_atoms))
-    missing_pkgs=$(comm -23 <(declared_atoms) <(world_atoms))
-    if [ -n "$undeclared_pkgs" ]; then
-        warn "$(printf '%s\n' "$undeclared_pkgs" | wc -l) in @world, declared in no set:"
-        printf '      %s\n' $undeclared_pkgs
-        info "      add it to the right file in system/portage/sets/"
+    step "packages (declared vs installed)"
+    # Asks one thing: does every atom the sets declare actually exist on disk?
+    # A miss is a typo'd atom or a package that failed to merge and was never
+    # chased down -- both invisible any other way, because a set file is just
+    # text and nothing validates it against the tree.
+    #
+    # The reverse question ("is anything installed that no set declares?") is
+    # NOT asked here. It belongs to --depclean --pretend below, which answers it
+    # from portage's own dependency graph and therefore knows the difference
+    # between an undeclared package and a legitimate dependency. This check has
+    # no such knowledge: every one of the 907 installed packages that is merely
+    # a dependency would look undeclared to it.
+    local missing_pkgs
+    missing_pkgs=$(comm -23 <(declared_atoms) <(installed_atoms))
+    if [ -n "$missing_pkgs" ]; then
+        warn "$(printf '%s\n' "$missing_pkgs" | wc -l) declared in a set but NOT installed:"
+        printf '      %s\n' $missing_pkgs
+        info "      typo in the atom, or the merge failed — check ~/.cache/atlas-emerge.log"
         drift=1
     else
-        ok "every @world package is declared in a set"
-    fi
-    if [ -n "$missing_pkgs" ]; then
-        # Either a typo'd atom, or a package the repo asks for that never
-        # installed. Both are worth seeing; neither is visible any other way.
-        warn "declared but not in @world (typo, or never installed):"
-        printf '      %s\n' $missing_pkgs; drift=1
+        ok "every declared package is installed"
     fi
 
     step "services (enabled vs declared)"
