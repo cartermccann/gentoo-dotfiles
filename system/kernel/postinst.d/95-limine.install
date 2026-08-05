@@ -212,16 +212,21 @@ EOF
 # not expose whatever that protocol needs, and a menu item whose only observed
 # behaviour is a panic is worse than no menu item.
 #
-# Better yet, it turns out Limine has this BUILT IN, and has since 5.20231124
-# (Nov 2023): press S at the boot menu. It sets OsIndications properly, checks
-# OsIndicationsSupported first, and hides itself on firmware that cannot do it
-# -- "Firmware Setup" appears in the menu's help bar when available. Verified
-# present in the installed 12.3.3 (common/menu.c: reboot_to_fw_ui). The
-# efi_boot_entry item this generator used to write was a broken hand-rolled
-# duplicate of that built-in.
+# Limine also has this BUILT IN (since 5.20231124, Nov 2023): press S at the
+# boot menu -- common/menu.c reboot_to_fw_ui(), same OsIndications mechanism,
+# hidden when unsupported. The efi_boot_entry item this generator used to
+# write was a broken hand-rolled duplicate of it.
 #
-# All working routes into Surface UEFI:
-#   at the menu : press S ("Firmware Setup" in the help bar)
+# BUT: tested 2026-08-05 and on THIS firmware the S key lands on the Surface
+# boot-device picker, not the settings app. BOOT_TO_FW_UI only promises "the
+# firmware UI" -- which UI is vendor-defined, and the destination here differs
+# by entry path: armed from Linux (full reboot) it opened the real settings
+# app both times; from Limine (SetVariable + EfiResetWarm inside boot
+# services) it opened the boot picker. Best guess is the warm-reset path skips
+# the full settings app; either way the S key is a boot-device picker here,
+# not a route to Date and Time.
+#
+# Routes into the Surface UEFI SETTINGS, in order of usefulness:
 #   from Linux : printf '\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00' \
 #                  > .../efivars/OsIndications-8be4df61-93ca-11d2-aa0d-00e098032b8c
 #                then reboot (one-shot; the firmware clears it). Verified
