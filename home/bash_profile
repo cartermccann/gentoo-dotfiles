@@ -1,0 +1,18 @@
+# ~/.bash_profile — bash login shells only.
+#
+# Two jobs, both delegated:
+#   ~/.profile  PATH, shared with every POSIX login shell
+#   ~/.bashrc   interactive settings, per the bash info pages and /etc/skel
+#
+# That split is the whole point. This file previously carried its own copy of
+# the bun PATH block *twice*, which is how $HOME/.bun/bin ended up in PATH
+# twice. One definition, in ~/.profile, cannot disagree with itself.
+#
+# Anything added here must be safe under a NON-INTERACTIVE shell: pam_openrc
+# runs this at login to start OpenRC user services. ~/.bashrc is safe to source
+# unconditionally because the /etc/skel version returns early when $- has no
+# 'i' — do not remove that guard from it.
+
+[ -f "$HOME/.profile" ] && . "$HOME/.profile"
+
+[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"

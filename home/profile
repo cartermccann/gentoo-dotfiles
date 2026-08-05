@@ -1,0 +1,53 @@
+# ~/.profile — PATH for POSIX login shells.
+#
+# Fish is the login shell on atlas (phases/40-dotfiles.sh chsh's to it), and
+# fish does not read this file: it builds its own PATH with fish_add_path in
+# config/fish/config.fish. So this is not where your interactive PATH comes
+# from, and changing it will not affect a fish prompt.
+#
+# It exists for the bash login shells that still happen, of which there are
+# now two kinds:
+#
+#   * pam_openrc sources it at login to start OpenRC user services (news
+#     2025-09-04-openrc-user-services; the module is active in
+#     /etc/pam.d/system-login and rc_autostart_user is unset, so it defaults
+#     to YES). That means this file runs under a NON-INTERACTIVE shell: no
+#     prompts, no reads from stdin, no tput, nothing that wants a TTY. A hang
+#     here is a hang at login.
+#
+#   * `bash -lc '...'`, which is how scripted and remote invocations arrive.
+#
+# KEEP THIS LIST IN SYNC WITH config/fish/config.fish. Two PATHs that disagree
+# is the exact failure phases/32-devtools.sh already refuses to allow when it
+# passes --path-update=false to the gcloud installer, and the reason this file
+# is tracked at all: it and ~/.bash_profile were untracked $HOME files written
+# by the uv and bun installers, and the bun block had been appended twice, so
+# $HOME/.bun/bin appeared in PATH twice.
+#
+# The loop is idempotent and existence-guarded, so an installer appending its
+# own PATH line later cannot produce a duplicate — and because this file is a
+# symlink into the repo, such an append shows up as a git diff to review rather
+# than as silent drift.
+
+for _d in \
+    "$HOME/.local/bin" \
+    "$HOME/.cargo/bin" \
+    "$HOME/.bun/bin" \
+    "$HOME/go/bin" \
+    "$HOME/.npm-global/bin" \
+    "$HOME/.fly/bin" \
+    "$HOME/apps/google-cloud-sdk/bin" \
+    "$HOME/.opencode/bin"
+do
+    case ":${PATH}:" in
+        *":$_d:"*) ;;
+        *) [ -d "$_d" ] && PATH="$_d:$PATH" ;;
+    esac
+done
+export PATH
+unset _d
+
+# uv installs a ~/.local/bin/env shim that prepends ~/.local/bin, and its
+# installer appends a line sourcing it. Deliberately not sourced here: the loop
+# above already covers that directory, and the shim is itself idempotent, so
+# nothing breaks if uv re-adds its line.

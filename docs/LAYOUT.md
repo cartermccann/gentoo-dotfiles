@@ -68,6 +68,7 @@ whole contract.
 |---|---|---|---|
 | `system/` | `/etc/...` | **copied** | /etc decides what root emerges. Pointing it at a user-writable checkout would be privilege escalation |
 | `config/` | `~/.config/<app>` | **symlinked** | user-owned, so editing the repo edits the live config with no redeploy |
+| `home/` | `~/.profile`, `~/.bash_profile` | **symlinked** | PATH for bash login shells, which `pam_openrc` now runs at login. Symlinked so an installer appending a PATH line writes into the repo, where `git diff` shows it |
 | `services/` | `~/.local/state/s6/scan/<name>` | **symlinked** | same reasoning as config |
 | `bin/` | `~/.local/bin/<tool>` | **symlinked** | `atlas-theme`, `atlas-svc`, `atlas-wallpaper` |
 | `share/applications/` | `~/.local/share/applications` | symlinked file-by-file | `NoDisplay` stubs that hide launcher junk |
@@ -78,7 +79,10 @@ State is never in the repo. Logs (`~/.local/state/s6/log`), caches
 
 ## Services
 
-OpenRC has no user services, so the session runs its own s6 supervision tree.
+The session runs its own s6 supervision tree. OpenRC *does* have user services
+as of 0.62 and they are enabled on this machine — s6 is a deliberate choice,
+not a workaround for a missing feature, and `services/README.md` records why
+and what would change it.
 System services are declared in `system/services.conf` (`<name> <runlevel>`),
 session services are directories in `services/`. See `services/README.md`.
 

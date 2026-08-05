@@ -279,6 +279,7 @@ gentoo-dotfiles/
 ├── lib/common.sh         # logging/TUI, doas, symlink + deploy helpers
 ├── phases/               # 10-packages · 20-flatpaks · 25-apps · 30-ai-tools · 40-dotfiles · 45-fonts · 50-theme
 ├── config/               # -> symlinked into ~/.config  (user-owned)
+├── home/                 # -> ~/.profile, ~/.bash_profile (PATH for bash logins)
 ├── system/               # -> copied into /etc          (root-owned, see below)
 │   ├── portage/package.{use,accept_keywords}/atlas
 │   ├── ly/config.ini     # login manager (cobalt, 24-bit)

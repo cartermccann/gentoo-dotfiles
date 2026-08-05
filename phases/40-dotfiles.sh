@@ -57,6 +57,25 @@ fi
 info "lazy.nvim bootstraps plugins on first 'nvim' launch"
 ok "config/nvim linked from the repo"
 
+# ── POSIX login-shell files ────────────────────────────────────
+# ~/.profile and ~/.bash_profile were untracked $HOME files, written by the uv
+# and bun installers, until 2026-08-05. Two reasons that stopped being
+# acceptable:
+#
+#   1. They are load-bearing now. pam_openrc sources them at login to start
+#      OpenRC user services, so a hang in either is a hang at login.
+#   2. They were already wrong. The bun PATH block had been appended to
+#      ~/.bash_profile twice, so $HOME/.bun/bin was in PATH twice.
+#
+# Symlinked, not copied — same rule as ~/.config. They are user-owned, nothing
+# root does depends on them, and pointing at the checkout means an installer
+# that appends a PATH line writes into the repo where `git diff` shows it,
+# instead of into an untracked file where nothing ever would.
+step "login shell files"
+backup_and_link "$REPO_DIR/home/profile"      "$HOME/.profile"
+backup_and_link "$REPO_DIR/home/bash_profile" "$HOME/.bash_profile"
+info "PATH lives in home/profile — keep it in sync with config/fish/config.fish"
+
 # ── Fish as login shell ────────────────────────────────────────
 step "fish login shell"
 if have fish; then
