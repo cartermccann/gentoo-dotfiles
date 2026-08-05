@@ -30,28 +30,32 @@ step "scan directory"
 run mkdir -p "$SCAN" "$LOGS"
 ok "${SCAN/#$HOME/\~}"
 
-# ── Link each service definition into the scan directory ───────
+# ── Seed each service definition, link it into the scan dir ────
 #
-# Symlinked, not copied — unlike /etc, nothing here decides what root does, so
-# pointing at the checkout is safe and means editing a `run` script and
-# restarting is a two-step loop rather than a redeploy.
+# Definitions live at ~/.config/s6/<name> (the LIVE home — contract flipped
+# 2026-08-05; the repo only seeds them). The scan directory holds symlinks to
+# ~/.config/s6, which is normal s6 practice: scan is state, ~/.config is
+# config. s6 writes its supervise/ and event/ runtime dirs through the link
+# into ~/.config/s6/<name>/ — that is s6's own layout, leave it be.
+CONF="$HOME/.config/s6"
 step "service definitions"
 count=0
 for dir in "$REPO_DIR"/services/*/; do
     name="$(basename "${dir%/}")"
     [ -f "$dir/run" ] || continue          # README.md and friends are not services
-    run chmod +x "$dir/run" "$dir/log/run" 2>/dev/null
+    seed_copy "${dir%/}" "$CONF/$name"
+    run chmod +x "$CONF/$name/run" "$CONF/$name/log/run" 2>/dev/null
     run mkdir -p "$LOGS/$name"
-    backup_and_link "${dir%/}" "$SCAN/$name"
+    run ln -sfn "$CONF/$name" "$SCAN/$name"
     count=$((count + 1))
 done
-ok "$count service(s) linked"
+ok "$count service(s) defined"
 
 # ── Control wrapper ────────────────────────────────────────────
 step "atlas-svc"
 run mkdir -p "$HOME/.local/bin"
 run chmod +x "$REPO_DIR/bin/atlas-svc"
-backup_and_link "$REPO_DIR/bin/atlas-svc" "$HOME/.local/bin/atlas-svc"
+seed_copy "$REPO_DIR/bin/atlas-svc" "$HOME/.local/bin/atlas-svc"
 
 # ── Pick up the new definitions ────────────────────────────────
 # If a supervisor is already running (i.e. this is a re-run inside a live

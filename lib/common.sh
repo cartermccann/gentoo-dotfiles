@@ -138,22 +138,20 @@ read_set() {   # name
 }
 
 # ── Symlink a path into place, backing up whatever is there ────
-backup_and_link() {
+# ── Seed-copy: one-time bootstrap semantics ────────────────────
+# Copies src to dst ONLY if dst does not exist yet. After first install the
+# LIVE file is the source of truth (contract flipped 2026-08-05), so a re-run
+# must never clobber it — an existing dst, even a stale or broken one, is the
+# owner's to fix. `./install.sh --harvest` is the deliberate reverse channel.
+seed_copy() {
     local src=$1 dst=$2
-    if [ -L "$dst" ] && [ "$(readlink -f "$dst")" = "$(readlink -f "$src")" ]; then
-        ok "linked: ${dst/#$HOME/\~} (already)"
+    if [ -e "$dst" ] || [ -L "$dst" ]; then
+        ok "exists: ${dst/#$HOME/\~} (live copy is the truth — not touched)"
         return
     fi
-    if [ -e "$dst" ] || [ -L "$dst" ]; then
-        # Out of the way, not beside it — see CONFIG_BACKUP_DIR above.
-        run mkdir -p "$USER_BACKUP_DIR"
-        run mv "$dst" \
-            "$USER_BACKUP_DIR/$(basename "$dst").$(date +%Y%m%d-%H%M%S)"
-        warn "backed up existing ${dst/#$HOME/\~} -> ${USER_BACKUP_DIR/#$HOME/\~}"
-    fi
     run mkdir -p "$(dirname "$dst")"
-    run ln -sfn "$src" "$dst"
-    ok "linked: ${dst/#$HOME/\~}"
+    run cp -a "$src" "$dst"
+    ok "seeded: ${dst/#$HOME/\~}"
 }
 
 # ── Keep doas/sudo warm: prompt once, refresh in the background ─

@@ -71,10 +71,10 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
         WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR 2>/dev/null
 fi
 
-# ── Wallpaper (image if present, else solid Catppuccin base) ───
-# Wallpaper — see bin/atlas-wallpaper (shared with atlas-theme).
-if [ -x "$HOME/gentoo-dotfiles/bin/atlas-wallpaper" ]; then
-    "$HOME/gentoo-dotfiles/bin/atlas-wallpaper"
+# ── Wallpaper (image if present, else solid theme ground) ──────
+# Wallpaper — see ~/.local/bin/atlas-wallpaper (shared with atlas-theme).
+if [ -x "$HOME/.local/bin/atlas-wallpaper" ]; then
+    "$HOME/.local/bin/atlas-wallpaper"
 fi
 
 # ── Audio (PipeWire — started from the session on OpenRC) ───────

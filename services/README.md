@@ -41,15 +41,20 @@ See `news 2025-09-04-openrc-user-services` and
 https://wiki.gentoo.org/wiki/OpenRC#User_services.
 
 ```
-services/<name>/run        the service
-services/<name>/log/run    where its output goes
-services/<name>/down       optional — present means "do not start automatically"
+~/.config/s6/<name>/run        the service
+~/.config/s6/<name>/log/run    where its output goes
+~/.config/s6/<name>/down       optional — present means "do not start automatically"
 ```
 
-`phases/35-services.sh` symlinks each directory here into the scan directory at
-`~/.local/state/s6/scan`, and `config/mango/autostart.sh` starts one
-`s6-svscan` over it when the session comes up. s6 then keeps every service
-running, restarts it when it dies, and never gives up.
+Definitions LIVE at `~/.config/s6/<name>` (contract flipped 2026-08-05; the
+directories in this repo's `services/` are only the seed a fresh machine
+starts from). `phases/35-services.sh` seeds them and symlinks each one into
+the scan directory at `~/.local/state/s6/scan`, and
+`config/mango/autostart.sh` starts one `s6-svscan` over it when the session
+comes up. s6 then keeps every service running, restarts it when it dies, and
+never gives up. s6 writes its `supervise/` and `event/` runtime dirs into
+`~/.config/s6/<name>/` through the scan link — that is s6's own layout,
+leave it be; `--harvest` never copies it back here.
 
 ## Why supervision rather than autostart
 
@@ -76,10 +81,14 @@ against `~/.local/state/s6/scan/<name>` if you prefer.
 
 ## Adding a service
 
-Make a directory here with an executable `run` that **execs** the daemon in the
-foreground — s6 supervises the process it starts, so a `run` that forks and
-returns leaves s6 supervising nothing. Copy the `log/run` from a neighbour.
-Then re-run `./install.sh services`.
+Make a directory at `~/.config/s6/<name>` with an executable `run` that
+**execs** the daemon in the foreground — s6 supervises the process it starts,
+so a `run` that forks and returns leaves s6 supervising nothing. Copy the
+`log/run` from a neighbour, link it into the scan dir
+(`ln -sfn ~/.config/s6/<name> ~/.local/state/s6/scan/<name>`), make its log
+dir (`mkdir -p ~/.local/state/s6/log/<name>`), then `s6-svscanctl -a
+~/.local/state/s6/scan`. `./install.sh --harvest` carries the definition back
+into this repo so the next fresh machine gets it too.
 
 Logs land in `~/.local/state/s6/log/<name>/current`, rotated by `s6-log`. They
 are deliberately outside the repo: they are state, not configuration.

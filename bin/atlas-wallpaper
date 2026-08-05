@@ -9,7 +9,7 @@
 # Order: first image in the wallpaper dir, else the active theme's GROUND colour.
 set -uo pipefail
 
-REPO="${REPO:-$HOME/gentoo-dotfiles}"
+THEMES_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/atlas-theme/themes"
 WALLDIR="$HOME/.config/mango/wallpaper"
 STATE="$HOME/.local/state/atlas"
 
@@ -18,7 +18,7 @@ img=$(find "$WALLDIR" -maxdepth 1 -type f \
         2>/dev/null | sort | head -1)
 
 theme=$(cat "$STATE/current-theme" 2>/dev/null || echo cobalt)
-ground=$(sed -n 's/^GROUND=//p' "$REPO/themes/$theme/colors.sh" 2>/dev/null | tr -d '"')
+ground=$(sed -n 's/^GROUND=//p' "$THEMES_DIR/$theme/colors.sh" 2>/dev/null | tr -d '"')
 : "${ground:=0a0c11}"
 
 command -v swaybg >/dev/null 2>&1 || { echo "swaybg not installed" >&2; exit 1; }

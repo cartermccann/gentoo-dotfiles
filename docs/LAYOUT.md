@@ -60,25 +60,40 @@ installer.
 The sets are the **baseline a fresh machine gets** — not an obligation on this
 one. Installing ad hoc is normal: `doas emerge <pkg>` puts it in the world
 file, depclean respects world, done. Add an atom to a set only when a future
-fresh install should include it. `./install.sh --check` reports the difference
-between baseline and reality so it stays visible, but hand-installed packages
-and hand-enabled services are the owner's business, never an error — the only
-things it treats as drift are the files this repo actually deploys, the boot
-chain, and the clock mitigation. (Settled 2026-08-05: this repo is a bootstrap
-with owned files, not a convergence system. It briefly grew Nix-style
-world-must-be-empty ambitions; they lasted one afternoon.)
+fresh install should include it. Nothing compares baseline to reality anymore
+(`--check` is health-only since the one-time flip later the same day) —
+hand-installed packages and hand-enabled services are simply the owner's
+business. (Settled 2026-08-05, twice: first the repo stopped being the
+machine's police — it briefly grew Nix-style world-must-be-empty ambitions
+that lasted one afternoon — then it stopped owning deployed files at all and
+became a pure one-time bootstrap.)
 
-## What is deployed, and how
+## What is seeded, and where it lives
 
-| repo path | goes to | mechanism | why |
-|---|---|---|---|
-| `system/` | `/etc/...` | **copied** | /etc decides what root emerges. Pointing it at a user-writable checkout would be privilege escalation |
-| `config/` | `~/.config/<app>` | **symlinked** | user-owned, so editing the repo edits the live config with no redeploy |
-| `home/` | `~/.profile`, `~/.bash_profile` | **symlinked** | PATH for bash login shells, which `pam_openrc` now runs at login. Symlinked so an installer appending a PATH line writes into the repo, where `git diff` shows it |
-| `services/` | `~/.local/state/s6/scan/<name>` | **symlinked** | same reasoning as config |
-| `bin/` | `~/.local/bin/<tool>` | **symlinked** | `atlas-theme`, `atlas-svc`, `atlas-wallpaper` |
-| `share/applications/` | `~/.local/share/applications` | symlinked file-by-file | `NoDisplay` stubs that hide launcher junk |
-| `share/vendored/*.in` | `~/.local/share/applications` | **rendered** | needs an absolute `$HOME` path, so it cannot be tracked verbatim |
+The repo went ONE-TIME on 2026-08-05: it seeds a fresh machine and then gets
+out of the way. Nothing in `$HOME` symlinks into this checkout anymore, and
+the LIVE files are the source of truth for every config — edit them where
+they live, like on any normal machine. `./install.sh --harvest` is the
+deliberate reverse channel: it pulls the live copies back into the repo when
+the seed has earned a refresh, and `git diff` shows what changed.
+
+| repo path | seeds | live home (edit HERE) |
+|---|---|---|
+| `system/` | `/etc/...` | `/etc/...` — hand-edit, dispatch-conf as normal |
+| `config/` | `~/.config/<app>` | `~/.config/<app>` |
+| `home/` | `~/.profile`, `~/.bash_profile` | the live files |
+| `services/` | `~/.config/s6/<name>` (scan dir symlinks THERE, not here) | `~/.config/s6/<name>` |
+| `bin/` | `~/.local/bin/<tool>` | `~/.local/bin/<tool>` |
+| `themes/` | `~/.local/share/atlas-theme/themes` | same — atlas-theme reads only this |
+| `share/applications/` | `~/.local/share/applications` | the live files |
+| `share/vendored/*.in` | `~/.local/share/applications` | rendered with `$HOME`, live file is truth |
+
+Seeding copies ONLY when the destination is absent (`seed_copy` in
+lib/common.sh): a phase re-run on a provisioned machine is a no-op for
+anything that exists. The one exception is `system/` on a FRESH install,
+where `deploy_system_file` overwrites the stage3 defaults on purpose —
+which is why you do not re-run `./install.sh packages` on a machine whose
+/etc you have since hand-tuned without expecting exactly that.
 
 State is never in the repo. Logs (`~/.local/state/s6/log`), caches
 (`~/.cache/atlas`), and s6's control fifos are all outside it on purpose.
@@ -98,9 +113,8 @@ session services are directories in `services/`. See `services/README.md`.
 ./install.sh --check
 ```
 
-Diffs every deployed file against the repo, confirms `~/.config` entries are
-still symlinks and not local copies that silently shadow the repo, confirms
-system services are enabled and session services are linked and supervised, and
-flags unmerged `._cfg` files. Anything it reports is drift; drift is either a
-change worth committing or a mistake worth reverting, and both are better than
-not knowing.
+Health only, since the 2026-08-05 flip: the boot chain (limine.conf, the ESP
+and /boot agreeing with each other), the swclock mitigation for the Surface's
+decoy RTC, and unmerged `._cfg` files (diff them — they have been STALE here
+before). It does not compare configs against the repo, because the repo no
+longer claims to know what the live configs should say.

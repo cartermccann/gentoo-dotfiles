@@ -232,7 +232,7 @@ fi
 # swayidle was down for an unrelated build-flag reason. None of the three
 # indicated anything here -- see system/portage/env/no-session-desktop.conf.)
 #
-# Tracked, it is in system_file_map: --check diffs it and reports drift. And
+# Tracked, it is in system_file_map, so --harvest keeps the seed fresh. And
 # system/portage/env/no-session-desktop.conf INSTALL_MASKs the path for
 # gui-wm/mangowm so portage stops installing the competing copy at all.
 deploy_system_file "$REPO_DIR/system/wayland-sessions/mango.desktop" \

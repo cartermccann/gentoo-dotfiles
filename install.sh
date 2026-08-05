@@ -41,15 +41,17 @@ Phases (run in this order if none given):
   ai         claude-code, codex, opencode, herdr + bun/deno/uv runtimes
   devtools   deploy/cloud/API CLIs from portage, npm, uv and upstream installers
   services   s6 user supervision tree for session daemons
-  dotfiles   symlink configs into ~/.config (incl. nvim), deploy shell config
-  theme      install the atlas-theme switcher and apply the default (cobalt)
+  dotfiles   seed configs into ~/.config (incl. nvim) — copies, never overwrites
+  theme      seed atlas-theme + themes and apply the default (cobalt)
 
 Options:
   --dry-run   print what would happen, change nothing
-  --check     diff the repo against the live system, change nothing (~4s)
+  --check     machine health: boot chain, clock mitigation, pending ._cfg (~4s)
   --check-rebuild
               resolve @world from scratch: could a CLEAN CHECKOUT build this
               machine? changes nothing (~25s)
+  --harvest   pull live configs back into the repo to refresh the seed,
+              then review with git diff
   --list      list phases and exit
   -h, --help  this help
 
@@ -60,10 +62,11 @@ Examples:
 EOF
 }
 
-# ── The system files this repo owns ────────────────────────────
-# One list, two readers: the file-by-file diff below, and the stray scan that
-# reports live files this repo has never heard of. Keeping it in one place is
-# what stops a file being deployed but not checked, or checked but not deployed.
+# ── The system files this repo seeds ───────────────────────────
+# One list, two readers: the bootstrap deploy on a fresh machine, and
+# --harvest, which pulls the live copies back into the repo so the seed
+# stays worth planting. This repo does not OWN these files — the live
+# /etc does; the map is a manifest, not a claim.
 system_file_map() {
     cat <<'MAP'
 system/portage/make.conf /etc/portage/make.conf
@@ -92,414 +95,97 @@ system/udev/99-worklouder.rules /etc/udev/rules.d/99-worklouder.rules
 MAP
 }
 
-# ── Atoms this repo declares ───────────────────────────────────
-# One place: the set files under system/portage/sets/. Portage reads the same
-# files, so "declared" and "what emerge will install" cannot disagree.
-declared_atoms() {
-    # Declared == listed in a set file under system/portage/sets/. Nothing else
-    # counts, and that is the point of the package-sets model.
-    #
-    # This used to scrape bash arrays and `emerge` lines out of phases/ and
-    # bin/setup-*, which was a guess dressed as a check. Two ways it lied:
-    # scanning comments made a package "declared" because a comment mentioned
-    # it (three of the four atlas-bootstrap packages hid behind that on
-    # 2026-08-05), and an `emerge --deselect` in a cleanup script had to be
-    # explicitly filtered out because a removal read as a declaration.
-    #
-    # Reading the sets has neither problem: there is exactly one list, portage
-    # reads the same file, and an inline `emerge` somewhere in a phase is now
-    # correctly reported as undeclared rather than silently satisfying the diff.
-    sed 's/#.*//' "$REPO_DIR"/system/portage/sets/* 2>/dev/null \
-        | tr -s '[:space:]' '\n' \
-        | grep -oE '^[<>=~]*[a-z][a-z0-9]*(-[a-z0-9]+)?/[a-zA-Z0-9][a-zA-Z0-9._+-]*$' \
-        | sed 's/^[<>=~]*//' \
-        | sed -E 's/-[0-9][a-zA-Z0-9._-]*$//' \
-        | valid_categories_only \
-        | sort -u
+# ── --harvest: refresh the seed from the live machine ──────────
+# The reverse of installing. The live system is the source of truth; this
+# repo is a bootstrap snapshot of it. Run this when the snapshot has earned
+# a refresh — after settling a config a fresh machine should start from —
+# then review `git diff` and commit. Only paths the repo already seeds are
+# pulled; a new app's config is added deliberately, never swept in.
+run_harvest() {
+    banner "atlas / harvest" "live system -> repo seed"
+
+    step "system files (/etc and friends)"
+    while read -r src dst; do
+        [ -z "$src" ] && continue
+        if [ ! -f "$dst" ]; then
+            warn "absent live: $dst (repo copy left as-is)"
+        elif [ ! -r "$dst" ]; then
+            warn "unreadable: $dst (root-only — pull by hand with doas if it changed)"
+        elif cmp -s "$dst" "$REPO_DIR/$src"; then
+            :
+        else
+            cp -a "$dst" "$REPO_DIR/$src" && ok "pulled $dst"
+        fi
+    done < <(system_file_map)
+
+    step "user configs (~/.config)"
+    local name
+    for dir in "$REPO_DIR"/config/*/; do
+        name="$(basename "${dir%/}")"
+        [ -d "$HOME/.config/$name" ] || { warn "absent live: ~/.config/$name"; continue; }
+        rsync -a --delete "$HOME/.config/$name/" "$dir" && ok "pulled ~/.config/$name"
+    done
+
+    step "login shell files"
+    cp -a "$HOME/.profile"      "$REPO_DIR/home/profile"
+    cp -a "$HOME/.bash_profile" "$REPO_DIR/home/bash_profile"
+    ok "pulled ~/.profile + ~/.bash_profile"
+
+    step "scripts (bin/ + dictation/)"
+    local b
+    for b in atlas-theme atlas-svc atlas-wallpaper atlas-firmware-setup; do
+        [ -f "$HOME/.local/bin/$b" ] && cp -a "$HOME/.local/bin/$b" "$REPO_DIR/bin/$b"
+    done
+    for b in toggle-dictation.sh setup-dictation.sh; do
+        [ -f "$HOME/.local/bin/$b" ] && cp -a "$HOME/.local/bin/$b" "$REPO_DIR/dictation/$b"
+    done
+    ok "pulled atlas-* + dictation scripts"
+
+    step "s6 service definitions (~/.config/s6)"
+    # Definitions only — run and log/run. The supervise/ and event/ dirs are
+    # s6 runtime state and never belong in the repo. New services ARE picked
+    # up: a service you defined live is exactly what a fresh machine needs.
+    local d
+    for d in "$HOME/.config/s6"/*/; do
+        [ -f "$d/run" ] || continue
+        name="$(basename "${d%/}")"
+        mkdir -p "$REPO_DIR/services/$name/log"
+        cp -a "$d/run" "$REPO_DIR/services/$name/run"
+        [ -f "$d/log/run" ] && cp -a "$d/log/run" "$REPO_DIR/services/$name/log/run"
+        ok "pulled service $name"
+    done
+
+    step "themes"
+    rsync -a --delete "${XDG_DATA_HOME:-$HOME/.local/share}/atlas-theme/themes/" \
+        "$REPO_DIR/themes/" && ok "pulled themes"
+
+    step "launcher stubs"
+    local f
+    for f in "$REPO_DIR"/share/applications/*.desktop; do
+        b="$(basename "$f")"
+        [ -f "$HOME/.local/share/applications/$b" ] && \
+            cp -a "$HOME/.local/share/applications/$b" "$f"
+    done
+    ok "pulled tracked .desktop stubs"
+
+    echo
+    ok "harvest complete — review:  git -C $REPO_DIR diff"
 }
 
-# A path is not an atom. `services/micro-herdr` matches the shape of a package
-# perfectly, so shape alone is not enough — the category has to be a real one.
-# profiles/categories is portage's own authoritative list.
-valid_categories_only() {
-    local cats="/var/db/repos/gentoo/profiles/categories"
-    if [ -r "$cats" ]; then
-        grep -F -f <(sed 's|$|/|' "$cats") -
-    else
-        cat    # no tree to validate against; better to over-report than to hide
-    fi
-}
-
-# Every package actually merged, category/name with the version stripped.
-#
-# This used to read /var/lib/portage/world, which stopped meaning anything the
-# moment the sets became the source of truth: the migration empties the world
-# file on purpose, so a world-file read reported all 114 declared packages as
-# missing. @world still resolves correctly for portage -- it expands through
-# world_sets -- but that expansion is exactly the set files, so diffing the
-# sets against it could only ever compare a list to itself.
-#
-# The package database is the honest answer to "is this actually installed?",
-# which is the question the declared-but-absent check exists to ask. The
-# opposite direction, installed-but-undeclared, is the --depclean --pretend
-# step below and needs nothing from here.
-installed_atoms() {
-    find /var/db/pkg -mindepth 2 -maxdepth 2 -type d -printf '%P\n' 2>/dev/null \
-        | sed -E 's/-[0-9][a-zA-Z0-9._-]*$//' \
-        | sort -u
-}
-
-# ── --check: is the live system still what the repo says? ──────
-# Scope, settled 2026-08-05 after the repo briefly grew Nix-convergence
-# ambitions: this repo is a BOOTSTRAP plus the specific things it deploys,
-# not the machine's police. It owns the files it installs (/etc entries in
-# system_file_map, the boot chain, the clock mitigation, the s6 links) and
-# drift in THOSE is an error. Packages and services added by hand beyond the
-# baseline are the owner's business: reported so they are visible, never
-# treated as failure. `emerge whatever` freely -- world is where portage
-# records it, and depclean respects world. Add an atom to a set only when you
-# want the NEXT provisioning of a machine to include it.
+# ── --check: machine health, not repo drift ────────────────────
+# Scope, re-settled 2026-08-05 (second pass, same day as the convergence
+# retreat): this repo is a ONE-TIME bootstrap. The live system is the source
+# of truth for every config; nothing here polices what /etc or ~/.config
+# contain. What remains are the checks whose failures brick or bewilder the
+# machine and that nothing else watches: the boot chain (limine + ESP + /boot
+# agreement), the swclock mitigation for the Surface's decoy RTC, and
+# unmerged ._cfg files (which have carried STALE content here before —
+# never blind-merge them). Everything else that used to live here —
+# file-by-file /etc diffs, symlink policing, undeclared-portage scans,
+# declared-vs-installed package audits — died with the ownership model.
 run_check() {
-    banner "atlas / config check" "repo vs live system"
+    banner "atlas / health check" "boot chain · clock · pending config"
     local drift=0
-
-    step "system files (/etc)"
-    while read -r src dst; do
-        [ -z "$src" ] && continue
-        if [ ! -f "$REPO_DIR/$src" ]; then
-            # The map names a file the repo does not have. Distinct from DRIFTED:
-            # nothing differs, the source of truth is simply absent, and `diff`
-            # would just print "No such file or directory".
-            err "NO REPO FILE  $src (mapped to $dst, but not in the repo)"; drift=1
-        elif [ ! -d "$(dirname "$dst")" ]; then
-            # e.g. /etc/ly before bin/setup-ly has been run.
-            # Not drift — just not applicable on this machine yet.
-            info "n/a      $dst (parent directory absent)"
-        elif [ ! -f "$dst" ]; then
-            err "MISSING  $dst"; drift=1
-        elif cmp -s "$REPO_DIR/$src" "$dst"; then
-            ok "in sync  $dst"
-        else
-            warn "DRIFTED  $dst"; drift=1
-            diff -u "$dst" "$REPO_DIR/$src" | sed -n '3,12p' | sed 's/^/      /'
-        fi
-    done < <(system_file_map)
-
-    step "system files: is anything deploying them?"
-    # "in sync" only means the live file matches the repo. It does NOT mean any
-    # phase would ever put it there. /etc/conf.d/consolefont sat in the map for
-    # weeks reading "in sync" while no phase deployed it — it had been placed by
-    # hand once, so a clean checkout would have silently dropped it. A mapped
-    # file that nothing installs is a lie the check was telling.
-    # Two ways a phase can deploy a file, so two ways to find one.
-    #
-    # The literal path covers deploy_system_file, which is called with the full
-    # "$REPO_DIR/system/..." string. Set files are not: deploy_set takes a bare
-    # name and builds the path inside lib/common.sh, so a path grep cannot see
-    # them. That gap was silent rather than loud -- four of the five sets
-    # matched anyway, purely because their full paths happen to appear in nearby
-    # comments, and only atlas-bootstrap (mentioned nowhere by path) failed. A
-    # check that passes on a comment is not checking anything.
-    local orphan=0 name
-    while read -r src dst; do
-        [ -z "$src" ] && continue
-        if grep -rqF "$src" "$REPO_DIR"/phases/ "$REPO_DIR"/bin/ 2>/dev/null; then
-            continue
-        fi
-        # A set file is deployed iff some phase calls `deploy_set <its name>`.
-        case "$src" in
-            system/portage/sets/*)
-                name="${src##*/}"
-                if grep -rqE "deploy_set[[:space:]]+${name}([[:space:]]|\$)" \
-                        "$REPO_DIR"/phases/ "$REPO_DIR"/bin/ 2>/dev/null; then
-                    continue
-                fi ;;
-        esac
-        err "NOT DEPLOYED  $src is checked but no phase or bin/ script installs it"
-        orphan=1; drift=1
-    done < <(system_file_map)
-    [ "$orphan" = "0" ] && ok "every mapped system file has something that deploys it"
-
-    step "user configs (~/.config -> repo)"
-    for d in "$REPO_DIR"/config/*/; do
-        local n dst; n=$(basename "$d"); dst="$HOME/.config/$n"
-        if [ -L "$dst" ] && [ "$(readlink -f "$dst")" = "$(readlink -f "$d")" ]; then
-            ok "linked   ~/.config/$n"
-        elif [ -e "$dst" ]; then
-            warn "NOT A LINK  ~/.config/$n (local copy shadows the repo)"; drift=1
-        else
-            err "MISSING  ~/.config/$n"; drift=1
-        fi
-    done
-
-    step "services"
-    while read -r svc lvl; do
-        case "$svc" in ""|\#*) continue ;; esac
-        if ! [ -f "/etc/init.d/$svc" ]; then err "no init script: $svc"; drift=1
-        elif rc-update show "$lvl" 2>/dev/null | grep -qw "$svc"; then ok "$svc -> $lvl"
-        else warn "NOT ENABLED  $svc ($lvl)"; drift=1; fi
-    done < "$REPO_DIR/system/services.conf"
-
-    step "user services (s6)"
-    local scan="$HOME/.local/state/s6/scan"
-    if [ ! -d "$scan" ]; then
-        info "n/a      no scan directory — './install.sh services' has not run"
-    else
-        # Whether a supervisor is alive has to be established FIRST, because
-        # s6's control fifo outlives the supervisor that made it. Testing only
-        # for the fifo reports "supervised" for a service that has not been
-        # running since the last time a tree happened to be started — which is
-        # exactly the silent failure this check exists to catch.
-        local sup_up=0
-        pgrep -u "$USER" -x s6-svscan >/dev/null 2>&1 && sup_up=1
-        if [ "$sup_up" = "0" ]; then
-            info "supervisor not running — it starts with the graphical session"
-        fi
-        for d in "$REPO_DIR"/services/*/; do
-            [ -f "$d/run" ] || continue      # README.md is not a service
-            local n dst; n=$(basename "${d%/}"); dst="$scan/$n"
-            if [ ! -L "$dst" ]; then
-                err "MISSING  $n (not linked into the scan directory)"; drift=1
-            elif [ "$(readlink -f "$dst")" != "$(readlink -f "${d%/}")" ]; then
-                warn "DRIFTED  $n (links somewhere other than the repo)"; drift=1
-            elif [ "$sup_up" = "0" ]; then
-                # Correct on disk, nothing supervising it. Not drift: outside a
-                # session this is the expected state.
-                info "linked   $n (defined, not running)"
-            elif s6-svstat "$dst" 2>/dev/null | grep -q '^up'; then
-                # s6 measures uptime from the timestamp it recorded when the
-                # service started, so a clock STEP after that point corrupts the
-                # figure. On 2026-07-26 both services reported ~31,768,515
-                # seconds (367 days) on a machine that had been up 18 minutes:
-                # the RTC read 2025-07-24 at boot, s6 stamped against that, then
-                # chronyd stepped the clock forward a year.
-                #
-                # A service cannot have been running longer than the machine has
-                # been up, so /proc/uptime is the ceiling. Reporting "unknown" is
-                # the point of this: the number exists to distinguish "up since
-                # login" from "restarted an hour ago", and a wrong number answers
-                # that question confidently and incorrectly.
-                local svstat sv_secs sys_secs
-                svstat=$(s6-svstat "$dst" 2>/dev/null)
-                sv_secs=$(printf '%s' "$svstat" | grep -oE '[0-9]+ seconds' | grep -oE '^[0-9]+')
-                sys_secs=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)
-                if [ -n "$sv_secs" ] && [ -n "$sys_secs" ] && [ "$sv_secs" -gt "$sys_secs" ]; then
-                    ok "up       $n  (age unknown — start time predates boot, clock stepped after s6 started)"
-                else
-                    ok "up       $n  ($svstat)"
-                fi
-            else
-                warn "DOWN     $n  ($(s6-svstat "$dst" 2>&1 | head -1))"; drift=1
-            fi
-        done
-    fi
-
-    step "undeclared portage config"
-    # The file-by-file comparison above only sees files this repo already knows
-    # about, so anything ELSE under /etc/portage is invisible to it — including
-    # what portage's own --autounmask-write drops there mid-emerge.
-    #
-    # Four such files were found under package.* on 2026-07-26 (zz-autounmask,
-    # system, webkit-gtk, zen-bin), all load-bearing. Then three MORE turned up
-    # at the top level, which this scan originally did not reach at all:
-    # make.conf (MAKEOPTS, march, FEATURES=getbinpkg), repos.conf (the GURU
-    # overlay URI, without which swaync and sd do not exist) and binrepos.conf
-    # (the x86-64-v3 binhost — without it this is a from-source machine). A
-    # clean checkout reproduced none of them. Listing strays is how that stops
-    # being a once-a-year discovery.
-    local stray=0 f known pkg
-    known=$(system_file_map | awk '{print $2}')
-    while read -r f; do
-        [ -n "$f" ] || continue
-        # Files the repo deploys are diffed above, not reported here.
-        printf '%s\n' "$known" | grep -qxF "$f" && continue
-        # savedconfig: portage writes one of these whenever an ebuild that
-        # SUPPORTS USE=savedconfig is merged, whether or not the flag is on.
-        # sys-kernel/linux-firmware drops a 6700-line, 227 KB list of every
-        # firmware blob, version-stamped, so it is regenerated under a new name
-        # on every single bump -- tracking it would mean drift after every
-        # firmware update forever.
-        #
-        # But NOT a blanket exclusion. With USE=savedconfig enabled the file is
-        # real configuration: it decides which blobs get installed, and an
-        # untracked one would be exactly the kind of undeclared, load-bearing
-        # state this scan exists to find. So the flag decides. Off means inert
-        # template, skip; on means config, report it.
-        case "$f" in
-            /etc/portage/savedconfig/*)
-                pkg="${f#/etc/portage/savedconfig/}"          # cat/pkg-version
-                pkg="${pkg%-[0-9]*}"                           # strip version
-                if ! tr ' ' '\n' < /var/db/pkg/"$pkg"-*/USE 2>/dev/null \
-                        | grep -qx savedconfig; then
-                    continue
-                fi
-                warn "UNDECLARED  $f (USE=savedconfig is ON — this file is live config)"
-                stray=1; drift=1; continue ;;
-        esac
-        case "$(basename "$f")" in
-            # The installer's own displaced copies. They live in
-            # CONFIG_BACKUP_DIR now (see lib/common.sh), but old ones linger.
-            *.bak.*)
-                warn "STALE BACKUP  $f — safe to delete"; stray=1; drift=1; continue ;;
-            *autounmask*)
-                warn "AUTOUNMASK  $f — portage wrote this during an emerge"
-                info "      fold the entries into system/portage/ and delete it"
-                stray=1; drift=1; continue ;;
-        esac
-        warn "UNDECLARED  $f (not owned by the repo)"
-        stray=1; drift=1
-    done < <({ find /etc/portage/package.use /etc/portage/package.accept_keywords \
-                    /etc/portage/package.license /etc/portage/package.mask \
-                    -maxdepth 1 -type f 2>/dev/null
-               # Top-level and the directories portage reads wholesale. Excludes
-               # gnupg/ (binpkg keyring, portage's own state) and make.profile
-               # (an eselect-managed symlink, not a config file).
-               find /etc/portage -maxdepth 1 -type f 2>/dev/null
-               find /etc/portage/repos.conf /etc/portage/binrepos.conf \
-                    /etc/portage/env /etc/portage/sets /etc/portage/savedconfig \
-                    -type f 2>/dev/null
-             } | sort -u)
-    [ "$stray" = "0" ] && ok "every /etc/portage file is repo-owned"
-
-    step "packages (declared vs installed)"
-    # Asks one thing: does every atom the sets declare actually exist on disk?
-    # A miss is a typo'd atom or a package that failed to merge and was never
-    # chased down -- both invisible any other way, because a set file is just
-    # text and nothing validates it against the tree.
-    #
-    # The reverse question ("is anything installed that no set declares?") is
-    # NOT asked here. It belongs to --depclean --pretend below, which answers it
-    # from portage's own dependency graph and therefore knows the difference
-    # between an undeclared package and a legitimate dependency. This check has
-    # no such knowledge: every one of the 907 installed packages that is merely
-    # a dependency would look undeclared to it.
-    local missing_pkgs
-    missing_pkgs=$(comm -23 <(declared_atoms) <(installed_atoms))
-    if [ -n "$missing_pkgs" ]; then
-        warn "$(printf '%s\n' "$missing_pkgs" | wc -l) declared in a set but NOT installed:"
-        printf '      %s\n' $missing_pkgs
-        info "      typo in the atom, a failed merge, or you removed it on purpose —"
-        info "      if the last one, prune it from the set or the next provisioning reinstalls it"
-    else
-        ok "every declared package is installed"
-    fi
-
-    step "services (enabled vs declared)"
-    # The loop above asks "is what the repo declares enabled?" — the opposite
-    # question, "is anything else enabled?", went unasked. docker, sshd, chronyd
-    # and sysklogd were all live and undeclared on 2026-07-26.
-    #
-    # BASELINE is the stage3 + profile set: services OpenRC brings up on its own,
-    # which this repo neither enables nor should have to declare. Anything in
-    # boot/default that is neither baseline nor declared is drift.
-    #
-    # hwclock is deliberately NOT in this list even though it is a stock
-    # service. This machine runs swclock instead (system/services.conf has the
-    # RTC story), and the two conflict -- both `provide clock`. Left in
-    # BASELINE, hwclock could be re-enabled and silently restore the
-    # year-behind boot clock while every check here still reported green.
-    # Outside BASELINE, its return is drift and gets reported.
-    local BASELINE="binfmt bootmisc fsck hostname keymaps local
-        localmount loopback modules mtab netmount procfs root save-keymaps
-        save-termencoding seedrng swap sysctl systemd-tmpfiles-setup
-        termencoding"
-    local declared_svcs extra_svcs=""
-    declared_svcs=$(sed 's/#.*//' "$REPO_DIR/system/services.conf" | awk '{print $1}')
-    for lvl in boot default; do
-        while read -r svc; do
-            [ -n "$svc" ] || continue
-            printf '%s\n' $BASELINE | grep -qxF "$svc" && continue
-            printf '%s\n' $declared_svcs | grep -qxF "$svc" && continue
-            extra_svcs="$extra_svcs $svc($lvl)"
-        done < <(rc-update show "$lvl" 2>/dev/null | awk '{print $1}')
-    done
-    if [ -n "$extra_svcs" ]; then
-        # Enabled-by-hand services are the owner's call, same as hand-emerged
-        # packages: visible, not a failure. ONE exception -- hwclock re-enabled
-        # would silently fight swclock for the boot clock (both `provide
-        # clock`), so that specific return is an error, not a choice.
-        case " $extra_svcs" in *" hwclock("*)
-            err "hwclock is enabled again — it conflicts with swclock (see system/services.conf)"
-            drift=1 ;;
-        esac
-        info "enabled beyond the baseline:$extra_svcs"
-        info "      fine as-is; add to system/services.conf only if a fresh machine needs it"
-    else
-        ok "no services enabled beyond baseline + declared"
-    fi
-
-    step "removable packages (--depclean --pretend)"
-    # THE REVERSE DIRECTION. Every other check here asks "is what the repo
-    # declares present?". This asks "is anything present that the repo does not
-    # declare?" — the question that had no answer at all before package sets, because
-    # `emerge --noreplace` only ever adds. Deleting an atom from a bash array
-    # left the package installed forever and nothing noticed.
-    #
-    # Read-only: --pretend never removes anything. Acting on it is deliberate
-    # and manual, by design — a wrong set file plus an automatic
-    # depclean is how you uninstall your own bootloader.
-    if ! have emerge; then
-        info "emerge not available — skipping"
-    elif [ ! -s /var/lib/portage/world_sets ]; then
-        # Until the sets are registered, world still holds ~113 individual
-        # atoms and depclean protects all of them, so a clean result here would
-        # mean nothing. Say that rather than printing a reassuring "0".
-        warn "world_sets is empty — the package-sets migration has not been run"
-        info "      until then the world file, not the sets, is the source of truth"
-        info "      migration steps: ~/projects/wargames/atlas-cleanup/DECISIONS.md"
-    else
-        # The world file is where portage records what YOU emerged by hand,
-        # and that is exactly what it is for. This used to be an emptiness
-        # invariant ("every atom belongs in a set") -- removed 2026-08-05, same
-        # day it was added, when the owner pointed out that obligation turns
-        # ad-hoc `emerge` into bookkeeping and the repo into nrs-for-Gentoo.
-        # Sets are the BOOTSTRAP baseline; world is this install's own
-        # additions; depclean protects both. Shown here so hand installs stay
-        # visible, judged never.
-        local w_count
-        w_count=$(grep -c . /var/lib/portage/world 2>/dev/null) || w_count=${w_count:-0}
-        if [ "$w_count" -gt 0 ]; then
-            info "$w_count package(s) emerged by hand (world file) — yours, not checked"
-        else
-            info "no hand-emerged packages (world file empty)"
-        fi
-
-        local removable
-        removable=$(emerge --depclean --pretend --quiet 2>/dev/null \
-            | grep -oE '^[[:space:]]*[a-z0-9-]+/[a-zA-Z0-9._+-]+' | tr -d ' ')
-        if [ -n "$removable" ]; then
-            # Two very different things end up in this list, and conflating them
-            # sends you the wrong way. A package that no set declares is drift:
-            # declare it or remove it. A package that IS declared is an old SLOT
-            # of something still wanted -- a superseded kernel, say -- and the
-            # fix is never "add it to a set", it is deciding whether the old slot
-            # has earned its keep. Reported separately since 2026-08-05, when a
-            # kernel bump made this print "sys-kernel/gentoo-kernel-bin declared
-            # in no set" about an atom sitting in atlas-core line 25.
-            local undeclared_removable declared_removable
-            undeclared_removable=$(comm -23 <(printf '%s\n' $removable | sort -u) <(declared_atoms))
-            declared_removable=$(comm -12 <(printf '%s\n' $removable | sort -u) <(declared_atoms))
-            if [ -n "$undeclared_removable" ]; then
-                # Nothing in world or the sets wants these: true orphans, the
-                # debris depclean exists for. Not drift -- hand-emerged
-                # packages live in world and never appear here, so this list
-                # is only ever leftovers.
-                warn "$(printf '%s\n' "$undeclared_removable" | wc -l) orphaned (nothing installed wants them):"
-                printf '      %s\n' $undeclared_removable
-                info "      reclaim with: doas emerge --depclean --ask   (read the list first)"
-            fi
-            if [ -n "$declared_removable" ]; then
-                warn "$(printf '%s\n' "$declared_removable" | wc -l) superseded version(s) of a DECLARED package:"
-                printf '      %s\n' $declared_removable
-                info "      not drift — a newer slot is installed and the old one is now spare."
-                info "      For a kernel, do NOT remove it until you have booted the new one:"
-                info "        uname -r        # what you are running right now"
-                info "        emerge --depclean --pretend sys-kernel/gentoo-kernel-bin"
-            fi
-        else
-            ok "nothing installed that the sets do not declare"
-        fi
-    fi
 
     # ── /boot and the ESP ──────────────────────────────────────────
     # The blind spot this closes: every other check here reasons about packages,
@@ -695,22 +381,13 @@ run_check() {
     else ok "no unmerged ._cfg files"; fi
 
     echo
-    if [ "$drift" = "0" ]; then ok "system matches the repo"
-    else warn "drift found — './install.sh packages' redeploys system files"; fi
+    if [ "$drift" = "0" ]; then ok "machine healthy"
+    else warn "problems found — each item above names its own fix"; fi
     # Return it, do not just print it. Until 2026-08-05 --check exited 0
     # unconditionally, so `./install.sh --check && deploy` ran the deploy on a
     # drifted machine and every "exit 0" ever quoted as proof of cleanliness
     # proved only that the script had finished.
     return "$drift"
-    # Say what was NOT checked. Every step above inspects the RUNNING system,
-    # and on 2026-08-05 all of them passed on a machine the repo could not have
-    # rebuilt: fourteen keyword/USE lines were undeclared, and the packages were
-    # already merged so nothing here could see it. "system matches the repo" is
-    # a narrower claim than it sounds, and saying so is cheaper than letting the
-    # output overclaim for another few months.
-    info "not checked here: whether the repo can REBUILD this machine"
-    info "  that resolves the full dependency closure and takes ~25s:  ./install.sh --check-rebuild"
-    return 0
 }
 
 # ── --check-rebuild: could a clean checkout actually build this? ─
@@ -777,6 +454,7 @@ for arg in "$@"; do
     case "$arg" in
         --check) run_check; exit $? ;;
         --check-rebuild) run_check_rebuild; exit 0 ;;
+        --harvest) run_harvest; exit 0 ;;
         --dry-run) DRY_RUN=1 ;;
         --list) printf '%s\n' "${ORDER[@]}"; exit 0 ;;
         -h|--help) usage; exit 0 ;;
