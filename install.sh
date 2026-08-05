@@ -297,12 +297,35 @@ run_check() {
     # (the x86-64-v3 binhost — without it this is a from-source machine). A
     # clean checkout reproduced none of them. Listing strays is how that stops
     # being a once-a-year discovery.
-    local stray=0 f known
+    local stray=0 f known pkg
     known=$(system_file_map | awk '{print $2}')
     while read -r f; do
         [ -n "$f" ] || continue
         # Files the repo deploys are diffed above, not reported here.
         printf '%s\n' "$known" | grep -qxF "$f" && continue
+        # savedconfig: portage writes one of these whenever an ebuild that
+        # SUPPORTS USE=savedconfig is merged, whether or not the flag is on.
+        # sys-kernel/linux-firmware drops a 6700-line, 227 KB list of every
+        # firmware blob, version-stamped, so it is regenerated under a new name
+        # on every single bump -- tracking it would mean drift after every
+        # firmware update forever.
+        #
+        # But NOT a blanket exclusion. With USE=savedconfig enabled the file is
+        # real configuration: it decides which blobs get installed, and an
+        # untracked one would be exactly the kind of undeclared, load-bearing
+        # state this scan exists to find. So the flag decides. Off means inert
+        # template, skip; on means config, report it.
+        case "$f" in
+            /etc/portage/savedconfig/*)
+                pkg="${f#/etc/portage/savedconfig/}"          # cat/pkg-version
+                pkg="${pkg%-[0-9]*}"                           # strip version
+                if ! tr ' ' '\n' < /var/db/pkg/"$pkg"-*/USE 2>/dev/null \
+                        | grep -qx savedconfig; then
+                    continue
+                fi
+                warn "UNDECLARED  $f (USE=savedconfig is ON — this file is live config)"
+                stray=1; drift=1; continue ;;
+        esac
         case "$(basename "$f")" in
             # The installer's own displaced copies. They live in
             # CONFIG_BACKUP_DIR now (see lib/common.sh), but old ones linger.
@@ -405,10 +428,31 @@ run_check() {
         removable=$(emerge --depclean --pretend --quiet 2>/dev/null \
             | grep -oE '^[[:space:]]*[a-z0-9-]+/[a-zA-Z0-9._+-]+' | tr -d ' ')
         if [ -n "$removable" ]; then
-            warn "$(printf '%s\n' "$removable" | wc -l) installed, declared in no set:"
-            printf '      %s\n' $removable
-            info "      declare it in system/portage/sets/, or remove it with:"
-            info "        doas emerge --depclean --ask   (read the list first)"
+            # Two very different things end up in this list, and conflating them
+            # sends you the wrong way. A package that no set declares is drift:
+            # declare it or remove it. A package that IS declared is an old SLOT
+            # of something still wanted -- a superseded kernel, say -- and the
+            # fix is never "add it to a set", it is deciding whether the old slot
+            # has earned its keep. Reported separately since 2026-08-05, when a
+            # kernel bump made this print "sys-kernel/gentoo-kernel-bin declared
+            # in no set" about an atom sitting in atlas-core line 25.
+            local undeclared_removable declared_removable
+            undeclared_removable=$(comm -23 <(printf '%s\n' $removable | sort -u) <(declared_atoms))
+            declared_removable=$(comm -12 <(printf '%s\n' $removable | sort -u) <(declared_atoms))
+            if [ -n "$undeclared_removable" ]; then
+                warn "$(printf '%s\n' "$undeclared_removable" | wc -l) installed, declared in no set:"
+                printf '      %s\n' $undeclared_removable
+                info "      declare it in system/portage/sets/, or remove it with:"
+                info "        doas emerge --depclean --ask   (read the list first)"
+            fi
+            if [ -n "$declared_removable" ]; then
+                warn "$(printf '%s\n' "$declared_removable" | wc -l) superseded version(s) of a DECLARED package:"
+                printf '      %s\n' $declared_removable
+                info "      not drift — a newer slot is installed and the old one is now spare."
+                info "      For a kernel, do NOT remove it until you have booted the new one:"
+                info "        uname -r        # what you are running right now"
+                info "        emerge --depclean --pretend sys-kernel/gentoo-kernel-bin"
+            fi
             drift=1
         else
             ok "nothing installed that the sets do not declare"

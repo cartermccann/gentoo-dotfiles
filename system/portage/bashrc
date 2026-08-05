@@ -1,85 +1,114 @@
 # /etc/portage/bashrc — atlas
 #
-# Take a btrfs snapshot before portage installs anything, so a bad emerge is
-# recoverable. This is the whole scheduling story for snapshots on this machine:
-# btrbk ships btrbk.timer and btrbk.service, both systemd units on an OpenRC
-# box, and no cron daemon is installed. Rather than add a daemon to run a clock,
-# the snapshot is tied to the event it exists to protect against.
+# Take a btrfs snapshot before portage changes what is installed, so a bad
+# emerge OR a bad removal is recoverable. This is the whole scheduling story for
+# snapshots on this machine: btrbk ships btrbk.timer and btrbk.service, both
+# systemd units on an OpenRC box, and no cron daemon is installed. Rather than
+# add a daemon to run a clock, the snapshot is tied to the event it exists to
+# protect against.
 #
 # Portage sources this file for every ebuild phase of every package, with
-# $EBUILD_PHASE set. Two properties of the `preinst` phase make it the right
-# hook point:
+# $EBUILD_PHASE set. Two phases are hooked, for two different risks.
 #
-#   - it runs as root, which btrbk needs
+# preinst — something is about to be INSTALLED.
+#   - runs as root, which btrbk needs
 #   - `emerge --pretend` and `--fetchonly` never reach it, so previewing an
 #     update does not litter snapshots
+#   - fires for binary merges too, which matters on a getbinpkg machine where
+#     most installs never build anything
 #
-# It fires for binary package merges too, which matters on a getbinpkg machine
-# where most installs never build anything.
+# prerm — something is about to be REMOVED.
+#   Added 2026-08-05. Until then this file hooked preinst only, which left the
+#   single most dangerous operation on the machine with no rollback point:
+#   `emerge --depclean` is pure unmerge and never runs preinst, so it took no
+#   snapshot at all. That was survivable while depclean was incidental. It
+#   stopped being survivable when the package-sets model (docs/LAYOUT.md) made
+#   depclean the *designated removal step* — the thing you run to make the
+#   machine match the repo. A 57-package depclean on 2026-08-05 had to be
+#   snapshotted by hand because of this gap.
+#
+# The two phases keep SEPARATE stamps on purpose. See the interval discussion
+# below: sharing one would mean a depclean run shortly after an emerge silently
+# got no snapshot of its own, which is exactly the install-then-depclean
+# sequence that prompted this.
 
-if [[ ${EBUILD_PHASE} == preinst ]]; then
-    _atlas_snapshot_before_merge() {
-        # Never break an emerge. A failed snapshot is worth a warning and
-        # nothing more -- portage is midway through installing a package and
-        # this function returning non-zero would be a far worse outcome than
-        # the missing snapshot it is reporting.
-        local stamp=/run/atlas-btrbk.stamp
-        local min_interval=900          # 15 minutes, in seconds
-        local now last
+_atlas_snapshot_guard() {   # stamp-file  what
+    # Never break an emerge. A failed snapshot is worth a warning and nothing
+    # more -- portage is midway through changing the system and this function
+    # returning non-zero would be a far worse outcome than the missing snapshot
+    # it is reporting.
+    local stamp="$1" what="$2"
+    local min_interval=900          # 15 minutes, in seconds
+    local now last
 
-        command -v btrbk >/dev/null 2>&1 || return 0
-        [[ -d /.snapshots ]] || return 0
+    command -v btrbk >/dev/null 2>&1 || return 0
+    [[ -d /.snapshots ]] || return 0
 
-        now=$(date +%s)
+    now=$(date +%s)
 
-        # Why an interval and not one-snapshot-per-emerge: install.sh's packages
-        # phase runs a separate `emerge` per atom -- 38 of them for TOOLS alone
-        # -- so a hook keyed to the emerge invocation would produce 38 snapshots
-        # for one logical operation. 15 minutes collapses that to one or two
-        # while still giving separate snapshots to emerges run hours apart.
-        #
-        # The tradeoff, stated plainly: two genuinely distinct emerges less than
-        # 15 minutes apart share one snapshot, taken before the first. Rolling
-        # back then undoes both.
-        #
-        # The stamp lives in /run, which is tmpfs, so the first emerge after any
-        # boot always snapshots regardless of how recent the last one was.
-        if [[ -f ${stamp} ]]; then
-            last=$(<"${stamp}") || last=0
-            if [[ ${last} =~ ^[0-9]+$ ]] && (( now - last < min_interval )); then
-                return 0
-            fi
+    # Why an interval and not one-snapshot-per-package: install.sh's packages
+    # phase runs a separate `emerge` per atom -- 38 of them for TOOLS alone --
+    # and a depclean unmerges up to 57 packages in one go. A hook keyed to the
+    # package would produce a snapshot for each. 15 minutes collapses that to
+    # one or two per logical operation while still giving separate snapshots to
+    # operations run hours apart.
+    #
+    # The tradeoff, stated plainly: two genuinely distinct emerges less than 15
+    # minutes apart share one snapshot, taken before the first. Rolling back
+    # then undoes both.
+    #
+    # The stamp lives in /run, which is tmpfs, so the first operation after any
+    # boot always snapshots regardless of how recent the last one was.
+    if [[ -f ${stamp} ]]; then
+        last=$(<"${stamp}") || last=0
+        if [[ ${last} =~ ^[0-9]+$ ]] && (( now - last < min_interval )); then
+            return 0
         fi
+    fi
 
-        echo "${now}" >"${stamp}" 2>/dev/null
+    echo "${now}" >"${stamp}" 2>/dev/null
 
-        # Only the root subvolume. /home is not what an emerge puts at risk, and
-        # snapshotting it on every package install would add churn for nothing.
-        # Report to BOTH the terminal and syslog. einfo/ewarn are swallowed by
-        # `emerge --quiet`, which is how most of this machine's merges run, so
-        # relying on them alone means a snapshot that silently did not happen
-        # looks identical to one that did. sysklogd is enabled (see
-        # system/services.conf), so `logger` lands it in the system log whatever
-        # portage's verbosity.
+    # Only the root subvolume. /home is not what an emerge puts at risk, and
+    # snapshotting it on every package change would add churn for nothing.
+    # Report to BOTH the terminal and syslog. einfo/ewarn are swallowed by
+    # `emerge --quiet`, which is how most of this machine's merges run, so
+    # relying on them alone means a snapshot that silently did not happen looks
+    # identical to one that did. sysklogd is enabled (see system/services.conf),
+    # so `logger` lands it in the system log whatever portage's verbosity.
+    #
+    # user.notice, not daemon.info: /etc/syslog.conf routes daemon.* away from
+    # /var/log/messages (`cron,daemon.none`), so a semantically tidier facility
+    # would have put this only in /var/log/syslog -- the one place nobody thinks
+    # to grep. btrbk keeps its own record in /var/log/btrbk.log; this one
+    # records the attempt, including failures btrbk never got far enough to log.
+    if btrbk --quiet run / >/dev/null 2>&1; then
+        einfo "atlas: btrfs snapshot taken before ${what} (btrbk)"
+        logger -t atlas-snapshot -p user.notice \
+            "snapshot ok before ${what} of ${CATEGORY}/${PF:-unknown}" 2>/dev/null
+    else
+        ewarn "atlas: btrbk snapshot FAILED — continuing the ${what} anyway"
+        ewarn "atlas: check with 'doas btrbk --config /etc/btrbk/btrbk.conf dryrun'"
+        logger -t atlas-snapshot -p user.err \
+            "snapshot FAILED before ${what} of ${CATEGORY}/${PF:-unknown}" 2>/dev/null
+    fi
+    return 0
+}
+
+case ${EBUILD_PHASE} in
+    preinst)
+        _atlas_snapshot_guard /run/atlas-btrbk.stamp merge || true
+        ;;
+    prerm)
+        # prerm fires for BOTH a genuine removal and the old version's cleanup
+        # during an upgrade. Only the first is interesting: an upgrade already
+        # got its snapshot from the new version's preinst moments earlier, and
+        # snapshotting again here would double the count for every `-uDN` run.
         #
-        # user.notice, not daemon.info: /etc/syslog.conf routes daemon.* away
-        # from /var/log/messages (`cron,daemon.none`), so a semantically tidier
-        # facility would have put this only in /var/log/syslog -- the one place
-        # nobody thinks to grep. btrbk keeps its own record in
-        # /var/log/btrbk.log; this one records the attempt, including failures
-        # btrbk never got far enough to log.
-        if btrbk --quiet run / >/dev/null 2>&1; then
-            einfo "atlas: btrfs snapshot taken before merge (btrbk)"
-            logger -t atlas-snapshot -p user.notice \
-                "snapshot ok before merge of ${CATEGORY}/${PF:-unknown}" 2>/dev/null
-        else
-            ewarn "atlas: btrbk snapshot FAILED — continuing the merge anyway"
-            ewarn "atlas: check with 'doas btrbk --config /etc/btrbk/btrbk.conf dryrun'"
-            logger -t atlas-snapshot -p user.err \
-                "snapshot FAILED before merge of ${CATEGORY}/${PF:-unknown}" 2>/dev/null
+        # REPLACED_BY_VERSION is portage's own discriminator (ebuild(5)): it is
+        # set during an upgrade's prerm and empty for a plain unmerge, which is
+        # what depclean and `emerge -C` do.
+        if [[ -z ${REPLACED_BY_VERSION} ]]; then
+            _atlas_snapshot_guard /run/atlas-btrbk-rm.stamp removal || true
         fi
-        return 0
-    }
-
-    _atlas_snapshot_before_merge || true
-fi
+        ;;
+esac
