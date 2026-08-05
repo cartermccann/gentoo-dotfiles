@@ -626,33 +626,50 @@ run_check() {
     fi
 
     # ── Clock ──────────────────────────────────────────────────────
-    # This machine's RTC hands the kernel a date ~367 days in the past at every
-    # boot, and no amount of Linux-side writing fixes it: the RTC reads
-    # CORRECTLY while the machine is running (chrony's rtcsync keeps it that
-    # way) and the firmware discards that across a power cycle. Measured
-    # 2026-08-05 at 31,767,463 s = 367.678 days, constant across six reboots.
+    # History, because the numbers this prints only make sense with it. From
+    # ~2026-07-23 to 2026-08-05 the RTC handed the kernel a date exactly
+    # 367.678 days in the past at every boot, and no Linux-side write could fix
+    # it. Root cause (researched 2026-08-05): on Surfaces the CMOS RTC that
+    # rtc_cmos reads and chrony's rtcsync writes is a VOLATILE DECOY -- the
+    # firmware re-seeds it at power-on from the real persistent clock, an ACPI
+    # Time and Alarm Device ("SRTC", ACPI000E). Linux cannot write that device:
+    # acpi_tad refuses to bind ("Missing _PRW", still true on 6.18.39; see
+    # linux-surface issues #415/#1497). The TAD had been reset to the FIRMWARE
+    # BUILD DATE (bios_date 07/21/2025 -- the bad boots all started at
+    # 2025-07-21T12:00, noon on the build date) by some power event during the
+    # 2026-07 install week. Fixed by setting the clock in the Surface UEFI's
+    # Date and Time page (atlas-firmware-setup gets you there), which edits the
+    # real clock. One write, permanent -- the TAD ticks correctly.
     #
-    # swclock is the mitigation (system/services.conf has the full story). It
-    # is entirely invisible when it works, which is the problem: if it silently
-    # stopped, the only symptom would be timestamps a year in the past on
-    # anything that runs before chronyd reaches the network -- log files, file
-    # mtimes, TLS notBefore checks -- and the machine would look fine.
-    #
-    # So this asserts the mitigation is intact and PRINTS the offset. The
-    # offset itself is never drift; it is the hardware, and it is not going to
-    # change. What would be drift is the mitigation quietly going away.
+    # swclock predates that diagnosis and STAYS: the TAD reset once and can
+    # reset again (firmware update, deep battery drain), and swclock is why the
+    # year-long version of this was a curiosity instead of a problem. It is
+    # invisible when it works, so this step asserts it is intact and prints
+    # the measured RTC offset. The offset is never drift -- what would be
+    # drift is the mitigation quietly going away.
     step "clock (RTC vs swclock mitigation)"
     local STAMP="${SWCLOCK_STAMP:-/var/lib/misc/openrc-shutdowntime}"
-    local rtc_boot now_s boot_s off
+    local rtc_boot now_s boot_s off tz_off
     rtc_boot=$(grep -ah 'setting system clock' /var/log/kern.log 2>/dev/null \
                | tail -1 | grep -oE '\([0-9]+\)' | tr -d '()')
     if [ -n "$rtc_boot" ]; then
         now_s=$(date +%s); boot_s=$(( now_s - $(awk '{print int($1)}' /proc/uptime) ))
         off=$(( boot_s - rtc_boot ))
+        # The kernel always interprets the RTC as UTC, so an RTC that actually
+        # holds LOCAL time shows up as an offset equal to the UTC gap. Seen
+        # 2026-08-05: the Surface UEFI's Date and Time page stores what you
+        # type verbatim, so typing local time leaves exactly this signature.
+        tz_off=$(date +%z | awk '{s=substr($0,1,1)=="-"?-1:1; h=substr($0,2,2); m=substr($0,4,2); print -s*(h*3600+m*60)}')
         if [ "${off#-}" -lt 300 ]; then
             ok "RTC was accurate at boot (${off}s off) — swclock had nothing to correct"
+        elif [ "$(( off - tz_off ))" -lt 300 ] && [ "$(( off - tz_off ))" -gt -300 ]; then
+            warn "RTC appears to hold LOCAL time ($(( (off + 1800) / 3600 ))h off at boot)"
+            info "      harmless while swclock runs, but the kernel reads the RTC as UTC —"
+            info "      set the UEFI clock to UTC: atlas-firmware-setup, then enter UTC time"
+        elif [ "${off#-}" -lt 86400 ]; then
+            info "RTC was $(( (off + 1800) / 3600 ))h off at boot — swclock corrected it"
         else
-            info "RTC handed the kernel a time $(( off / 86400 )) days off at boot — expected on this machine"
+            info "RTC was $(( off / 86400 )) days off at boot — the TAD has reset again; see comment above"
         fi
     else
         info "no RTC line in /var/log/kern.log (rotated?) — offset not measured"
