@@ -16,6 +16,31 @@ for dir in "$REPO_DIR"/config/*/; do
     seed_copy "${dir%/}" "$HOME/.config/$name"
 done
 
+# ── Build the gtklock colormix module ──────────────────────────
+# config/gtklock ships colormix.c but NOT colormix.so: a shared object has to be
+# compiled against the gtk on THIS machine, so seeding a prebuilt one would be
+# the same /nix/store-style portability trap phases/27-vendored.sh exists to
+# undo. Built here instead.
+#
+# Not fatal if it fails. gtklock's config.ini references the module by absolute
+# path; module_load() only warns when that is missing, and style.css sets the
+# statically-rendered colormix.png as the window background, so the lock screen
+# still comes up looking right -- just without the animation. Say so rather than
+# failing the phase, because a lock screen that does not build is not a reason
+# to abort a provisioning run.
+if [ -f "$HOME/.config/gtklock/build.sh" ]; then
+    step "build gtklock colormix module"
+    if command -v gtklock >/dev/null 2>&1 && command -v gcc >/dev/null 2>&1; then
+        if run bash "$HOME/.config/gtklock/build.sh"; then
+            ok "colormix.so built"
+        else
+            warn "colormix.so failed to build — lock screen falls back to the static colormix.png"
+        fi
+    else
+        warn "gtklock or gcc missing — skipping colormix.so (static background will be used)"
+    fi
+fi
+
 # ── Hide junk entries from the launcher ────────────────────────
 # NoDisplay stubs that shadow a system .desktop of the same name. XDG scans
 # XDG_DATA_DIRS in order and ~/.local/share comes first, so these win without

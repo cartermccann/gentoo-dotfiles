@@ -134,7 +134,13 @@ gui-apps/wl-clipboard
 app-misc/cliphist
 gui-apps/grim
 gui-apps/slurp
-gui-apps/swaylock
+# Lock screen. Replaced swaylock 2026-08-06. GURU-only, so it needs the
+# ~amd64 lines in system/portage/package.accept_keywords/atlas -- without those
+# the emerge fails with "masked by: ~amd64 keyword", not a missing package.
+# Config (and the colormix module it builds) is seeded from config/gtklock.
+gui-apps/gtklock
+# Still load-bearing: swayidle drives the 5-minute and before-sleep locks in
+# config/mango/autostart.sh, which now call gtklock -d.
 gui-apps/wlsunset
 gui-apps/swayidle
 gui-apps/wtype

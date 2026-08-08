@@ -1,0 +1,169 @@
+/*
+ * gtklock — Ly-greeter styling.
+ *
+ * HAND-EDITED, and intentionally outside atlas-theme. See config.ini for why.
+ * Every colour is lifted from /etc/ly/config.ini so the lock screen and the
+ * login greeter read as the same surface:
+ *
+ *   #171b23  bg         (ly: bg        = 0x00171B23)
+ *   #ffffff  fg         (ly: fg        = 0x00FFFFFF)
+ *   #3b6bff  accent     (ly: border_fg = 0x003B6BFF)
+ *   #ff6b6b  error      (ly: error_fg  = 0x00FF6B6B)
+ *
+ * This is GTK3 CSS, not web CSS. Supported: colour, background, border,
+ * border-radius, padding, margin, font-*, opacity, box-shadow, transition,
+ * @keyframes + animation-*. NOT supported, verified empirically on this box:
+ *   - animating or swapping background-image (a @keyframes block that changes
+ *     background-image parses fine and then does nothing -- do not retry it)
+ *   - radial gradients, crossfades, unquoted url()
+ *   - letter-spacing, gap, ::before/::after, content
+ *
+ * Everything is square: no border-radius anywhere. Ly draws box-drawing glyphs
+ * in a character grid, so a rounded corner is the one detail that instantly
+ * reads as "not a terminal".
+ */
+
+/* ── Background: FALLBACK ONLY ────────────────────────────────
+ * The live background is drawn by colormix.so, which morphs the plasma in place
+ * the way Ly does. This still image only shows if that module fails to load --
+ * the module hooks the OVERLAY's draw signal, which runs after the window's CSS
+ * background, so it paints over this.
+ *
+ * Rendered by render-colormix.py here, a port of Ly's ColorMix.zig. Regenerate
+ * with a different --seed to reroll it; --frames picks a moment. Sized 2400x1600
+ * to match the panel 1:1 -- any rescale softens the block edges, which is the
+ * whole look. Keep --cell-w/--cell-h in step with /etc/conf.d/consolefont. */
+window {
+	background-color: #171b23;
+	background-image: url("colormix.png");
+	background-size: cover;
+	background-position: center;
+}
+
+/* ── Big clock: drawn by colormix.so, NOT by this label ──────
+ * Ly's bigclock is not text -- each digit is a 5x5 grid of U+2593 cells
+ * (BigLabel.zig), so a font can never reproduce it. The module paints the
+ * blocks straight into its cell grid instead.
+ *
+ * This label survives only as a layout spacer: gtklock still updates its text,
+ * but the text is transparent and the min-height reserves the 5 cells (5 * 32px
+ * at ter-u32b) that the module then draws into. Delete it and the module has
+ * nothing to position against; give it a visible colour and you get Ly's clock
+ * with a JetBrainsMono one printed on top of it. */
+#clock-label {
+	color: transparent;
+	font-size: 1px;
+	min-height: 160px;
+	min-width: 480px;
+}
+
+/* Corner clock in Ly is the date, in plain console text at the console font. */
+#date-label {
+	font-family: "Terminus", monospace;
+	font-size: 32px;
+	color: rgba(255, 255, 255, 0.75);
+	text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+	margin-top: 6px;
+}
+
+/* ── The box ──────────────────────────────────────────────────
+ * Ly's blank_box=true fills the panel with the bg colour rather than letting
+ * the animation through, so this is opaque on purpose -- a translucent panel
+ * over the plasma is unreadable. Padding is Ly's margin_box_h=4 /
+ * margin_box_v=2, which are counts of CELLS -- at ter-u32b's 16x32 cell that is
+ * 4*16=64px horizontal and 2*32=64px vertical. (It was 32px when the console
+ * font was 8x16; the numbers move with /etc/conf.d/consolefont.) */
+#body-grid {
+	background-color: #171b23;
+	border: 1px solid #3b6bff;
+	border-radius: 0;
+	padding: 64px;
+}
+
+/* Ly's box_title = atlas. Ly sits it ON the top border, fieldset-legend style;
+ * GTK3 CSS has no border cutout and no ::before, so it sits inside instead. */
+#title-label {
+	font-family: "Terminus", monospace;
+	font-size: 32px;
+	font-weight: bold;
+	color: #3b6bff;
+	margin-bottom: 14px;
+}
+
+#user-label {
+	font-family: "Terminus", monospace;
+	font-size: 32px;
+	color: #ffffff;
+	margin-bottom: 6px;
+}
+
+/* Upstream's "Password:" label. Kept in the layout because gtklock resolves it
+ * by id, blanked there and flattened here. Do not delete it from layout.ui. */
+#input-label {
+	opacity: 0;
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+}
+
+/* ── Input field ─────────────────────────────────────────────
+ * GtkEntry's default invisible-char is already U+2022, matching Ly's
+ * asterisk = 0x2022. Nothing to set. Square, flat, no inner shadow -- GTK's
+ * default entry has a subtle bevel that reads as a widget rather than a
+ * terminal input line, hence background-image:none and box-shadow:none. */
+#input-field {
+	font-family: "Terminus", monospace;
+	font-size: 32px;
+	color: #ffffff;
+	caret-color: #3b6bff;
+	background-color: #0d1017;
+	background-image: none;
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: 0;
+	padding: 8px 12px;
+	box-shadow: none;
+	transition: border-color 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+#input-field:focus {
+	border-color: #3b6bff;
+	box-shadow: none;
+}
+
+/* ── Unlock button ───────────────────────────────────────────
+ * Square and flat. .suggested-action from the layout brings a GTK gradient,
+ * so background-image:none is doing real work here, not decoration. */
+#unlock-button {
+	font-family: "Terminus", monospace;
+	font-size: 24px;
+	color: #ffffff;
+	background-color: #3b6bff;
+	background-image: none;
+	border: 1px solid #3b6bff;
+	border-radius: 0;
+	padding: 7px 18px;
+	margin-top: 14px;
+	box-shadow: none;
+	transition: background-color 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+#unlock-button:hover {
+	background-color: #1e4fd8;
+	border-color: #1e4fd8;
+}
+
+/* ── Feedback ────────────────────────────────────────────────
+ * Ly's equivalent of swaylock's show-failed-attempts. */
+#error-label {
+	font-family: "Terminus", monospace;
+	font-size: 24px;
+	color: #ff6b6b;
+	margin-top: 14px;
+}
+
+#warning-label {
+	font-family: "Terminus", monospace;
+	font-size: 24px;
+	color: rgba(255, 255, 255, 0.65);
+	margin-top: 14px;
+}

@@ -94,6 +94,15 @@ dev-vcs/lazygit ~amd64
 games-misc/cbonsai ~amd64
 sys-apps/sd ~amd64
 
+# Lock screen (added 2026-08-06, replaced swaylock). Both lines are required:
+# gtklock pulls gtk-session-lock, which is also GURU-only, and portage stops at
+# the first unsatisfiable atom -- so keywording only gtklock gets you a second
+# mask error rather than a working emerge. gtk-session-lock also ships a 9999
+# live ebuild that sets KEYWORDS only in its non-live branch; it stays masked as
+# "missing keyword" no matter what, and portage correctly picks 0.2.0-r6.
+gui-libs/gtk-session-lock ~amd64
+gui-apps/gtklock ~amd64
+
 # These three are from ::gentoo, NOT GURU, so the "GURU stabilises nothing"
 # reasoning does not explain them: they are simply Rust CLI tools the main tree
 # has never stabilised on amd64. Worth keeping separate, because if one of them
