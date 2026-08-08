@@ -12,7 +12,7 @@ opt="$(printf '󰌾  Lock\n󰍃  Logout\n󰒲  Suspend\n󰜉  Reboot\n󰐥  Shut
   | rofi -dmenu -i -p "power" -theme-str '* { width: 320px; }' \
   | sed 's/^[^A-Za-z]*//')"
 case "$opt" in
-    Lock)     swaylock -f ;;
+    Lock)     gtklock -d ;;
     Logout)   pkill -x mango ;;
     Suspend)  loginctl suspend ;;
     Reboot)   loginctl reboot ;;

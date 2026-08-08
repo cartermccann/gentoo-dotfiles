@@ -28,13 +28,36 @@ fi
 # without a graph does not crash — it comes up connected to nothing and applies
 # no processing, which s6 cannot detect and therefore will never restart. That
 # silent-nothing failure is the one worth blocking on, so poll instead.
+#
+# `pw-cli info 0` is NOT a sufficient probe: it answers as soon as the pipewire
+# *core* accepts a connection, which happens well before WirePlumber has
+# enumerated ALSA and published the built-in sink. Binding in that window gives
+# easyeffects no output device, so block on a real ALSA sink node instead.
+#
+# NB this probe is hardening, not the fix for the 2026-08-07 silent-speakers
+# bug. That one was pure configuration and would have survived any guard here:
+# streamoutputs.output-device was pinned to a bluez headset with
+# use-default-output-device=false, so with process-all-outputs=true easyeffects
+# pulled every stream into easyeffects_sink and pushed it at a node that only
+# exists while that headset is paired. Speakers stayed silent, the hardware
+# sink sat SUSPENDED, and bluetooth "working" was the tell, not a coincidence.
+# Fix was `gsettings set com.github.wwmm.easyeffects.streamoutputs
+# use-default-output-device true`. If audio ever dies on one device only,
+# check that key before touching pipewire.
+ready() { pactl list short sinks 2>/dev/null | grep -q '^[0-9].*alsa_output'; }
+
 for _ in $(seq 1 60); do
-    pw-cli info 0 >/dev/null 2>&1 && break
+    ready && break
     sleep 1
 done
-if ! pw-cli info 0 >/dev/null 2>&1; then
-    echo "pipewire still unreachable after 60s — exiting so s6 retries"
+if ! ready; then
+    echo "no alsa sink in the graph after 60s — exiting so s6 retries"
     exec sleep 5
 fi
+
+# WirePlumber publishes the node slightly before it finishes applying routes
+# and profiles to it. Binding mid-configuration reproduces the same dangling
+# chain, so let the device settle before handing over.
+sleep 2
 
 exec easyeffects --gapplication-service

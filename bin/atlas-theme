@@ -195,28 +195,15 @@ globalcolor=0x${T6}ff
 overlaycolor=0x${T2}ff
 EOF
 
-  # ── swaylock (themed lock screen) ──
-  mkdir -p "$C/swaylock"
-  cat > "$C/swaylock/config" <<EOF
-color=$BASE
-inside-color=$SURFACE
-inside-ver-color=$ACCENT
-inside-wrong-color=$T1
-ring-color=$SURFACE2
-ring-ver-color=$ACCENT
-ring-wrong-color=$T1
-key-hl-color=$ACCENT
-bs-hl-color=$T1
-line-color=$BASE
-separator-color=$BASE
-text-color=$TEXT
-text-ver-color=$TEXT
-text-wrong-color=$TEXT
-indicator-radius=90
-indicator-thickness=8
-font=JetBrainsMono Nerd Font
-show-failed-attempts
-EOF
+  # ── lock screen: NOT themed here (removed 2026-08-06) ──
+  # swaylock used to be generated at this point. The lock screen is now gtklock,
+  # and it is deliberately NOT theme-tracked: the contract is "lock follows Ly",
+  # i.e. it stays cobalt-dark on every theme so the lock and login screens always
+  # agree with each other. Its colours are hand-copied from /etc/ly/config.ini.
+  #
+  # Everything for it lives in ~/.config/gtklock (style.css, layout.ui,
+  # colormix.c/.so, config.ini). Do not add a block here to regenerate any of
+  # them -- that would reintroduce exactly the coupling this removed.
 
   # ── neovim (tracked colourscheme + generated palette) ──
   # colors/atlas.lua derives every syntax role from these slots -- see

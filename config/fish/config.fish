@@ -19,10 +19,11 @@ fish_add_path -g ~/apps/google-cloud-sdk/bin
 fish_add_path -g ~/.local/bin
 fish_add_path -g ~/.cargo/bin
 fish_add_path -g ~/.bun/bin
+fish_add_path -g ~/projects/worldbanc/private/bin
 # ~/.deno/bin is deliberately absent: deno comes from portage (dev-lang/deno-bin,
 # pulled in by yt-dlp) at /usr/bin/deno. This entry used to shadow it with a
 # second copy from the upstream installer — see phases/30-ai-tools.sh.
-fish_add_path -g ~/go/bin        # `go install` target (gum lives here)
+fish_add_path -g ~/go/bin # `go install` target (gum lives here)
 fish_add_path -g ~/.opencode/bin
 
 set -gx EDITOR nvim
@@ -31,9 +32,9 @@ set -gx VISUAL nvim
 # ── Interactive tools ──────────────────────────────────────────
 if status is-interactive
     command -q starship; and starship init fish | source
-    command -q zoxide;   and zoxide init fish | source
-    command -q atuin;    and atuin init fish | source
-    command -q direnv;   and direnv hook fish | source
+    command -q zoxide; and zoxide init fish | source
+    command -q atuin; and atuin init fish | source
+    command -q direnv; and direnv hook fish | source
 
     # fzf ships its fish bindings as a plain file rather than an init
     # subcommand — sourcing it defines fzf_key_bindings, calling it installs
@@ -52,15 +53,15 @@ if status is-interactive
     # vi/vim -> nvim, matching kronos. Neither command exists on this machine
     # otherwise: app-editors/vim is not installed, only neovim, so muscle
     # memory hits "command not found" rather than falling back.
-    command -q nvim; and alias vi 'nvim'; and alias vim 'nvim'
+    command -q nvim; and alias vi nvim; and alias vim nvim
 
     command -q eza; and alias ls 'eza --icons'; and alias ll 'eza -la --icons'
-    command -q bat; and alias cat 'bat'
-    command -q rg;  and alias grep 'rg'
-    command -q duf; and alias df 'duf'
-    command -q yazi; and alias y 'yazi'
-    command -q glow; and alias md 'glow'
-    command -q tv;   and alias tvf 'tv files'
+    command -q bat; and alias cat bat
+    command -q rg; and alias grep rg
+    command -q duf; and alias df duf
+    command -q yazi; and alias y yazi
+    command -q glow; and alias md glow
+    command -q tv; and alias tvf 'tv files'
 
     # ── Git ────────────────────────────────────────────────────
     # (worktree helpers gwa/gwr live in functions/, autoloaded)
@@ -77,4 +78,6 @@ if status is-interactive
     alias dps 'docker ps'
     alias dimg 'docker images'
     alias dlog 'docker logs'
+    # ── Misc ─────────────────────────────────────────────────
+    alias reload 'source ~/.config/fish/config.fish'
 end

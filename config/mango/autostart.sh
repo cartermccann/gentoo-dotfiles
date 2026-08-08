@@ -90,7 +90,13 @@ run swaync
 run wlsunset -l 34.05 -L -118.24
 
 # ── Idle: lock after 5 min, and lock before sleep ──────────────
-run swayidle -w timeout 300 "swaylock -f" before-sleep "swaylock -f"
+# gtklock -d is the swaylock -f equivalent, and the -d matters for before-sleep:
+# gtklock's locked() callback signals the parent with SIGUSR1 only once the
+# session lock is actually established (gtklock.c:107-111), so the parent exits
+# AFTER the screen is locked. swayidle therefore cannot let the machine suspend
+# with the desktop still visible. A backgrounded `gtklock &` would not hold that
+# guarantee.
+run swayidle -w timeout 300 "gtklock -d" before-sleep "gtklock -d"
 
 # ── Clipboard history (needs cliphist + wl-clipboard) ──────────
 # Two watchers: wl-paste defaults to text only, so images need their own.
