@@ -373,6 +373,90 @@ run_check() {
         drift=1
     fi
 
+    # ── icon theme (a local index.theme shadowing the system one) ──
+    # Why this earns a slot in a check that deliberately polices nothing else
+    # in $HOME: the failure is invisible, machine-wide, and self-inflicted by
+    # any app that installs its own icon. ~/.local/share/icons is FIRST in the
+    # GTK icon search path, so an index.theme there does not ADD to hicolor --
+    # it REPLACES hicolor's Directories= list for every GTK app on the machine,
+    # and the 55K system copy is never read again.
+    #
+    # Observed 2026-08-27: the grok-bot install (~/apps/grok-bot/INSTALL.md)
+    # ran `gtk-update-icon-cache` without --ignore-theme-index, which refuses
+    # to build a cache with no index.theme present, so the install wrote a
+    # hand-rolled one listing only the PNG size dirs it had generated. That
+    # dropped scalable/* and symbolic/*, and every SVG-only app icon -- Spotify,
+    # Blanket, EasyEffects, OBS -- silently disappeared from the waybar taskbar
+    # and every launcher. grok-bot's own icon looked perfect, which is why it
+    # went unnoticed. Nothing logs this and no package owns those files.
+    #
+    # Checked BOTH ways, because either alone reads as passing:
+    #   1. the shadowing file, which names the cause and the fix, and
+    #   2. a functional probe -- does an SVG-only icon actually resolve. The
+    #      probe is what catches the OTHER routes to the same symptom (a
+    #      missing gdk-pixbuf svg loader being the obvious one), and it is the
+    #      half that cannot be fooled by a plausible-looking index.theme.
+    # The probe icon is DERIVED from what is installed rather than hardcoded,
+    # so this check does not start lying the day that package is unmerged.
+    step "icon theme (SVG app icons resolvable)"
+    local shadow=0 udir="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
+    local themedir theme
+    for themedir in "$udir"/*/; do
+        [ -f "${themedir}index.theme" ] || continue
+        theme=$(basename "$themedir")
+        [ -f "/usr/share/icons/$theme/index.theme" ] || continue
+        err "${themedir}index.theme SHADOWS /usr/share/icons/$theme/index.theme"
+        info "      it replaces, not extends, that theme's Directories= for every GTK app"
+        info "      rm ${themedir}index.theme ${themedir}icon-theme.cache   # then restart waybar"
+        info "      rebuild the cache with: gtk-update-icon-cache -f -t --ignore-theme-index $themedir"
+        shadow=1; drift=1
+    done
+    [ "$shadow" = "0" ] && ok "no user index.theme shadowing a system theme"
+
+    # The probe icon must be SVG-*only*. First cut of this check took the
+    # alphabetically-first svg in scalable/apps, which is blueman.svg -- and
+    # blueman also ships 16x16 PNGs, so the probe resolved happily WHILE the
+    # shadowed index.theme was in place and reported a green tick over a broken
+    # machine. Caught only by running the failure branch. Any candidate with a
+    # PNG anywhere in the search path can be served from a size dir and proves
+    # nothing about scalable/.
+    local probe_svg="" probe_name cand
+    for cand in $(find /usr/share/icons/hicolor/scalable/apps -name '*.svg' \
+                  ! -name '*-symbolic.svg' 2>/dev/null | sort); do
+        probe_name=$(basename "$cand" .svg)
+        if [ -z "$(find /usr/share/icons "$udir" \
+                   "${XDG_DATA_HOME:-$HOME/.local/share}/flatpak/exports/share/icons" \
+                   /var/lib/flatpak/exports/share/icons \
+                   -name "$probe_name.png" -print -quit 2>/dev/null)" ]; then
+            probe_svg="$cand"; break
+        fi
+    done
+    if [ -z "$probe_svg" ]; then
+        info "no SVG-only app icon installed to probe with — resolution not measured"
+    elif ! command -v python3 >/dev/null 2>&1; then
+        info "python3 unavailable — icon resolution not probed"
+    else
+        probe_name=$(basename "$probe_svg" .svg)
+        if python3 - "$probe_name" <<'PROBE' 2>/dev/null
+import sys
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+sys.exit(0 if Gtk.IconTheme.get_default().lookup_icon(sys.argv[1], 16, 0) else 1)
+PROBE
+        then
+            ok "SVG app icons resolve ($probe_name)"
+        else
+            # has_icon() true + lookup_icon() None is the exact fingerprint of a
+            # Directories= list that no longer contains scalable/.
+            err "$probe_name is installed at $probe_svg but GTK cannot resolve it"
+            info "      every SVG-only app icon is invisible to waybar and to launchers"
+            info "      suspect a shadowing index.theme (above) or a missing gdk-pixbuf svg loader:"
+            info "      grep -c svg /usr/lib64/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+            drift=1
+        fi
+    fi
+
     step "pending portage config"
     local cfgs; cfgs=$(find /etc/portage -name '._cfg*' 2>/dev/null | head)
     if [ -n "$cfgs" ]; then
