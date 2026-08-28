@@ -2,9 +2,12 @@
 # micro-bridge — drive the focused GUI agent app (Cursor, Grokbot) from the
 # Work Louder Codex Micro.
 #
-# Replaces micro-herdr for GUI targets. Do NOT run both: only one process can
-# hold the Micro's HID connection at a time. For the same reason this cannot run
-# alongside Codex desktop, which takes exclusive ownership of the hidraw node.
+# Replaces micro-herdr for GUI targets. Do not run both: hidraw allows multiple
+# concurrent readers, so they would not fight over the device — they would both
+# act on every key, firing each action twice. Codex desktop is the same story
+# and is handled in profiles.json's `passthrough` list, which makes the bridge
+# ignore every key while Codex has focus so Codex's own Micro integration owns
+# the device.
 exec 2>&1
 
 # The Work Louder device kit is proprietary and is not redistributed by the
