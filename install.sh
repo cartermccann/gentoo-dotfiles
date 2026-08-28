@@ -136,7 +136,12 @@ run_harvest() {
     for b in atlas-theme atlas-svc atlas-wallpaper atlas-firmware-setup; do
         [ -f "$HOME/.local/bin/$b" ] && cp -a "$HOME/.local/bin/$b" "$REPO_DIR/bin/$b"
     done
-    for b in toggle-dictation.sh setup-dictation.sh; do
+    # transcribe.py was missing from this list, so the seed's copy never got
+    # refreshed from the live one. It is the only piece of the dictation stack
+    # that is not a shell script, and it was also never deployed to
+    # ~/.local/bin by any phase, which is why dictation silently produced no
+    # text on this machine until 2026-08-28.
+    for b in toggle-dictation.sh setup-dictation.sh transcribe.py; do
         [ -f "$HOME/.local/bin/$b" ] && cp -a "$HOME/.local/bin/$b" "$REPO_DIR/dictation/$b"
     done
     ok "pulled atlas-* + dictation scripts"

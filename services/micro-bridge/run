@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# micro-bridge — drive the focused GUI agent app (Cursor, Grokbot) from the
+# Work Louder Codex Micro.
+#
+# Replaces micro-herdr for GUI targets. Do NOT run both: only one process can
+# hold the Micro's HID connection at a time. For the same reason this cannot run
+# alongside Codex desktop, which takes exclusive ownership of the hidraw node.
+exec 2>&1
+
+# The Work Louder device kit is proprietary and is not redistributed by the
+# repo, so it is vendored into ~/apps. See apps/README.md.
+export MICRO_HERDR_KIT="$HOME/apps/vendor/wl-device-kit/dist/index.js"
+
+# profiles.json and lib/ are resolved relative to the checkout.
+cd "$HOME/projects/micro-herdr" || exit 1
+
+# PATH matters: the bridge shells out to wtype (keystrokes), wlrctl (focus),
+# mmsg (focus tracking) and toggle-dictation.sh. s6-svscan inherits the session
+# environment, but be explicit about the user-local bin dirs a plain exec misses.
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/go/bin:$HOME/.npm-global/bin:$PATH"
+
+# mmsg needs the compositor's IPC socket. s6-svscan is started by mango's
+# autostart so it normally inherits this, but fall back to discovery by pid so a
+# restarted compositor does not leave the bridge blind to focus changes.
+if [ -z "${MANGO_INSTANCE_SIGNATURE:-}" ]; then
+  sock="$(find "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" -maxdepth 1 -name 'mango-*.sock' 2>/dev/null | head -1)"
+  [ -n "$sock" ] && export MANGO_INSTANCE_SIGNATURE="$sock"
+fi
+
+exec node micro-bridge.mjs

@@ -45,7 +45,22 @@ if [ -f "$RECPID" ] && kill -0 "$(cat "$RECPID")" 2>/dev/null; then
     fi
 else
     # ── Start recording ──
-    pw-record --rate 16000 --channels 1 --format s16 "$WAV" &
+    # pw-record ships with PipeWire's CLI tools, which are NOT installed on
+    # atlas — dictation silently never recorded because of it. parecord (the
+    # PulseAudio-compatible client, served by PipeWire) and arecord both work,
+    # and both finalise the WAV header when interrupted with SIGINT.
+    REC=()
+    if command -v pw-record >/dev/null 2>&1; then
+        REC=(pw-record --rate 16000 --channels 1 --format s16 "$WAV")
+    elif command -v parecord >/dev/null 2>&1; then
+        REC=(parecord --file-format=wav --rate=16000 --channels=1 --format=s16le "$WAV")
+    elif command -v arecord >/dev/null 2>&1; then
+        REC=(arecord -q -f S16_LE -r 16000 -c 1 -t wav "$WAV")
+    else
+        notify "No recorder found (need parecord, arecord or pw-record)"
+        exit 1
+    fi
+    "${REC[@]}" &
     echo $! > "$RECPID"
     notify "Listening…"
 fi
