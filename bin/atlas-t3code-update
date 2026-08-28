@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+# atlas-t3code-update — refresh the vendored T3 Code bundle at ~/apps/t3code.
+#
+# Why this exists at all: upstream ships Linux as an x86_64 AppImage and
+# nothing else, and phases/27-vendored.sh extracts that payload in place. An
+# extracted AppImage has no update path — Electron's own autoUpdater is inert
+# once the payload is unpacked (it wants to swap a single .AppImage file),
+# there is no ebuild in any enabled repo, and the AUR package is Arch-only.
+# So "notice a release and apply it" is this script and nothing else.
+#
+# Conservative on purpose, because the failure mode is a 476 MB directory
+# half-replaced:
+#   - verifies the download against upstream's OWN sha512 (from the release's
+#     latest-linux.yml) before touching the installed bundle
+#   - sanity-checks the extracted payload before the swap, not after
+#   - keeps exactly one previous version for --rollback
+#   - refuses to swap the directory out from under a running app
+#
+# It reads the GitHub owner/repo out of the installed bundle's
+# resources/app-update.yml rather than hardcoding them, so a fork or a rename
+# upstream does not silently point this at the wrong releases page.
+set -uo pipefail
+
+APP="${T3CODE_HOME:-$HOME/apps/t3code}"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/atlas/t3code"
+# Live files that are ours, not upstream's, and must survive a swap. start.sh
+# is the launcher (seeded from share/vendored/t3code-start.sh, then live);
+# INSTALL.md is the per-install provenance record.
+PRESERVE=(start.sh INSTALL.md)
+
+if [ -t 1 ]; then
+    C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_GREY=$'\033[90m'
+    C_RED=$'\033[31m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_BLUE=$'\033[34m'
+else
+    C_RESET=""; C_BOLD=""; C_GREY=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""
+fi
+step() { printf '\n%s▸ %s%s\n' "$C_BOLD$C_BLUE" "$*" "$C_RESET"; }
+info() { printf '  %s%s%s\n' "$C_GREY" "$*" "$C_RESET"; }
+ok()   { printf '  %s✓%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
+warn() { printf '  %s!%s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
+err()  { printf '  %s✗%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; }
+die()  { err "$*"; exit 1; }
+
+# ── Is it running? ─────────────────────────────────────────────
+# Resolved through /proc/<pid>/exe, not a cmdline match. A cmdline pattern
+# also hits any process that merely MENTIONS the bundle path — including the
+# shell that typed the command — and a false "it is running" blocks a
+# legitimate update, while a pkill built on the same pattern will happily
+# kill that shell instead. Only the exe link says what a process actually is.
+t3code_running() {
+    local e t
+    for e in /proc/[0-9]*/exe; do
+        t=$(readlink "$e" 2>/dev/null) || continue
+        case "$t" in "$APP"/*) return 0 ;; esac
+    done
+    return 1
+}
+
+usage() {
+    cat <<USAGE
+${C_BOLD}atlas-t3code-update${C_RESET} — update the extracted T3 Code AppImage bundle
+
+  atlas-t3code-update              check, then update if a newer release exists
+  atlas-t3code-update --check      report only, change nothing
+  atlas-t3code-update --force      re-download and reinstall the same version
+  atlas-t3code-update --version X  install a specific version (e.g. 0.0.34)
+  atlas-t3code-update --rollback   restore the kept previous version
+  atlas-t3code-update --help
+
+Exit codes: 0 ok / current, 10 (--check only) an update is available, 1 error.
+The 10 makes --check usable from a waybar module or a cron without parsing.
+
+Env: T3CODE_HOME overrides ~/apps/t3code.
+USAGE
+}
+
+MODE=update FORCE=0 WANT=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --check)    MODE=check ;;
+        --rollback) MODE=rollback ;;
+        --force)    FORCE=1 ;;
+        --version)  shift; WANT="${1:-}"; [ -n "$WANT" ] || die "--version needs a value" ;;
+        --version=*) WANT="${1#*=}" ;;
+        -h|--help)  usage; exit 0 ;;
+        *)          err "unknown argument: $1"; usage; exit 1 ;;
+    esac
+    shift
+done
+WANT="${WANT#v}"
+
+[ -d "$APP" ] || die "no bundle at ${APP/#$HOME/\~} — this updates an existing install; see phases/27-vendored.sh to create one"
+
+# ── Installed version ──────────────────────────────────────────
+# The payload's own desktop file carries X-AppImage-Version, written by
+# electron-builder. Preferred over anything we would have to maintain
+# ourselves, because it cannot drift from the bundle it describes.
+installed=$(sed -n 's/^X-AppImage-Version=//p' "$APP/t3code.desktop" 2>/dev/null | head -1)
+[ -n "$installed" ] || warn "cannot read X-AppImage-Version from ${APP/#$HOME/\~}/t3code.desktop"
+
+# ── Where releases come from ───────────────────────────────────
+owner=$(sed -n 's/^owner:[[:space:]]*//p' "$APP/resources/app-update.yml" 2>/dev/null | head -1)
+repo=$(sed -n  's/^repo:[[:space:]]*//p'  "$APP/resources/app-update.yml" 2>/dev/null | head -1)
+: "${owner:=pingdotgg}" "${repo:=t3code}"
+
+# ── Rollback ───────────────────────────────────────────────────
+if [ "$MODE" = rollback ]; then
+    step "T3 Code rollback"
+    prev=$(find "$(dirname "$APP")" -maxdepth 1 -name "$(basename "$APP").prev-*" -type d 2>/dev/null | sort -V | tail -1)
+    [ -n "$prev" ] || die "no kept previous version to roll back to"
+    t3code_running && die "T3 Code is running — quit it first"
+    aside="$APP.rollback-aside.$$"
+    mv "$APP" "$aside" || die "could not move the current bundle aside"
+    if mv "$prev" "$APP"; then
+        for f in "${PRESERVE[@]}"; do
+            [ -e "$aside/$f" ] && [ ! -e "$APP/$f" ] && cp -a "$aside/$f" "$APP/$f"
+        done
+        rm -rf "$aside"
+        ok "rolled back to $(sed -n 's/^X-AppImage-Version=//p' "$APP/t3code.desktop" 2>/dev/null | head -1)"
+        info "the version you rolled back FROM is gone — re-run without --rollback to get it again"
+        exit 0
+    fi
+    mv "$aside" "$APP"
+    die "rollback failed; the original bundle is back in place"
+fi
+
+# ── What is upstream on? ───────────────────────────────────────
+step "T3 Code update check"
+info "installed: ${installed:-unknown}   source: github.com/$owner/$repo"
+
+if [ -n "$WANT" ]; then
+    latest="$WANT"
+    info "requested: $latest (skipping the releases API)"
+else
+    api="https://api.github.com/repos/$owner/$repo/releases/latest"
+    latest=$(curl -fsSL --max-time 25 "$api" 2>/dev/null \
+             | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"v\{0,1\}\([^"]*\)".*/\1/p' | head -1)
+    if [ -z "$latest" ]; then
+        err "could not read the latest release from the GitHub API"
+        info "unauthenticated requests are rate-limited to 60/hour per IP; try again later,"
+        info "or pass --version X.Y.Z to skip the API entirely"
+        exit 1
+    fi
+fi
+ok "latest: $latest"
+
+if [ "$latest" = "$installed" ] && [ "$FORCE" = 0 ]; then
+    ok "already current"
+    [ "$MODE" = check ] && exit 0
+    info "pass --force to re-download and reinstall $installed anyway"
+    exit 0
+fi
+
+if [ "$MODE" = check ]; then
+    warn "update available: ${installed:-unknown} → $latest"
+    info "apply it with: atlas-t3code-update"
+    exit 10
+fi
+
+# ── Do not swap under a running app ────────────────────────────
+if t3code_running; then
+    err "T3 Code is running — quit it before updating"
+    info "the backend holds an open port and the bundle would be replaced underneath it"
+    info "quit it from the app, or kill exactly its processes:"
+    info "  for e in /proc/[0-9]*/exe; do [ \"\$(readlink \"\$e\" 2>/dev/null)\" ] && case \"\$(readlink \"\$e\")\" in $APP/*) kill \"\$(basename \"\$(dirname \"\$e\")\")\";; esac; done"
+    exit 1
+fi
+
+# ── Fetch ──────────────────────────────────────────────────────
+step "T3 Code $latest / download"
+appimage="T3-Code-$latest-x86_64.AppImage"
+base="https://github.com/$owner/$repo/releases/download/v$latest"
+work="$CACHE/$latest"
+mkdir -p "$work" || die "cannot create $work"
+
+if [ -s "$work/$appimage" ]; then
+    ok "already in the cache: ${work/#$HOME/\~}/$appimage"
+else
+    curl -fL --progress-bar --max-time 1800 -o "$work/$appimage.part" "$base/$appimage" \
+        || die "download failed: $base/$appimage"
+    mv "$work/$appimage.part" "$work/$appimage"
+    ok "downloaded $(du -h "$work/$appimage" | cut -f1)"
+fi
+
+# ── Verify against upstream's own checksum ─────────────────────
+# electron-builder publishes latest-linux.yml beside the artifact with a
+# base64-encoded sha512 (not hex — hence the openssl round-trip). This is the
+# gate: nothing installed is touched until it passes.
+step "T3 Code $latest / verify"
+expected=$(curl -fsSL --max-time 25 "$base/latest-linux.yml" 2>/dev/null \
+           | sed -n 's/^[[:space:]]*sha512:[[:space:]]*//p' | head -1)
+if [ -z "$expected" ]; then
+    err "could not fetch latest-linux.yml — refusing to install an unverified bundle"
+    info "  $base/latest-linux.yml"
+    exit 1
+fi
+actual=$(openssl dgst -sha512 -binary "$work/$appimage" | openssl base64 -A)
+if [ "$actual" != "$expected" ]; then
+    err "sha512 MISMATCH — discarding the download, nothing was installed"
+    info "expected: $expected"
+    info "actual:   $actual"
+    rm -f "$work/$appimage"
+    exit 1
+fi
+ok "sha512 matches upstream latest-linux.yml"
+
+# ── Extract and sanity-check BEFORE the swap ───────────────────
+step "T3 Code $latest / extract"
+rm -rf "$work/squashfs-root"
+chmod +x "$work/$appimage"
+( cd "$work" && ./"$appimage" --appimage-extract >/dev/null ) || die "--appimage-extract failed"
+new="$work/squashfs-root"
+
+for f in AppRun t3code t3code.desktop resources/app-update.yml; do
+    [ -e "$new/$f" ] || die "extracted payload is missing $f — upstream layout changed, inspect before installing"
+done
+# An unlaunchable bundle must not reach ~/apps. ldd cannot see this: it runs
+# the binary's own loader, so a dangling INTERP makes it fail wholesale and
+# print no "not found" line at all.
+if command -v patchelf >/dev/null 2>&1; then
+    interp=$(patchelf --print-interpreter "$new/t3code" 2>/dev/null || true)
+    [ -e "${interp:-/nonexistent}" ] || die "new payload's ELF interpreter is missing: ${interp:-<none>}"
+    ok "ELF interpreter present: $interp"
+fi
+missing=$(cd "$new" && LD_LIBRARY_PATH="$new" ldd ./t3code 2>/dev/null | grep 'not found' | awk '{print $1}' | sort -u)
+[ -z "$missing" ] || { err "new payload is missing shared libraries:"; printf '      %s\n' $missing; die "add the providing package to phases/10-packages.sh first"; }
+ok "all libraries resolve"
+
+# ── Swap ───────────────────────────────────────────────────────
+step "T3 Code $latest / install"
+prev="$APP.prev-${installed:-unknown}"
+rm -rf "$prev"
+mv "$APP" "$prev" || die "could not move the current bundle aside"
+if ! mv "$new" "$APP"; then
+    mv "$prev" "$APP"
+    die "install failed; the previous bundle is back in place"
+fi
+ok "installed to ${APP/#$HOME/\~}"
+
+for f in "${PRESERVE[@]}"; do
+    if [ -e "$prev/$f" ]; then
+        cp -a "$prev/$f" "$APP/$f"
+        ok "kept our $f"
+    fi
+done
+[ -x "$APP/start.sh" ] || { [ -e "$APP/start.sh" ] && chmod +x "$APP/start.sh"; }
+
+# Exactly one previous version is kept: each is ~470 MB.
+find "$(dirname "$APP")" -maxdepth 1 -name "$(basename "$APP").prev-*" -type d 2>/dev/null \
+    | sort -V | head -n -1 | while read -r old; do rm -rf "$old"; done
+ok "previous version kept at ${prev/#$HOME/\~} (atlas-t3code-update --rollback)"
+
+# The bundle's t3code.png is a symlink into its own hicolor tree, and the
+# desktop entry points at absolute paths that did not change, so there is
+# nothing to re-render. Only the cached icon lookup needs a nudge.
+gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+
+step "done"
+ok "T3 Code ${installed:-unknown} → $(sed -n 's/^X-AppImage-Version=//p' "$APP/t3code.desktop" 2>/dev/null | head -1)"
+info "start it with: t3code    (or the T3 Code launcher entry)"
+info "cached installer left at ${work/#$HOME/\~} — safe to delete"

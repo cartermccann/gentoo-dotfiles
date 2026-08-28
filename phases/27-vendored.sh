@@ -296,6 +296,15 @@ else
     # icon from the waybar taskbar. ./install.sh --check flags that if it
     # ever reappears.
 
+    # ── 5. Update helper ───────────────────────────────────────
+    # Nothing else updates an extracted AppImage: Electron's own autoUpdater
+    # is inert once the payload is unpacked (it wants to swap a single
+    # .AppImage file), no enabled repo has an ebuild, and the AUR package is
+    # Arch-only. atlas-t3code-update is that missing step — see its header for
+    # why it verifies upstream's sha512 before touching ~/apps.
+    seed_copy "$REPO_DIR/bin/atlas-t3code-update" "$HOME/.local/bin/atlas-t3code-update"
+    [ -x "$HOME/.local/bin/atlas-t3code-update" ] || run chmod +x "$HOME/.local/bin/atlas-t3code-update"
+
     # ── 5. Providers ───────────────────────────────────────────
     # T3 Code drives these, it does not ship them; each authenticates
     # separately. Codex and Claude are enabled by default in the app, the rest
