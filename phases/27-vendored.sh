@@ -178,6 +178,139 @@ EOF
     run update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 fi
 
+# ═══ T3 Code ═══════════════════════════════════════════════════
+# Agent harness control surface (github.com/pingdotgg/t3code): a desktop GUI
+# that drives the provider CLIs already on this machine — claude, codex,
+# cursor-agent, grok, opencode — rather than shipping an agent of its own. It
+# starts a local backend (127.0.0.1:3773 by default) and points an Electron
+# window at it, which is also how the phone and web clients reach this machine.
+#
+# Upstream packages Linux as an x86_64 AppImage and nothing else: no ebuild, no
+# .deb, and the AUR t3code-bin package is Arch-only. So the payload is
+# extracted in place — which is exactly what that PKGBUILD does, and for a
+# reason that applies here too: atlas has fuse3 and no libfuse2, so a type-2
+# AppImage cannot self-mount. ~/apps is where binaries you run live
+# (docs/LAYOUT.md).
+#
+#   ver=0.0.35   # newest tag: gh release view -R pingdotgg/t3code
+#   curl -fLO "https://github.com/pingdotgg/t3code/releases/download/v$ver/T3-Code-$ver-x86_64.AppImage"
+#   # verify before extracting — the release's latest-linux.yml carries the
+#   # expected sha512, base64-encoded rather than hex:
+#   openssl dgst -sha512 -binary T3-Code-$ver-x86_64.AppImage | openssl base64 -A
+#   chmod +x T3-Code-$ver-x86_64.AppImage && ./T3-Code-$ver-x86_64.AppImage --appimage-extract
+#   mv squashfs-root ~/apps/t3code
+#
+# There is nothing Nix-tainted to undo here, unlike the Codex bundle: it is an
+# ordinary glibc build, its ELF interpreter is already
+# /lib64/ld-linux-x86-64.so.2, and every library it wants is on the default
+# linker path. The check below is still empirical, because "the libraries are
+# present" is a claim about this machine and not about the bundle.
+#
+# Nothing updates an extracted AppImage — no auto-update, no package manager.
+# Re-run the recipe above to bump, then re-run this phase.
+step "T3 Code"
+T3="$APPS/t3code"
+
+if [ ! -d "$T3" ]; then
+    warn "not present at ${T3/#$HOME/\~} — skipping"
+    info "extract the AppImage as described in the comment above this step"
+else
+    # ── 1. Launcher ────────────────────────────────────────────
+    # Seeded, not overwritten: after first install the live copy is the truth
+    # (contract flipped 2026-08-05). Carries the ozone flags — see the header
+    # of share/vendored/t3code-start.sh for why they are load-bearing.
+    seed_copy "$REPO_DIR/share/vendored/t3code-start.sh" "$T3/start.sh"
+    [ -x "$T3/start.sh" ] || run chmod +x "$T3/start.sh"
+
+    # A shell entry point as well as a launcher entry, because the backend is
+    # worth starting from a terminal when you want to watch it log.
+    if [ "$(readlink "$HOME/.local/bin/t3code" 2>/dev/null)" = "$T3/start.sh" ]; then
+        ok "~/.local/bin/t3code → ${T3/#$HOME/\~}/start.sh"
+    else
+        run mkdir -p "$HOME/.local/bin"
+        run ln -sfn "$T3/start.sh" "$HOME/.local/bin/t3code"
+        ok "~/.local/bin/t3code → ${T3/#$HOME/\~}/start.sh"
+    fi
+
+    # ── 2. Can it actually link? ───────────────────────────────
+    # Same shape as the Codex check and for the same reason: verify the ELF
+    # interpreter BEFORE asking ldd about libraries. ldd works by invoking the
+    # binary's own loader, so a dangling INTERP makes it fail wholesale and
+    # print no "not found" line at all — and a grep over no output matches
+    # nothing, which reads as success. That false pass is how an unlaunchable
+    # app once showed six green ticks.
+    step "T3 Code / library check"
+    if ! command -v patchelf >/dev/null 2>&1; then
+        err "patchelf missing — it is in phases/10-packages.sh; run ./install.sh packages"
+    else
+        interp=$(patchelf --print-interpreter "$T3/t3code" 2>/dev/null || true)
+        if [ ! -e "${interp:-/nonexistent}" ]; then
+            err "t3code's ELF interpreter is missing: ${interp:-<none>}"
+            warn "an upstream build change, not a local one — inspect before patching"
+        else
+            missing=$(cd "$T3" && LD_LIBRARY_PATH="$T3" ldd ./t3code 2>/dev/null \
+                      | grep 'not found' | awk '{print $1}' | sort -u)
+            if [ -n "$missing" ]; then
+                err "t3code is missing shared libraries:"
+                printf '      %s\n' $missing
+                warn "add the providing package to phases/10-packages.sh, then re-run packages"
+            else
+                ok "t3code links: interpreter $interp, all libraries resolve"
+            fi
+        fi
+    fi
+
+    # ── 3. Sandbox ─────────────────────────────────────────────
+    # Reported, not changed. Making chrome-sandbox setuid root is the usual
+    # distro fix and it is NOT needed here: AppRun falls back to --no-sandbox
+    # on its own when user namespaces are unavailable. Worth surfacing because
+    # a kernel or sysctl change is what would silently move this from
+    # "namespace sandbox" to "no sandbox at all".
+    if unshare -Ur true 2>/dev/null; then
+        ok "user namespaces available — Chromium uses the namespace sandbox"
+    else
+        warn "user namespaces unavailable — AppRun will fall back to --no-sandbox"
+        info "expected: kernel.unprivileged_userns_clone / user.max_user_namespaces"
+    fi
+
+    # ── 4. Launcher entry ──────────────────────────────────────
+    # Rendered rather than tracked verbatim: Exec and Icon need an absolute
+    # path that depends on $HOME.
+    step "T3 Code / launcher entry"
+    run mkdir -p "$HOME/.local/share/applications"
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        info "[dry-run] render t3code.desktop"
+    else
+        sed "s|@APPDIR@|$T3|g" \
+            "$REPO_DIR/share/vendored/t3code.desktop.in" \
+            > "$HOME/.local/share/applications/t3code.desktop"
+        ok "~/.local/share/applications/t3code.desktop"
+    fi
+    run update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+
+    # Icon comes from the bundle by absolute path (Icon=@APPDIR@/t3code.png,
+    # itself a symlink to the 512x512 in the payload's own hicolor tree), so
+    # nothing is copied into ~/.local/share/icons. That is deliberate: a
+    # user-level hicolor tree needs an index.theme to be searchable, and a
+    # user index.theme shadows the system one and hides every SVG-only app
+    # icon from the waybar taskbar. ./install.sh --check flags that if it
+    # ever reappears.
+
+    # ── 5. Providers ───────────────────────────────────────────
+    # T3 Code drives these, it does not ship them; each authenticates
+    # separately. Codex and Claude are enabled by default in the app, the rest
+    # are opt-in per provider card in Settings. Cursor is the trap: the CLI
+    # provides the cursor-agent binary but you log in with `agent login`.
+    step "T3 Code / providers"
+    for p in claude codex cursor-agent grok opencode; do
+        if command -v "$p" >/dev/null 2>&1; then
+            ok "$p → $(command -v "$p")"
+        else
+            warn "$p not on PATH — that provider will fail at session start"
+        fi
+    done
+fi
+
 # ═══ Work Louder Input ═════════════════════════════════════════
 # The configurator GUI. Its upstream (github.com/worklouder/input-linux, cloned
 # at ~/projects/input-linux) offers two paths and the README leads with the

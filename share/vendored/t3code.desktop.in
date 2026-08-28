@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=T3 Code
+GenericName=Agent harness control surface
+Comment=Control local coding agents (Claude, Codex, Cursor, Grok Build, OpenCode)
+Exec=@APPDIR@/start.sh %U
+Icon=@APPDIR@/t3code.png
+Terminal=false
+Categories=Development;
+Keywords=T3;Agent;Harness;Claude;Codex;Cursor;Grok;OpenCode;AI;Code;
+StartupNotify=true
+StartupWMClass=t3code
+MimeType=x-scheme-handler/t3code;x-scheme-handler/t3code-dev;

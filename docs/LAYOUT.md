@@ -87,6 +87,7 @@ the seed has earned a refresh, and `git diff` shows what changed.
 | `themes/` | `~/.local/share/atlas-theme/themes` | same — atlas-theme reads only this |
 | `share/applications/` | `~/.local/share/applications` | the live files |
 | `share/vendored/*.in` | `~/.local/share/applications` | rendered with `$HOME`, live file is truth |
+| `share/vendored/*-start.sh` | `~/apps/<app>/start.sh` | the launcher beside the bundle, live file is truth |
 
 Seeding copies ONLY when the destination is absent (`seed_copy` in
 lib/common.sh): a phase re-run on a provisioned machine is a no-op for
